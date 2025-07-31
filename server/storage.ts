@@ -215,6 +215,11 @@ export class DatabaseStorage implements IStorage {
       .where(eq(ipPool.id, ipId));
   }
 
+  async deleteIP(ipId: string): Promise<boolean> {
+    const result = await db.delete(ipPool).where(eq(ipPool.id, ipId));
+    return result.rowCount > 0;
+  }
+
   async getTotalUsers(): Promise<number> {
     const result = await db.select().from(users);
     return result.length;

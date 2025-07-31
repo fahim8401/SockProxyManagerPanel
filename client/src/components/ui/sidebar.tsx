@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: BarChart3 },
+  { name: "Create User", href: "/create-user", icon: UserPlus },
   { name: "User Management", href: "/users", icon: Users },
   { name: "User Provisioning", href: "/user-provisioning", icon: UserPlus },
   { name: "IP Pool Management", href: "/ip-pool", icon: Network },

@@ -14,6 +14,7 @@ import UserPortal from "@/pages/user-portal";
 import AdminManagement from "@/pages/admin-management";
 import UserProvisioning from "@/pages/user-provisioning";
 import NotFound from "@/pages/not-found";
+import CreateUser from "@/pages/create-user";
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   const { isAuthenticated, login } = useAuth();
@@ -43,6 +44,7 @@ function AuthenticatedRouter() {
       <Route path="/logs" component={() => <ProtectedRoute component={LogsPage} />} />
       <Route path="/admin-management" component={() => <ProtectedRoute component={AdminManagement} />} />
       <Route path="/user-provisioning" component={() => <ProtectedRoute component={UserProvisioning} />} />
+      <Route path="/create-user" component={() => <ProtectedRoute component={CreateUser} />} />
       <Route path="/user-portal" component={UserPortal} />
       <Route component={NotFound} />
     </Switch>

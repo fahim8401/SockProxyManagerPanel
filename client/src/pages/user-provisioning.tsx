@@ -39,10 +39,7 @@ export default function UserProvisioning() {
 
   const provisionMutation = useMutation({
     mutationFn: async (data: { count: number; dataLimitGB: number; daysValid: number; prefix: string }) => {
-      return await apiRequest("/api/provision-user", {
-        method: "POST",
-        body: JSON.stringify(data),
-      }) as ProvisionResponse;
+      return await apiRequest("POST", "/api/provision-user", data) as ProvisionResponse;
     },
     onSuccess: (data) => {
       setProvisionedUsers(data.users);

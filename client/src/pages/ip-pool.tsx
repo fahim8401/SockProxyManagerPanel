@@ -47,7 +47,7 @@ export default function IpPoolPage() {
 
   const addIpMutation = useMutation({
     mutationFn: async (data: { ipAddress: string; ipType: string }) => {
-      return apiRequest("POST", "/api/ip-pool", data);
+      return await apiRequest("POST", "/api/ip-pool", data);
     },
     onSuccess: () => {
       toast({
@@ -70,7 +70,7 @@ export default function IpPoolPage() {
 
   const deleteIpMutation = useMutation({
     mutationFn: async (ipId: string) => {
-      return apiRequest("DELETE", `/api/ip-pool/${ipId}`);
+      return await apiRequest("DELETE", `/api/ip-pool/${ipId}`);
     },
     onSuccess: () => {
       toast({

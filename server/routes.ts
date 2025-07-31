@@ -403,8 +403,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Cannot delete assigned IP address" });
       }
 
-      // In a real implementation, you'd have a deleteIP method
-      // For now, we'll simulate success
+      const success = await storage.deleteIP(id);
+      if (!success) {
+        return res.status(404).json({ message: "IP address not found" });
+      }
+      
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: "Failed to delete IP address" });
