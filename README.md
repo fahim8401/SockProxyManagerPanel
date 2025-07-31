@@ -53,7 +53,7 @@ A comprehensive full-stack SOCKS5 proxy management system with complete admin in
 ### Ubuntu/Debian/CentOS/RHEL
 
 ```bash
-curl -sSL https://github.com/fahim8401/SockProxyManagerPanel.git/COMPLETE/install.sh | sudo bash
+curl -sSL https://github.com/fahim8401/SockProxyManagerPanel/COMPLETE/install.sh | sudo bash install.sh 
 ```
 
 ### Manual Installation
