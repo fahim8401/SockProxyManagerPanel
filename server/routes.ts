@@ -78,6 +78,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ valid: true, user: req.user });
   });
 
+  // User Portal Routes
+  app.post("/api/user/login", async (req, res) => {
+    try {
+      const { username, password } = req.body;
+      
+      // Find user in database
+      const user = await storage.getUserByUsername(username);
+      if (!user) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+
+      // For SOCKS users, we'll use bcrypt to verify password
+      const isValidPassword = await bcrypt.compare(password, user.password);
+      if (!isValidPassword) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+
+      // Generate JWT token for user
+      const token = jwt.sign(
+        { id: user.id, username: user.username, role: "user" },
+        JWT_SECRET,
+        { expiresIn: "24h" }
+      );
+
+      res.json({
+        token,
+        user: {
+          id: user.id,
+          username: user.username,
+          role: "user"
+        }
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Login failed" });
+    }
+  });
+
+  // User profile endpoint
+  app.get("/api/user/profile", async (req, res) => {
+    try {
+      const authHeader = req.headers['authorization'];
+      const token = authHeader && authHeader.split(' ')[1];
+      
+      if (!token) {
+        return res.status(401).json({ message: "Access token required" });
+      }
+
+      const decoded = jwt.verify(token, JWT_SECRET) as any;
+      if (decoded.role !== "user") {
+        return res.status(403).json({ message: "User access required" });
+      }
+
+      const user = await storage.getUser(decoded.id);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Get assigned IP
+      const assignedIP = await storage.getUserAssignedIP(user.id);
+      
+      res.json({
+        id: user.id,
+        username: user.username,
+        assignedIP: assignedIP || "Not assigned",
+        port: 1080, // Default SOCKS5 port
+        dataLimit: user.dataLimit,
+        dataUsed: user.dataUsed,
+        expirationDate: user.expirationDate,
+        isActive: user.isActive,
+        lastConnection: user.lastConnection
+      });
+    } catch (error) {
+      res.status(401).json({ message: "Invalid token" });
+    }
+  });
+
   // Protected API Routes
   app.get("/api/stats", authenticateToken, async (req, res) => {
     try {
@@ -231,6 +307,90 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: "Failed to delete IP address" });
+    }
+  });
+
+  // IP Scanning Routes
+  app.post("/api/ip-pool/scan", authenticateToken, async (req, res) => {
+    try {
+      const { range } = req.body;
+      
+      // Simulate network scanning
+      const results = [];
+      const startIP = range || "192.168.1.1";
+      const baseIP = startIP.split('.').slice(0, 3).join('.');
+      
+      for (let i = 1; i <= 254; i++) {
+        const ip = `${baseIP}.${i}`;
+        const isActive = Math.random() > 0.7; // Simulate 30% active IPs
+        
+        if (isActive) {
+          results.push({
+            ip,
+            hostname: `device-${i}.local`,
+            mac: `00:${Math.floor(Math.random() * 256).toString(16).padStart(2, '0')}:${Math.floor(Math.random() * 256).toString(16).padStart(2, '0')}:${Math.floor(Math.random() * 256).toString(16).padStart(2, '0')}:${Math.floor(Math.random() * 256).toString(16).padStart(2, '0')}:${Math.floor(Math.random() * 256).toString(16).padStart(2, '0')}`,
+            vendor: ["Apple", "Samsung", "Dell", "HP", "Cisco", "Netgear"][Math.floor(Math.random() * 6)],
+            responseTime: Math.floor(Math.random() * 100) + 1,
+            status: "active"
+          });
+        }
+      }
+      
+      res.json({
+        range: `${baseIP}.1-254`,
+        total_scanned: 254,
+        active_hosts: results.length,
+        results
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to scan network" });
+    }
+  });
+
+  // Get Connected IPs (simulate system network connections)
+  app.get("/api/system/connected-ips", authenticateToken, async (req, res) => {
+    try {
+      // Simulate system network connections
+      const connections = [
+        {
+          local_ip: "192.168.1.100",
+          remote_ip: "8.8.8.8",
+          protocol: "TCP",
+          local_port: 53421,
+          remote_port: 443,
+          state: "ESTABLISHED",
+          process: "chrome.exe",
+          pid: 1234
+        },
+        {
+          local_ip: "192.168.1.100", 
+          remote_ip: "1.1.1.1",
+          protocol: "UDP",
+          local_port: 53,
+          remote_port: 53,
+          state: "OPEN",
+          process: "dns.exe",
+          pid: 5678
+        },
+        {
+          local_ip: "192.168.1.100",
+          remote_ip: "74.125.224.72", 
+          protocol: "TCP",
+          local_port: 80,
+          remote_port: 80,
+          state: "TIME_WAIT",
+          process: "firefox.exe", 
+          pid: 9012
+        }
+      ];
+
+      res.json({
+        total_connections: connections.length,
+        local_ip: "192.168.1.100",
+        connections
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to get system connections" });
     }
   });
 

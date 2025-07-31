@@ -2,6 +2,9 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -20,7 +23,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, Network, Trash2, CheckCircle, XCircle } from "lucide-react";
+import { Plus, Network, Trash2, CheckCircle, XCircle, Search, Monitor, Activity, AlertCircle } from "lucide-react";
 import { IpPool, insertIpPoolSchema } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -30,6 +33,12 @@ export default function IpPoolPage() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newIpAddress, setNewIpAddress] = useState("");
   const [newIpType, setNewIpType] = useState<"IPv4" | "IPv6">("IPv4");
+  const [isScanModalOpen, setIsScanModalOpen] = useState(false);
+  const [scanResults, setScanResults] = useState<any[]>([]);
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanProgress, setScanProgress] = useState(0);
+  const [connectedIPs, setConnectedIPs] = useState<any[]>([]);
+  const [isShowingConnected, setIsShowingConnected] = useState(false);
   const { toast } = useToast();
 
   const { data: ipPool = [], refetch } = useQuery<IpPool[]>({
@@ -114,6 +123,67 @@ export default function IpPoolPage() {
     });
   };
 
+  // Scanning functions
+  const handleNetworkScan = async () => {
+    setIsScanning(true);
+    setScanProgress(0);
+    setIsScanModalOpen(true);
+    
+    try {
+      // Simulate scanning progress
+      const progressInterval = setInterval(() => {
+        setScanProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return 90;
+          }
+          return prev + 10;
+        });
+      }, 200);
+
+      const response = await apiRequest("POST", "/api/ip-pool/scan", {
+        range: "192.168.1.1"
+      });
+      
+      const data = await response.json();
+      setScanResults(data.results);
+      setScanProgress(100);
+      
+      toast({
+        title: "Network scan completed",
+        description: `Found ${data.active_hosts} active devices`,
+      });
+    } catch (error) {
+      toast({
+        title: "Scan failed",
+        description: "Unable to scan network",
+        variant: "destructive",
+      });
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
+  const handleShowConnectedIPs = async () => {
+    try {
+      const response = await apiRequest("GET", "/api/system/connected-ips");
+      const data = await response.json();
+      setConnectedIPs(data.connections);
+      setIsShowingConnected(true);
+      
+      toast({
+        title: "System connections loaded",
+        description: `Found ${data.total_connections} active connections`,
+      });
+    } catch (error) {
+      toast({
+        title: "Failed to load connections",
+        description: "Unable to fetch system connections",
+        variant: "destructive",
+      });
+    }
+  };
+
   const availableCount = ipPool.filter(ip => ip.isAvailable).length;
   const assignedCount = ipPool.filter(ip => !ip.isAvailable).length;
 
@@ -182,13 +252,33 @@ export default function IpPoolPage() {
             <CardHeader className="px-6 py-4 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-gray-800">IP Address Pool</h3>
-                <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
-                  <DialogTrigger asChild>
-                    <Button className="bg-primary hover:bg-blue-600">
-                      <Plus className="mr-2 w-4 h-4" />
-                      Add IP Address
-                    </Button>
-                  </DialogTrigger>
+                <div className="flex gap-2">
+                  <Button 
+                    onClick={handleNetworkScan}
+                    disabled={isScanning}
+                    variant="outline"
+                    className="flex items-center gap-2"
+                  >
+                    <Search className="w-4 h-4" />
+                    {isScanning ? "Scanning..." : "IP Scan"}
+                  </Button>
+                  
+                  <Button 
+                    onClick={handleShowConnectedIPs}
+                    variant="outline"
+                    className="flex items-center gap-2"
+                  >
+                    <Monitor className="w-4 h-4" />
+                    Connected IPs
+                  </Button>
+                  
+                  <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
+                    <DialogTrigger asChild>
+                      <Button className="bg-primary hover:bg-blue-600">
+                        <Plus className="mr-2 w-4 h-4" />
+                        Add IP Address
+                      </Button>
+                    </DialogTrigger>
                   <DialogContent>
                     <DialogHeader>
                       <DialogTitle>Add New IP Address</DialogTitle>
@@ -225,6 +315,7 @@ export default function IpPoolPage() {
                     </div>
                   </DialogContent>
                 </Dialog>
+                </div>
               </div>
             </CardHeader>
             
@@ -288,6 +379,128 @@ export default function IpPoolPage() {
               </Table>
             </CardContent>
           </Card>
+
+          {/* Scanning Modals */}
+          <Dialog open={isScanModalOpen} onOpenChange={setIsScanModalOpen}>
+            <DialogContent className="max-w-4xl">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Search className="w-5 h-5" />
+                  Network IP Scan Results
+                </DialogTitle>
+              </DialogHeader>
+              
+              {isScanning ? (
+                <div className="space-y-4">
+                  <div className="text-center">
+                    <Activity className="w-8 h-8 animate-spin mx-auto mb-4 text-blue-500" />
+                    <p>Scanning network for active devices...</p>
+                  </div>
+                  <Progress value={scanProgress} className="w-full" />
+                  <p className="text-sm text-gray-600 text-center">{scanProgress}% complete</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <Alert>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      Found {scanResults.length} active devices on the network
+                    </AlertDescription>
+                  </Alert>
+                  
+                  <div className="max-h-96 overflow-y-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>IP Address</TableHead>
+                          <TableHead>Hostname</TableHead>
+                          <TableHead>MAC Address</TableHead>
+                          <TableHead>Vendor</TableHead>
+                          <TableHead>Response Time</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {scanResults.map((result, index) => (
+                          <TableRow key={index}>
+                            <TableCell className="font-mono">{result.ip}</TableCell>
+                            <TableCell>{result.hostname}</TableCell>
+                            <TableCell className="font-mono text-sm">{result.mac}</TableCell>
+                            <TableCell>{result.vendor}</TableCell>
+                            <TableCell>{result.responseTime}ms</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
+
+          {/* Connected IPs Modal */}
+          <Dialog open={isShowingConnected} onOpenChange={setIsShowingConnected}>
+            <DialogContent className="max-w-5xl">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Monitor className="w-5 h-5" />
+                  System Network Connections
+                </DialogTitle>
+              </DialogHeader>
+              
+              <div className="space-y-4">
+                <Alert>
+                  <Activity className="h-4 w-4" />
+                  <AlertDescription>
+                    Showing {connectedIPs.length} active network connections on this system
+                  </AlertDescription>
+                </Alert>
+                
+                <div className="max-h-96 overflow-y-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Local IP:Port</TableHead>
+                        <TableHead>Remote IP:Port</TableHead>
+                        <TableHead>Protocol</TableHead>
+                        <TableHead>State</TableHead>
+                        <TableHead>Process</TableHead>
+                        <TableHead>PID</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {connectedIPs.map((conn, index) => (
+                        <TableRow key={index}>
+                          <TableCell className="font-mono text-sm">
+                            {conn.local_ip}:{conn.local_port}
+                          </TableCell>
+                          <TableCell className="font-mono text-sm">
+                            {conn.remote_ip}:{conn.remote_port}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline">{conn.protocol}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge 
+                              variant={conn.state === "ESTABLISHED" ? "default" : "secondary"}
+                              className={
+                                conn.state === "ESTABLISHED" ? 
+                                "bg-green-100 text-green-800" : 
+                                "bg-yellow-100 text-yellow-800"
+                              }
+                            >
+                              {conn.state}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="font-mono text-sm">{conn.process}</TableCell>
+                          <TableCell>{conn.pid}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
         </main>
       </div>
     </div>

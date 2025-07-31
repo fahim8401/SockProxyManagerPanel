@@ -30,6 +30,9 @@ export interface IStorage {
   getActiveConnectionsCount(): Promise<number>;
   getTotalDataTransferred(): Promise<number>;
   getAvailableIPsCount(): Promise<number>;
+  
+  // User portal specific methods
+  getUserAssignedIP(userId: string): Promise<string | null>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -221,6 +224,11 @@ export class DatabaseStorage implements IStorage {
   async getAvailableIPsCount(): Promise<number> {
     const result = await db.select().from(ipPool).where(eq(ipPool.isAvailable, true));
     return result.length;
+  }
+
+  async getUserAssignedIP(userId: string): Promise<string | null> {
+    const [assignedIP] = await db.select().from(ipPool).where(eq(ipPool.assignedUserId, userId));
+    return assignedIP ? assignedIP.ipAddress : null;
   }
 }
 

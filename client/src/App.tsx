@@ -10,6 +10,7 @@ import AnalyticsPage from "@/pages/analytics";
 import SettingsPage from "@/pages/settings";
 import LogsPage from "@/pages/logs";
 import LoginPage from "@/pages/login";
+import UserPortal from "@/pages/user-portal";
 import NotFound from "@/pages/not-found";
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
@@ -37,6 +38,7 @@ function AuthenticatedRouter() {
       <Route path="/analytics" component={() => <ProtectedRoute component={AnalyticsPage} />} />
       <Route path="/settings" component={() => <ProtectedRoute component={SettingsPage} />} />
       <Route path="/logs" component={() => <ProtectedRoute component={LogsPage} />} />
+      <Route path="/user-portal" component={UserPortal} />
       <Route component={NotFound} />
     </Switch>
   );
