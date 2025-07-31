@@ -7,7 +7,7 @@
 For Ubuntu 18.04+, Debian 10+, CentOS 7+, RHEL 7+:
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/YOUR_USERNAME/socks5-proxy-admin/main/install.sh | sudo bash
+curl -sSL https://raw.githubusercontent.com/fahim8401/SockProxyManagerPanel/main/install.sh | sudo bash
 ```
 
 This script will:
@@ -29,8 +29,8 @@ This script will:
 ### Step 1: Clone Repository
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/socks5-proxy-admin.git
-cd socks5-proxy-admin
+git clone https://github.com/fahim8401/SockProxyManagerPanel.git
+cd SockProxyManagerPanel
 ```
 
 ### Step 2: Install Dependencies
@@ -80,8 +80,8 @@ sudo useradd -r -s /bin/false -d /opt/socks5-proxy-admin socks5admin
 
 2. Move application to production directory:
 ```bash
-sudo mv socks5-proxy-admin /opt/
-sudo chown -R socks5admin:socks5admin /opt/socks5-proxy-admin
+sudo mv SockProxyManagerPanel /opt/
+sudo chown -R socks5admin:socks5admin /opt/SockProxyManagerPanel
 ```
 
 3. Create systemd service:

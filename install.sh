@@ -2,7 +2,7 @@
 
 # SOCKS5 Proxy Admin Panel - One-Click Installation Script
 # Supports Ubuntu 18.04+, Debian 10+, CentOS 7+, RHEL 7+
-# Usage: curl -sSL https://raw.githubusercontent.com/YOUR_USERNAME/socks5-proxy-admin/main/install.sh | bash
+# Usage: curl -sSL https://raw.githubusercontent.com/fahim8401/SockProxyManagerPanel/main/install.sh | bash
 
 set -e
 
@@ -14,7 +14,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configuration
-REPO_URL="https://github.com/YOUR_USERNAME/socks5-proxy-admin.git"
+REPO_URL="https://github.com/fahim8401/SockProxyManagerPanel.git"
 INSTALL_DIR="/opt/socks5-proxy-admin"
 SERVICE_NAME="socks5-proxy-admin"
 NODE_VERSION="20"

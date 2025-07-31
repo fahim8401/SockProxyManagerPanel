@@ -53,7 +53,7 @@ A comprehensive full-stack SOCKS5 proxy management system with complete admin in
 ### Ubuntu/Debian/CentOS/RHEL
 
 ```bash
-curl -sSL https://github.com/fahim8401/SockProxyManagerPanel/COMPLETE/install.sh | sudo bash install.sh 
+curl -sSL https://raw.githubusercontent.com/fahim8401/SockProxyManagerPanel/main/install.sh | sudo bash
 ```
 
 ### Manual Installation
@@ -61,7 +61,7 @@ curl -sSL https://github.com/fahim8401/SockProxyManagerPanel/COMPLETE/install.sh
 ```bash
 # Clone repository
 git clone https://github.com/fahim8401/SockProxyManagerPanel.git
-cd socks5-proxy-admin
+cd SockProxyManagerPanel
 
 # Install dependencies
 npm install
@@ -176,7 +176,7 @@ npm run db:push     # Push database schema changes
 ## 📁 Project Structure
 
 ```
-socks5-proxy-admin/
+SockProxyManagerPanel/
 ├── client/                 # React frontend
 │   ├── src/
 │   │   ├── components/    # UI components
@@ -215,7 +215,7 @@ socks5-proxy-admin/
 
 2. **Database permissions**:
    ```bash
-   sudo chown -R socks5admin:socks5admin /opt/socks5-proxy-admin/data
+   sudo chown -R socks5admin:socks5admin /opt/SockProxyManagerPanel/data
    ```
 
 3. **Port conflicts**:
@@ -243,7 +243,7 @@ socks5-proxy-admin/
 ```bash
 # Clone and install
 git clone https://github.com/fahim8401/SockProxyManagerPanel.git
-cd socks5-proxy-admin
+cd SockProxyManagerPanel
 npm install
 
 # Start development server
