@@ -10,6 +10,7 @@ import ConnectionHealth from "../components/dashboard/connection-health";
 import { User } from "@shared/schema";
 import { Bell, UserCircle, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Stats {
   totalUsers: number;
@@ -22,6 +23,7 @@ export default function Dashboard() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [realtimeStats, setRealtimeStats] = useState<Stats | null>(null);
   const [connectionData, setConnectionData] = useState<Array<{ time: string; connections: number }>>([]);
+  const { logout } = useAuth();
 
   const { data: users = [], refetch: refetchUsers } = useQuery<User[]>({
     queryKey: ["/api/users"],
@@ -122,10 +124,7 @@ export default function Dashboard() {
               <Button 
                 variant="outline" 
                 size="sm"
-                onClick={() => {
-                  localStorage.removeItem('auth-token');
-                  window.location.href = '/login';
-                }}
+                onClick={logout}
                 className="text-red-600 hover:text-red-700"
               >
                 <LogOut className="w-4 h-4 mr-2" />

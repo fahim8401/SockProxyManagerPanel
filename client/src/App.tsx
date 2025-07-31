@@ -16,10 +16,10 @@ import UserProvisioning from "@/pages/user-provisioning";
 import NotFound from "@/pages/not-found";
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, login } = useAuth();
   
   if (!isAuthenticated) {
-    return <LoginPage onLogin={() => {}} />;
+    return <LoginPage onLogin={login} />;
   }
   
   return <Component />;
@@ -34,6 +34,7 @@ function AuthenticatedRouter() {
   
   return (
     <Switch>
+      <Route path="/login" component={() => <LoginPage onLogin={login} />} />
       <Route path="/" component={() => <ProtectedRoute component={Dashboard} />} />
       <Route path="/users" component={() => <ProtectedRoute component={Dashboard} />} />
       <Route path="/ip-pool" component={() => <ProtectedRoute component={IpPoolPage} />} />

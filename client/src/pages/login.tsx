@@ -39,14 +39,10 @@ export default function LoginPage({ onLogin }: LoginProps) {
 
   const loginMutation = useMutation({
     mutationFn: async (data: LoginFormData) => {
-      const response = await apiRequest("POST", "/api/auth/login", data);
-      
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Login failed");
-      }
-      
-      return response.json();
+      return await apiRequest("/api/auth/login", {
+        method: "POST",
+        body: JSON.stringify(data),
+      });
     },
     onSuccess: (data) => {
       localStorage.setItem("admin_token", data.token);
