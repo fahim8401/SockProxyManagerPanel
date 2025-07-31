@@ -7,6 +7,7 @@ import {
   bigint,
   timestamp,
   boolean,
+  jsonb,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -82,3 +83,36 @@ export type Connection = typeof connections.$inferSelect;
 export type IpPool = typeof ipPool.$inferSelect;
 export type InsertConnection = z.infer<typeof insertConnectionSchema>;
 export type InsertIpPool = z.infer<typeof insertIpPoolSchema>;
+
+// Admin management table
+export const admins = pgTable("admins", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  username: varchar("username").unique().notNull(),
+  email: varchar("email").unique(),
+  password: varchar("password").notNull(),
+  role: varchar("role").notNull().default("admin"), // super_admin, admin, moderator, viewer
+  permissions: jsonb("permissions").default(sql`'{}'`), // Custom permissions object
+  isActive: boolean("is_active").default(true),
+  lastLogin: timestamp("last_login"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  createdBy: varchar("created_by"), // ID of admin who created this account
+});
+
+export const insertAdminSchema = createInsertSchema(admins)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+    lastLogin: true,
+  })
+  .extend({
+    confirmPassword: z.string().min(6, "Password must be at least 6 characters"),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords don't match",
+    path: ["confirmPassword"],
+  });
+
+export type Admin = typeof admins.$inferSelect;
+export type InsertAdmin = z.infer<typeof insertAdminSchema>;

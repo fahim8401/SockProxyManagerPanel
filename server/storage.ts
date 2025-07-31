@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Connection, type InsertConnection, type IpPool, type InsertIpPool, users, connections, ipPool } from "@shared/schema";
+import { type User, type InsertUser, type Connection, type InsertConnection, type IpPool, type InsertIpPool, type Admin, type InsertAdmin, users, connections, ipPool, admins } from "@shared/schema";
 import { db } from "./db";
 import { eq, and } from "drizzle-orm";
 import { randomUUID } from "crypto";
@@ -33,6 +33,15 @@ export interface IStorage {
   
   // User portal specific methods
   getUserAssignedIP(userId: string): Promise<string | null>;
+  
+  // Admin management
+  getAdmin(id: string): Promise<Admin | undefined>;
+  getAdminByUsername(username: string): Promise<Admin | undefined>;
+  getAllAdmins(): Promise<Admin[]>;
+  createAdmin(admin: Omit<InsertAdmin, 'confirmPassword'>, createdBy: string): Promise<Admin>;
+  updateAdmin(id: string, updates: Partial<Admin>): Promise<Admin | undefined>;
+  deleteAdmin(id: string): Promise<boolean>;
+  updateAdminLastLogin(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -229,6 +238,53 @@ export class DatabaseStorage implements IStorage {
   async getUserAssignedIP(userId: string): Promise<string | null> {
     const [assignedIP] = await db.select().from(ipPool).where(eq(ipPool.assignedUserId, userId));
     return assignedIP ? assignedIP.ipAddress : null;
+  }
+
+  // Admin management methods
+  async getAdmin(id: string): Promise<Admin | undefined> {
+    const [admin] = await db.select().from(admins).where(eq(admins.id, id));
+    return admin;
+  }
+
+  async getAdminByUsername(username: string): Promise<Admin | undefined> {
+    const [admin] = await db.select().from(admins).where(eq(admins.username, username));
+    return admin;
+  }
+
+  async getAllAdmins(): Promise<Admin[]> {
+    return await db.select().from(admins);
+  }
+
+  async createAdmin(admin: Omit<InsertAdmin, 'confirmPassword'>, createdBy: string): Promise<Admin> {
+    const [newAdmin] = await db.insert(admins).values({
+      ...admin,
+      id: randomUUID(),
+      createdBy,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }).returning();
+    
+    return newAdmin;
+  }
+
+  async updateAdmin(id: string, updates: Partial<Admin>): Promise<Admin | undefined> {
+    const [updatedAdmin] = await db.update(admins)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(admins.id, id))
+      .returning();
+    
+    return updatedAdmin;
+  }
+
+  async deleteAdmin(id: string): Promise<boolean> {
+    const result = await db.delete(admins).where(eq(admins.id, id));
+    return result.rowCount > 0;
+  }
+
+  async updateAdminLastLogin(id: string): Promise<void> {
+    await db.update(admins)
+      .set({ lastLogin: new Date() })
+      .where(eq(admins.id, id));
   }
 }
 

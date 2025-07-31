@@ -250,6 +250,91 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin management routes
+  app.get("/api/admins", authenticateToken, async (req, res) => {
+    try {
+      const admins = await storage.getAllAdmins();
+      res.json(admins);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch admins" });
+    }
+  });
+
+  app.post("/api/admins", authenticateToken, async (req, res) => {
+    try {
+      const { insertAdminSchema } = await import("@shared/schema");
+      const validatedData = insertAdminSchema.parse(req.body);
+      const { confirmPassword, ...adminData } = validatedData;
+      
+      // Check if username already exists
+      const existingAdmin = await storage.getAdminByUsername(adminData.username);
+      if (existingAdmin) {
+        return res.status(400).json({ message: "Username already exists" });
+      }
+
+      // Hash password before storing
+      const bcrypt = await import('bcryptjs');
+      const hashedPassword = await bcrypt.hash(adminData.password, 10);
+      
+      const currentAdminId = (req as any).user?.id || "system";
+      const admin = await storage.createAdmin({
+        ...adminData,
+        password: hashedPassword
+      }, currentAdminId);
+      
+      // Remove password from response
+      const { password, ...adminResponse } = admin;
+      res.status(201).json(adminResponse);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message || "Failed to create admin" });
+    }
+  });
+
+  app.patch("/api/admins/:id", authenticateToken, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updates = req.body;
+      
+      // Hash password if provided
+      if (updates.password) {
+        const bcrypt = await import('bcryptjs');
+        updates.password = await bcrypt.hash(updates.password, 10);
+      }
+      
+      const admin = await storage.updateAdmin(id, updates);
+      if (!admin) {
+        return res.status(404).json({ message: "Admin not found" });
+      }
+      
+      // Remove password from response
+      const { password, ...adminResponse } = admin;
+      res.json(adminResponse);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update admin" });
+    }
+  });
+
+  app.delete("/api/admins/:id", authenticateToken, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const currentAdminId = (req as any).user?.id;
+      
+      // Prevent admin from deleting themselves
+      if (id === currentAdminId) {
+        return res.status(400).json({ message: "Cannot delete your own account" });
+      }
+      
+      const success = await storage.deleteAdmin(id);
+      if (!success) {
+        return res.status(404).json({ message: "Admin not found" });
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete admin" });
+    }
+  });
+
   app.get("/api/ip-pool", authenticateToken, async (req, res) => {
     try {
       const availableOnly = req.query.available === 'true';
