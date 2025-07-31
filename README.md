@@ -53,14 +53,14 @@ A comprehensive full-stack SOCKS5 proxy management system with complete admin in
 ### Ubuntu/Debian/CentOS/RHEL
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/YOUR_USERNAME/socks5-proxy-admin/main/install.sh | sudo bash
+curl -sSL https://raw.githubusercontent.com/fahim8401/socks5-proxy-admin/main/install.sh | sudo bash
 ```
 
 ### Manual Installation
 
 ```bash
 # Clone repository
-git clone https://github.com/YOUR_USERNAME/socks5-proxy-admin.git
+git clone https://github.com/fahim8401/socks5-proxy-admin.git
 cd socks5-proxy-admin
 
 # Install dependencies
@@ -242,7 +242,7 @@ socks5-proxy-admin/
 
 ```bash
 # Clone and install
-git clone https://github.com/YOUR_USERNAME/socks5-proxy-admin.git
+git clone https://github.com/fahim8401/socks5-proxy-admin.git
 cd socks5-proxy-admin
 npm install
 
