@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Sidebar from "@/components/ui/sidebar";
-import StatsCards from "@/components/dashboard/stats-cards";
-import UserTable from "@/components/dashboard/user-table";
-import CreateUserModal from "@/components/dashboard/create-user-modal";
-import RealtimeChart from "@/components/dashboard/real-time-chart";
-import SystemStatus from "@/components/dashboard/system-status";
+import StatsCards from "../components/dashboard/stats-cards";
+import UserTable from "../components/dashboard/user-table";
+import CreateUserModal from "../components/dashboard/create-user-modal";
+import RealtimeChart from "../components/dashboard/real-time-chart";
+import SystemStatus from "../components/dashboard/system-status";
 import { User } from "@shared/schema";
 import { Bell, UserCircle } from "lucide-react";
 

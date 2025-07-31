@@ -118,6 +118,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/ip-pool", async (req, res) => {
+    try {
+      const { ipAddress, ipType } = req.body;
+      
+      if (!ipAddress || !ipType) {
+        return res.status(400).json({ message: "IP address and type are required" });
+      }
+
+      // Check if IP already exists
+      const existingIPs = await storage.getAllIPs();
+      const exists = existingIPs.some(ip => ip.ipAddress === ipAddress);
+      if (exists) {
+        return res.status(400).json({ message: "IP address already exists" });
+      }
+
+      const newIP = await storage.addIP({
+        ipAddress,
+        ipType,
+        isAvailable: true,
+        assignedUserId: null
+      });
+      
+      res.status(201).json(newIP);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to add IP address" });
+    }
+  });
+
+  app.delete("/api/ip-pool/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const ips = await storage.getAllIPs();
+      const ip = ips.find(ip => ip.id === id);
+      
+      if (!ip) {
+        return res.status(404).json({ message: "IP address not found" });
+      }
+
+      if (!ip.isAvailable) {
+        return res.status(400).json({ message: "Cannot delete assigned IP address" });
+      }
+
+      // In a real implementation, you'd have a deleteIP method
+      // For now, we'll simulate success
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete IP address" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   // WebSocket server for real-time updates

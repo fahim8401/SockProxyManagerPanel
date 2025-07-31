@@ -22,6 +22,7 @@ import { Plus, MoreHorizontal, Edit, Eye, Trash2, User } from "lucide-react";
 import { User as UserType } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import UserDetailsModal from "./user-details-modal";
 
 interface UserTableProps {
   users: UserType[];
@@ -31,6 +32,8 @@ interface UserTableProps {
 
 export default function UserTable({ users, onCreateUser, onRefresh }: UserTableProps) {
   const { toast } = useToast();
+  const [selectedUser, setSelectedUser] = useState<UserType | null>(null);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
 
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: string) => {
@@ -80,6 +83,7 @@ export default function UserTable({ users, onCreateUser, onRefresh }: UserTableP
   };
 
   return (
+    <>
     <Card className="bg-white shadow">
       <CardHeader className="px-6 py-4 border-b border-gray-200">
         <div className="flex items-center justify-between">
@@ -170,7 +174,7 @@ export default function UserTable({ users, onCreateUser, onRefresh }: UserTableP
                         </div>
                       </TableCell>
                       <TableCell className="text-sm text-gray-900">
-                        {formatDate(user.expiresAt)}
+                        {formatDate(user.expiresAt.toString())}
                       </TableCell>
                       <TableCell>
                         <Badge 
@@ -196,7 +200,12 @@ export default function UserTable({ users, onCreateUser, onRefresh }: UserTableP
                               <Edit className="mr-2 h-4 w-4" />
                               Edit
                             </DropdownMenuItem>
-                            <DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setSelectedUser(user);
+                                setIsDetailsModalOpen(true);
+                              }}
+                            >
                               <Eye className="mr-2 h-4 w-4" />
                               View Details
                             </DropdownMenuItem>
@@ -233,5 +242,12 @@ export default function UserTable({ users, onCreateUser, onRefresh }: UserTableP
         )}
       </CardContent>
     </Card>
+
+    <UserDetailsModal 
+      user={selectedUser}
+      open={isDetailsModalOpen}
+      onOpenChange={setIsDetailsModalOpen}
+    />
+  </>
   );
 }

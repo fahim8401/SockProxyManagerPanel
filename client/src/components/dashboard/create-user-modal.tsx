@@ -277,7 +277,7 @@ export default function CreateUserModal({
                 <FormItem>
                   <FormLabel>Email (Optional)</FormLabel>
                   <FormControl>
-                    <Input type="email" placeholder="user@example.com" {...field} />
+                    <Input type="email" placeholder="user@example.com" {...field} value={field.value || ""} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

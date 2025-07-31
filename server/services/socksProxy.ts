@@ -84,7 +84,7 @@ export class SocksProxyServer {
                     const userRecord = await storage.getUser(user.userId);
                     if (userRecord && userRecord.isActive && 
                         new Date() < new Date(userRecord.expiresAt) &&
-                        userRecord.dataUsed < userRecord.dataLimit) {
+                        (userRecord.dataUsed || 0) < userRecord.dataLimit) {
                       
                       authenticated = true;
                       currentUser = user;

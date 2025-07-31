@@ -79,6 +79,7 @@ export class MemStorage implements IStorage {
       dataUsed: 0,
       isActive: true,
       lastConnection: null,
+      email: insertUser.email || null,
     };
     
     this.users.set(id, user);
@@ -178,7 +179,12 @@ export class MemStorage implements IStorage {
 
   async addIP(ip: InsertIpPool): Promise<IpPool> {
     const id = randomUUID();
-    const newIP: IpPool = { ...ip, id };
+    const newIP: IpPool = { 
+      ...ip, 
+      id,
+      isAvailable: ip.isAvailable ?? true,
+      assignedUserId: ip.assignedUserId || null
+    };
     this.ipPool.set(id, newIP);
     return newIP;
   }
