@@ -4,15 +4,81 @@ import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
 import { insertUserSchema } from "@shared/schema";
 import { SocksProxyServer } from "./services/socksProxy";
+import jwt from "jsonwebtoken";
+import bcrypt from "bcryptjs";
 
 let socksProxy: SocksProxyServer;
+
+// Admin credentials (in production, store these securely)
+const ADMIN_CREDENTIALS = {
+  username: "admin",
+  password: bcrypt.hashSync("admin123", 10)
+};
+
+const JWT_SECRET = process.env.JWT_SECRET || "your-super-secret-jwt-key";
+
+// Middleware to verify JWT token
+const authenticateToken = (req: any, res: any, next: any) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+
+  if (!token) {
+    return res.status(401).json({ message: "Access token required" });
+  }
+
+  jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
+    if (err) {
+      return res.status(403).json({ message: "Invalid or expired token" });
+    }
+    req.user = user;
+    next();
+  });
+};
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize SOCKS proxy server
   socksProxy = new SocksProxyServer(1080);
   socksProxy.start().catch(console.error);
 
-  // API Routes
+  // Authentication Routes
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const { username, password } = req.body;
+
+      // Validate credentials
+      if (username !== ADMIN_CREDENTIALS.username) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+
+      const isValidPassword = await bcrypt.compare(password, ADMIN_CREDENTIALS.password);
+      if (!isValidPassword) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+
+      // Generate JWT token
+      const token = jwt.sign(
+        { username: ADMIN_CREDENTIALS.username, role: "admin" },
+        JWT_SECRET,
+        { expiresIn: "24h" }
+      );
+
+      res.json({
+        token,
+        user: {
+          username: ADMIN_CREDENTIALS.username,
+          role: "admin"
+        }
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Login failed" });
+    }
+  });
+
+  app.post("/api/auth/verify", authenticateToken, (req, res) => {
+    res.json({ valid: true, user: req.user });
+  });
+
+  // Protected API Routes
   app.get("/api/stats", async (req, res) => {
     try {
       const totalUsers = await storage.getTotalUsers();
