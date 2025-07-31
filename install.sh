@@ -145,16 +145,56 @@ install_app_dependencies() {
     
     cd $INSTALL_DIR
     
-    # Install all dependencies first (including dev dependencies for build)
+    # Clear any existing cache and modules
+    print_info "Clearing npm cache..."
+    sudo -u socks5admin npm cache clean --force
+    
+    # Remove any existing node_modules to ensure clean install
+    if [ -d "node_modules" ]; then
+        print_info "Removing existing node_modules..."
+        sudo -u socks5admin rm -rf node_modules package-lock.json
+    fi
+    
+    # Install all dependencies (including dev dependencies needed for build)
+    print_info "Installing all dependencies..."
     sudo -u socks5admin npm install
     
+    # Verify critical build tools are available
+    print_info "Verifying build tools..."
+    if ! sudo -u socks5admin npx vite --version > /dev/null 2>&1; then
+        print_info "Installing vite globally as fallback..."
+        npm install -g vite
+    fi
+    
+    if ! sudo -u socks5admin npx tsx --version > /dev/null 2>&1; then
+        print_info "Installing tsx globally as fallback..."
+        npm install -g tsx
+    fi
+    
+    if ! sudo -u socks5admin npx esbuild --version > /dev/null 2>&1; then
+        print_info "Installing esbuild globally as fallback..."
+        npm install -g esbuild
+    fi
+    
     # Build the application
-    print_info "Building application..."
+    print_info "Building application for production..."
     sudo -u socks5admin npm run build
     
-    # Clean up dev dependencies after build (optional optimization)
-    print_info "Cleaning up development dependencies..."
+    # Verify build was successful
+    if [ ! -f "dist/index.js" ]; then
+        print_error "Build failed - dist/index.js not found"
+        exit 1
+    fi
+    
+    print_info "Build completed successfully"
+    
+    # Clean up dev dependencies after successful build
+    print_info "Optimizing for production..."
     sudo -u socks5admin npm prune --production
+    
+    # Verify production server can start
+    print_info "Testing production build..."
+    timeout 10 sudo -u socks5admin node dist/index.js > /dev/null 2>&1 || true
 }
 
 setup_database() {
@@ -198,6 +238,14 @@ configure_firewall() {
 create_systemd_service() {
     print_step "Creating systemd service..."
     
+    # Find the correct node path
+    NODE_PATH=$(which node)
+    if [ -z "$NODE_PATH" ]; then
+        NODE_PATH="/usr/bin/node"
+    fi
+    
+    print_info "Using Node.js path: $NODE_PATH"
+    
     cat > /etc/systemd/system/$SERVICE_NAME.service << EOF
 [Unit]
 Description=SOCKS5 Proxy Admin Panel
@@ -211,12 +259,16 @@ Group=socks5admin
 WorkingDirectory=$INSTALL_DIR
 Environment=NODE_ENV=production
 Environment=PORT=5000
-ExecStart=/usr/bin/node dist/index.js
+Environment=JWT_SECRET=your-super-secret-jwt-key-$(openssl rand -hex 16)
+ExecStart=$NODE_PATH dist/index.js
 Restart=always
 RestartSec=10
 StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=socks5-proxy-admin
+KillMode=mixed
+KillSignal=SIGINT
+TimeoutStopSec=10
 
 # Security settings
 NoNewPrivileges=true
@@ -231,6 +283,7 @@ EOF
 
     systemctl daemon-reload
     systemctl enable $SERVICE_NAME
+    print_info "Systemd service created and enabled"
 }
 
 create_environment_file() {
@@ -259,15 +312,47 @@ EOF
 start_services() {
     print_step "Starting services..."
     
+    # Start the service
     systemctl start $SERVICE_NAME
     
     # Wait for service to start
-    sleep 5
+    sleep 8
+    
+    # Check service status
+    if systemctl is-active --quiet $SERVICE_NAME; then
+        print_success "Service started successfully"
+    else
+        print_warning "Service may have failed to start. Checking logs..."
+        journalctl -u $SERVICE_NAME --no-pager -n 20
+    fi
     
     if systemctl is-active --quiet $SERVICE_NAME; then
-        print_info "Service started successfully"
+        print_success "✅ Service started successfully"
     else
-        print_error "Failed to start service. Check logs with: journalctl -u $SERVICE_NAME"
+        print_error "❌ Service failed to start. Troubleshooting..."
+        echo ""
+        print_info "📋 Check logs:"
+        echo "   sudo journalctl -u $SERVICE_NAME --no-pager"
+        echo ""
+        print_info "🔧 Manual troubleshooting steps:"
+        echo "   cd $INSTALL_DIR"
+        echo "   npm install                    # Reinstall dependencies"
+        echo "   npm run build                  # Rebuild application"
+        echo "   npm start                      # Test manual start"
+        echo "   sudo systemctl restart $SERVICE_NAME  # Restart service"
+        echo ""
+        print_info "🐛 Common fixes:"
+        echo "   # Clear npm cache and rebuild:"
+        echo "   cd $INSTALL_DIR"
+        echo "   sudo -u socks5admin npm cache clean --force"
+        echo "   sudo -u socks5admin rm -rf node_modules package-lock.json"
+        echo "   sudo -u socks5admin npm install"
+        echo "   sudo -u socks5admin npm run build"
+        echo ""
+        print_info "📞 If issues persist, check:"
+        echo "   - Node.js version: node --version (should be 18+)"
+        echo "   - Available disk space: df -h"
+        echo "   - File permissions: ls -la $INSTALL_DIR"
         exit 1
     fi
 }
@@ -299,6 +384,12 @@ show_completion_info() {
     echo ""
     echo -e "${BLUE}📁 Installation Directory:${NC}"
     echo -e "   ${YELLOW}$INSTALL_DIR${NC}"
+    echo ""
+    echo -e "${BLUE}🔧 Manual Commands (if needed):${NC}"
+    echo -e "   cd $INSTALL_DIR"
+    echo -e "   npm install      # Install dependencies"
+    echo -e "   npm run build    # Build application"
+    echo -e "   npm start        # Start manually"
     echo ""
     echo -e "${BLUE}🔐 Security Notes:${NC}"
     echo -e "   • Change default admin password immediately!"
