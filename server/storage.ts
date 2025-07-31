@@ -220,6 +220,15 @@ export class DatabaseStorage implements IStorage {
     return result.rowCount > 0;
   }
 
+  async updateIPAvailability(ipId: string, isAvailable: boolean, assignedUserId?: string): Promise<void> {
+    await db.update(ipPool)
+      .set({ 
+        isAvailable, 
+        assignedUserId: isAvailable ? null : assignedUserId || null 
+      })
+      .where(eq(ipPool.id, ipId));
+  }
+
   async getTotalUsers(): Promise<number> {
     const result = await db.select().from(users);
     return result.length;

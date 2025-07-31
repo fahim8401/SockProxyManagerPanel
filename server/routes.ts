@@ -518,18 +518,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      // Generate secure random passwords
+      const generatePassword = () => {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
+        let password = '';
+        for (let i = 0; i < 12; i++) {
+          password += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return password;
+      };
+
       for (let i = 0; i < count; i++) {
-        const username = `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
-        const password = Math.random().toString(36).substr(2, 12);
+        const timestamp = Date.now();
+        const randomSuffix = Math.random().toString(36).substr(2, 5);
+        const username = `${prefix}_${timestamp}_${randomSuffix}`;
+        const password = generatePassword();
         const assignedIP = availableIPs[i];
-        const port = 1080 + Math.floor(Math.random() * 1000);
+        const port = 1080;
         
         const expiresAt = new Date();
         expiresAt.setDate(expiresAt.getDate() + daysValid);
 
         const userData = {
           username,
-          password,
+          password: await bcrypt.hash(password, 10), // Hash the password
           email: `${username}@generated.local`,
           ipAddress: assignedIP.ipAddress,
           port,
@@ -540,7 +552,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
 
         const user = await storage.createUser(userData);
-        await storage.assignIP(assignedIP.id, user.id);
+        // Mark IP as assigned by updating its availability
+        await storage.updateIPAvailability(assignedIP.id, false, user.id.toString());
         
         results.push({
           id: user.id,
