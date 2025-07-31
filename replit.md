@@ -93,17 +93,19 @@ Preferred communication style: Simple, everyday language.
 
 ### Backend Architecture
 - **Framework**: Express.js with TypeScript
-- **Database**: PostgreSQL with Drizzle ORM
+- **Database**: PostgreSQL with Drizzle ORM ✅ **CONNECTED**
 - **Database Provider**: Neon Database (@neondatabase/serverless)
 - **Real-time Communication**: WebSocket server for live updates
-- **Session Management**: PostgreSQL session store (connect-pg-simple)
+- **Session Management**: In-memory sessions with potential PostgreSQL upgrade
 - **SOCKS5 Server**: Custom implementation for proxy functionality
 
-### Data Storage
-- **Primary Database**: PostgreSQL via Neon serverless
+### Data Storage ✅ **ACTIVE DATABASE**
+- **Primary Database**: PostgreSQL via Neon serverless (Connected)
 - **ORM**: Drizzle ORM with schema-first approach
 - **Schema Location**: `shared/schema.ts` for type-safe database operations
-- **Migrations**: Drizzle Kit for database migrations in `./migrations`
+- **Tables Created**: users, connections, ip_pool (6 default IPs initialized)
+- **Storage Implementation**: DatabaseStorage class replacing MemStorage
+- **Database Operations**: Full CRUD operations with foreign key relationships
 
 ## Key Components
 

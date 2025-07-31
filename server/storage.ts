@@ -1,4 +1,6 @@
-import { type User, type InsertUser, type Connection, type InsertConnection, type IpPool, type InsertIpPool } from "@shared/schema";
+import { type User, type InsertUser, type Connection, type InsertConnection, type IpPool, type InsertIpPool, users, connections, ipPool } from "@shared/schema";
+import { db } from "./db";
+import { eq, and } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
@@ -30,40 +32,49 @@ export interface IStorage {
   getAvailableIPsCount(): Promise<number>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<string, User> = new Map();
-  private connections: Map<string, Connection> = new Map();
-  private ipPool: Map<string, IpPool> = new Map();
-
+export class DatabaseStorage implements IStorage {
   constructor() {
-    // Initialize with some default IP addresses
-    const defaultIPs = [
-      { ipAddress: "192.168.1.15", ipType: "IPv4", isAvailable: true, assignedUserId: null },
-      { ipAddress: "192.168.1.16", ipType: "IPv4", isAvailable: true, assignedUserId: null },
-      { ipAddress: "192.168.1.17", ipType: "IPv4", isAvailable: true, assignedUserId: null },
-      { ipAddress: "10.0.0.45", ipType: "IPv4", isAvailable: true, assignedUserId: null },
-      { ipAddress: "2001:db8::1", ipType: "IPv6", isAvailable: true, assignedUserId: null },
-      { ipAddress: "2001:db8::2", ipType: "IPv6", isAvailable: true, assignedUserId: null },
-    ];
+    // Initialize with default IP addresses if none exist
+    this.initializeDefaultIPs();
+  }
 
-    defaultIPs.forEach(ip => {
-      const id = randomUUID();
-      this.ipPool.set(id, { id, ...ip });
-    });
+  private async initializeDefaultIPs(): Promise<void> {
+    try {
+      const existingIPs = await db.select().from(ipPool).limit(1);
+      if (existingIPs.length === 0) {
+        const defaultIPs = [
+          { ipAddress: "192.168.1.15", ipType: "IPv4" as const, isAvailable: true, assignedUserId: null },
+          { ipAddress: "192.168.1.16", ipType: "IPv4" as const, isAvailable: true, assignedUserId: null },
+          { ipAddress: "192.168.1.17", ipType: "IPv4" as const, isAvailable: true, assignedUserId: null },
+          { ipAddress: "10.0.0.45", ipType: "IPv4" as const, isAvailable: true, assignedUserId: null },
+          { ipAddress: "2001:db8::1", ipType: "IPv6" as const, isAvailable: true, assignedUserId: null },
+          { ipAddress: "2001:db8::2", ipType: "IPv6" as const, isAvailable: true, assignedUserId: null },
+        ];
+
+        for (const ip of defaultIPs) {
+          await db.insert(ipPool).values({
+            id: randomUUID(),
+            ...ip
+          }).onConflictDoNothing();
+        }
+      }
+    } catch (error) {
+      console.error('Error initializing default IPs:', error);
+    }
   }
 
   async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(user => user.username === username);
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user || undefined;
   }
 
   async getAllUsers(): Promise<User[]> {
-    return Array.from(this.users.values()).sort((a, b) => 
-      new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime()
-    );
+    return await db.select().from(users).orderBy(users.createdAt);
   }
 
   async createUser(insertUser: Omit<InsertUser, 'confirmPassword'>): Promise<User> {
@@ -71,7 +82,7 @@ export class MemStorage implements IStorage {
     const now = new Date();
     const expiresAt = new Date(now.getTime() + insertUser.daysValid * 24 * 60 * 60 * 1000);
     
-    const user: User = {
+    const [user] = await db.insert(users).values({
       ...insertUser,
       id,
       createdAt: now,
@@ -80,147 +91,137 @@ export class MemStorage implements IStorage {
       isActive: true,
       lastConnection: null,
       email: insertUser.email || null,
-    };
-    
-    this.users.set(id, user);
+    }).returning();
     
     // Assign IP to user
-    const availableIP = Array.from(this.ipPool.values()).find(
-      ip => ip.ipAddress === insertUser.ipAddress && ip.isAvailable
-    );
-    if (availableIP) {
-      availableIP.isAvailable = false;
-      availableIP.assignedUserId = id;
-    }
+    await db.update(ipPool)
+      .set({ isAvailable: false, assignedUserId: id })
+      .where(and(
+        eq(ipPool.ipAddress, insertUser.ipAddress),
+        eq(ipPool.isAvailable, true)
+      ));
     
     return user;
   }
 
   async updateUser(id: string, updates: Partial<User>): Promise<User | undefined> {
-    const user = this.users.get(id);
-    if (!user) return undefined;
+    const [user] = await db.update(users)
+      .set(updates)
+      .where(eq(users.id, id))
+      .returning();
     
-    const updatedUser = { ...user, ...updates };
-    this.users.set(id, updatedUser);
-    return updatedUser;
+    return user || undefined;
   }
 
   async deleteUser(id: string): Promise<boolean> {
-    const user = this.users.get(id);
-    if (!user) return false;
-    
     // Release IP
-    const assignedIP = Array.from(this.ipPool.values()).find(ip => ip.assignedUserId === id);
-    if (assignedIP) {
-      assignedIP.isAvailable = true;
-      assignedIP.assignedUserId = null;
-    }
+    await db.update(ipPool)
+      .set({ isAvailable: true, assignedUserId: null })
+      .where(eq(ipPool.assignedUserId, id));
     
-    // Remove user connections
-    const userConnections = Array.from(this.connections.entries()).filter(
-      ([_, conn]) => conn.userId === id
-    );
-    userConnections.forEach(([connId, _]) => this.connections.delete(connId));
+    // Delete user connections
+    await db.delete(connections).where(eq(connections.userId, id));
     
-    this.users.delete(id);
-    return true;
+    const result = await db.delete(users).where(eq(users.id, id));
+    return result.rowCount! > 0;
   }
 
   async createConnection(connection: InsertConnection): Promise<Connection> {
     const id = randomUUID();
-    const conn: Connection = {
+    const [conn] = await db.insert(connections).values({
       ...connection,
       id,
       startTime: new Date(),
       endTime: null,
       bytesTransferred: 0,
-    };
-    
-    this.connections.set(id, conn);
+    }).returning();
     
     // Update user's last connection
-    const user = this.users.get(connection.userId);
-    if (user) {
-      user.lastConnection = new Date();
-    }
+    await db.update(users)
+      .set({ lastConnection: new Date() })
+      .where(eq(users.id, connection.userId));
     
     return conn;
   }
 
   async getActiveConnections(): Promise<Connection[]> {
-    return Array.from(this.connections.values()).filter(conn => !conn.endTime);
+    return await db.select().from(connections).where(eq(connections.endTime, null));
   }
 
   async getUserConnections(userId: string): Promise<Connection[]> {
-    return Array.from(this.connections.values()).filter(conn => conn.userId === userId);
+    return await db.select().from(connections).where(eq(connections.userId, userId));
   }
 
   async endConnection(id: string, bytesTransferred: number): Promise<void> {
-    const connection = this.connections.get(id);
-    if (!connection) return;
+    const [connection] = await db.update(connections)
+      .set({ 
+        endTime: new Date(), 
+        bytesTransferred 
+      })
+      .where(eq(connections.id, id))
+      .returning();
     
-    connection.endTime = new Date();
-    connection.bytesTransferred = bytesTransferred;
-    
-    // Update user's data usage
-    const user = this.users.get(connection.userId);
-    if (user) {
-      user.dataUsed = (user.dataUsed || 0) + bytesTransferred;
+    if (connection) {
+      // Update user's data usage
+      const [user] = await db.select().from(users).where(eq(users.id, connection.userId));
+      if (user) {
+        await db.update(users)
+          .set({ dataUsed: (user.dataUsed || 0) + bytesTransferred })
+          .where(eq(users.id, connection.userId));
+      }
     }
   }
 
   async getAvailableIPs(): Promise<IpPool[]> {
-    return Array.from(this.ipPool.values()).filter(ip => ip.isAvailable);
+    return await db.select().from(ipPool).where(eq(ipPool.isAvailable, true));
   }
 
   async getAllIPs(): Promise<IpPool[]> {
-    return Array.from(this.ipPool.values());
+    return await db.select().from(ipPool);
   }
 
   async addIP(ip: InsertIpPool): Promise<IpPool> {
-    const id = randomUUID();
-    const newIP: IpPool = { 
-      ...ip, 
-      id,
+    const [newIP] = await db.insert(ipPool).values({
+      ...ip,
+      id: randomUUID(),
       isAvailable: ip.isAvailable ?? true,
       assignedUserId: ip.assignedUserId || null
-    };
-    this.ipPool.set(id, newIP);
+    }).returning();
+    
     return newIP;
   }
 
   async assignIP(ipId: string, userId: string): Promise<void> {
-    const ip = this.ipPool.get(ipId);
-    if (ip) {
-      ip.isAvailable = false;
-      ip.assignedUserId = userId;
-    }
+    await db.update(ipPool)
+      .set({ isAvailable: false, assignedUserId: userId })
+      .where(eq(ipPool.id, ipId));
   }
 
   async releaseIP(ipId: string): Promise<void> {
-    const ip = this.ipPool.get(ipId);
-    if (ip) {
-      ip.isAvailable = true;
-      ip.assignedUserId = null;
-    }
+    await db.update(ipPool)
+      .set({ isAvailable: true, assignedUserId: null })
+      .where(eq(ipPool.id, ipId));
   }
 
   async getTotalUsers(): Promise<number> {
-    return this.users.size;
+    const result = await db.select().from(users);
+    return result.length;
   }
 
   async getActiveConnectionsCount(): Promise<number> {
-    return Array.from(this.connections.values()).filter(conn => !conn.endTime).length;
+    const result = await db.select().from(connections).where(eq(connections.endTime, null));
+    return result.length;
   }
 
   async getTotalDataTransferred(): Promise<number> {
-    return Array.from(this.connections.values())
-      .reduce((total, conn) => total + (conn.bytesTransferred || 0), 0);
+    const result = await db.select().from(connections);
+    return result.reduce((total, conn) => total + (conn.bytesTransferred || 0), 0);
   }
 
   async getAvailableIPsCount(): Promise<number> {
-    return Array.from(this.ipPool.values()).filter(ip => ip.isAvailable).length;
+    const result = await db.select().from(ipPool).where(eq(ipPool.isAvailable, true));
+    return result.length;
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
