@@ -114,7 +114,7 @@ sudo mkdir -p /opt/socks5-admin
 cd /opt/socks5-admin
 
 # Clone your application (replace with your repository)
-git clone https://github.com/your-username/socks5-admin-panel.git .
+git clone https://github.com/fahim8401/SockProxyManager.git .
 
 # Set proper permissions
 sudo chown -R $USER:$USER /opt/socks5-admin
