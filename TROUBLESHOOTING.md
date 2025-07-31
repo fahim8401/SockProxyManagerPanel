@@ -234,7 +234,7 @@ sudo rm -rf /opt/SockProxyManagerPanel
 sudo userdel socks5admin
 
 # Reinstall
-curl -sSL https://raw.githubusercontent.com/fahim8401/SockProxyManagerPanel/main/install.sh | sudo bash
+curl -sSL https://raw.githubusercontent.com/fahim8401/SockProxyManagerPanel/refs/heads/MAIN/install.sh | sudo bash
 
 # Restore database (if needed)
 sudo systemctl stop socks5-proxy-admin

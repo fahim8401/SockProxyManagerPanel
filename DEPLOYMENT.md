@@ -7,7 +7,7 @@
 For Ubuntu 18.04+, Debian 10+, CentOS 7+, RHEL 7+:
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/fahim8401/SockProxyManagerPanel/main/install.sh | sudo bash
+curl -sSL https://raw.githubusercontent.com/fahim8401/SockProxyManagerPanel/refs/heads/MAIN/install.sh | sudo bash
 ```
 
 This script will:
@@ -337,7 +337,7 @@ EOF
 3. Update code:
    ```bash
    cd /opt/SockProxyManagerPanel
-   sudo -u socks5admin git pull origin main
+   sudo -u socks5admin git pull origin MAIN
    sudo -u socks5admin npm install
    sudo -u socks5admin npm run build
    sudo -u socks5admin npm prune --production

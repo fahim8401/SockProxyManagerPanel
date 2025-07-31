@@ -40,7 +40,7 @@ Upload all these files to your GitHub repository:
 Once uploaded to GitHub, users can install your application with:
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/fahim8401/SockProxyManagerPanel/main/install.sh | sudo bash
+curl -sSL https://raw.githubusercontent.com/fahim8401/SockProxyManagerPanel/refs/heads/MAIN/install.sh | sudo bash
 ```
 
 ## 🔧 What the Installation Does
@@ -74,7 +74,7 @@ After uploading to GitHub, include these instructions in your repository:
 ### Quick Start
 ```bash
 # One-click installation (Ubuntu/Debian/CentOS/RHEL)
-curl -sSL https://raw.githubusercontent.com/fahim8401/SockProxyManagerPanel/main/install.sh | sudo bash
+curl -sSL https://raw.githubusercontent.com/fahim8401/SockProxyManagerPanel/refs/heads/MAIN/install.sh | sudo bash
 
 # Access admin panel
 http://your-server-ip:5000
