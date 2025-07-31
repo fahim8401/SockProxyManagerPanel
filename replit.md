@@ -93,19 +93,21 @@ Preferred communication style: Simple, everyday language.
 
 ### Backend Architecture
 - **Framework**: Express.js with TypeScript
-- **Database**: PostgreSQL with Drizzle ORM ✅ **CONNECTED**
-- **Database Provider**: Neon Database (@neondatabase/serverless)
+- **Database**: SQLite with Drizzle ORM ✅ **CONNECTED**
+- **Database Provider**: Better SQLite3 (Local file-based database)
 - **Real-time Communication**: WebSocket server for live updates
-- **Session Management**: In-memory sessions with potential PostgreSQL upgrade
+- **Session Management**: In-memory sessions with SQLite storage
 - **SOCKS5 Server**: Custom implementation for proxy functionality
 
-### Data Storage ✅ **ACTIVE DATABASE**
-- **Primary Database**: PostgreSQL via Neon serverless (Connected)
-- **ORM**: Drizzle ORM with schema-first approach
+### Data Storage ✅ **ACTIVE DATABASE** 
+- **Primary Database**: SQLite (Portable local database file)
+- **ORM**: Drizzle ORM with schema-first approach  
 - **Schema Location**: `shared/schema.ts` for type-safe database operations
-- **Tables Created**: users, connections, ip_pool (6 default IPs initialized)
-- **Storage Implementation**: DatabaseStorage class replacing MemStorage
+- **Database File**: `./database.sqlite` (auto-created)
+- **Tables Created**: users, connections, ip_pool, admins (with default data)
+- **Storage Implementation**: DatabaseStorage class with SQLite adapter
 - **Database Operations**: Full CRUD operations with foreign key relationships
+- **Auto-initialization**: Default admin (admin/admin123) and 6 IP addresses
 
 ## Key Components
 

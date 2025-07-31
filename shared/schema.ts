@@ -1,58 +1,65 @@
 import { sql } from "drizzle-orm";
 import {
-  pgTable,
+  sqliteTable,
   text,
-  varchar,
   integer,
-  bigint,
-  timestamp,
-  boolean,
-  jsonb,
-} from "drizzle-orm/pg-core";
+  real,
+} from "drizzle-orm/sqlite-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-export const users = pgTable("users", {
-  id: varchar("id")
-    .primaryKey()
-    .default(sql`gen_random_uuid()`),
+// Users table
+export const users = sqliteTable("users", {
+  id: text("id").primaryKey().default(sql`(hex(randomblob(16)))`),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
   email: text("email"),
   ipAddress: text("ip_address").notNull(),
   port: integer("port").notNull(),
-  dataLimit: bigint("data_limit", { mode: "number" }).notNull(), // in bytes
-  dataUsed: bigint("data_used", { mode: "number" }).default(0),
+  dataLimit: integer("data_limit").notNull(), // in bytes
+  dataUsed: integer("data_used").default(0),
   daysValid: integer("days_valid").notNull(),
-  createdAt: timestamp("created_at").defaultNow(),
-  expiresAt: timestamp("expires_at").notNull(),
-  isActive: boolean("is_active").default(true),
-  lastConnection: timestamp("last_connection"),
+  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`CURRENT_TIMESTAMP`),
+  expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
+  isActive: integer("is_active", { mode: "boolean" }).default(true),
+  lastConnection: integer("last_connection", { mode: "timestamp" }),
 });
 
-export const connections = pgTable("connections", {
-  id: varchar("id")
-    .primaryKey()
-    .default(sql`gen_random_uuid()`),
-  userId: varchar("user_id")
-    .references(() => users.id)
-    .notNull(),
+// Connections table
+export const connections = sqliteTable("connections", {
+  id: text("id").primaryKey().default(sql`(hex(randomblob(16)))`),
+  userId: text("user_id").references(() => users.id).notNull(),
   ipAddress: text("ip_address").notNull(),
-  startTime: timestamp("start_time").defaultNow(),
-  endTime: timestamp("end_time"),
-  bytesTransferred: bigint("bytes_transferred", { mode: "number" }).default(0),
+  startTime: integer("start_time", { mode: "timestamp" }).default(sql`CURRENT_TIMESTAMP`),
+  endTime: integer("end_time", { mode: "timestamp" }),
+  bytesTransferred: integer("bytes_transferred").default(0),
 });
 
-export const ipPool = pgTable("ip_pool", {
-  id: varchar("id")
-    .primaryKey()
-    .default(sql`gen_random_uuid()`),
+// IP Pool table
+export const ipPool = sqliteTable("ip_pool", {
+  id: text("id").primaryKey().default(sql`(hex(randomblob(16)))`),
   ipAddress: text("ip_address").notNull().unique(),
   ipType: text("ip_type").notNull(), // 'IPv4' or 'IPv6'
-  isAvailable: boolean("is_available").default(true),
-  assignedUserId: varchar("assigned_user_id").references(() => users.id),
+  isAvailable: integer("is_available", { mode: "boolean" }).default(true),
+  assignedUserId: text("assigned_user_id").references(() => users.id),
 });
 
+// Admin management table
+export const admins = sqliteTable("admins", {
+  id: text("id").primaryKey().default(sql`(hex(randomblob(16)))`),
+  username: text("username").unique().notNull(),
+  email: text("email").unique(),
+  password: text("password").notNull(),
+  role: text("role").notNull().default("admin"), // super_admin, admin, moderator, viewer
+  permissions: text("permissions").default("{}"), // JSON string for permissions
+  isActive: integer("is_active", { mode: "boolean" }).default(true),
+  lastLogin: integer("last_login", { mode: "timestamp" }),
+  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`CURRENT_TIMESTAMP`),
+  createdBy: text("created_by"), // ID of admin who created this account
+});
+
+// Schema validation
 export const insertUserSchema = createInsertSchema(users)
   .omit({
     id: true,
@@ -77,28 +84,6 @@ export const insertIpPoolSchema = createInsertSchema(ipPool).omit({
   id: true,
 });
 
-export type InsertUser = z.infer<typeof insertUserSchema>;
-export type User = typeof users.$inferSelect;
-export type Connection = typeof connections.$inferSelect;
-export type IpPool = typeof ipPool.$inferSelect;
-export type InsertConnection = z.infer<typeof insertConnectionSchema>;
-export type InsertIpPool = z.infer<typeof insertIpPoolSchema>;
-
-// Admin management table
-export const admins = pgTable("admins", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  username: varchar("username").unique().notNull(),
-  email: varchar("email").unique(),
-  password: varchar("password").notNull(),
-  role: varchar("role").notNull().default("admin"), // super_admin, admin, moderator, viewer
-  permissions: jsonb("permissions").default(sql`'{}'`), // Custom permissions object
-  isActive: boolean("is_active").default(true),
-  lastLogin: timestamp("last_login"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-  createdBy: varchar("created_by"), // ID of admin who created this account
-});
-
 export const insertAdminSchema = createInsertSchema(admins)
   .omit({
     id: true,
@@ -114,5 +99,12 @@ export const insertAdminSchema = createInsertSchema(admins)
     path: ["confirmPassword"],
   });
 
+// Type exports
+export type InsertUser = z.infer<typeof insertUserSchema>;
+export type User = typeof users.$inferSelect;
+export type Connection = typeof connections.$inferSelect;
+export type IpPool = typeof ipPool.$inferSelect;
+export type InsertConnection = z.infer<typeof insertConnectionSchema>;
+export type InsertIpPool = z.infer<typeof insertIpPoolSchema>;
 export type Admin = typeof admins.$inferSelect;
 export type InsertAdmin = z.infer<typeof insertAdminSchema>;

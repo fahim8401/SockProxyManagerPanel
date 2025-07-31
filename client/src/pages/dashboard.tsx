@@ -124,7 +124,7 @@ export default function Dashboard() {
                 size="sm"
                 onClick={() => {
                   localStorage.removeItem('auth-token');
-                  window.location.href = '/';
+                  window.location.href = '/login';
                 }}
                 className="text-red-600 hover:text-red-700"
               >
