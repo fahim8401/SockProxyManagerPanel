@@ -12,6 +12,7 @@ import LogsPage from "@/pages/logs";
 import LoginPage from "@/pages/login";
 import UserPortal from "@/pages/user-portal";
 import AdminManagement from "@/pages/admin-management";
+import UserProvisioning from "@/pages/user-provisioning";
 import NotFound from "@/pages/not-found";
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
@@ -40,6 +41,7 @@ function AuthenticatedRouter() {
       <Route path="/settings" component={() => <ProtectedRoute component={SettingsPage} />} />
       <Route path="/logs" component={() => <ProtectedRoute component={LogsPage} />} />
       <Route path="/admin-management" component={() => <ProtectedRoute component={AdminManagement} />} />
+      <Route path="/user-provisioning" component={() => <ProtectedRoute component={UserProvisioning} />} />
       <Route path="/user-portal" component={UserPortal} />
       <Route component={NotFound} />
     </Switch>

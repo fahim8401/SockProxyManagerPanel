@@ -6,8 +6,10 @@ import UserTable from "../components/dashboard/user-table";
 import CreateUserModal from "../components/dashboard/create-user-modal";
 import RealtimeChart from "../components/dashboard/real-time-chart";
 import SystemStatus from "../components/dashboard/system-status";
+import ConnectionHealth from "../components/dashboard/connection-health";
 import { User } from "@shared/schema";
-import { Bell, UserCircle } from "lucide-react";
+import { Bell, UserCircle, LogOut } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface Stats {
   totalUsers: number;
@@ -117,6 +119,18 @@ export default function Dashboard() {
                 <span className="text-sm text-gray-600">Admin User</span>
                 <UserCircle className="w-6 h-6 text-gray-600" />
               </div>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => {
+                  localStorage.removeItem('auth-token');
+                  window.location.href = '/';
+                }}
+                className="text-red-600 hover:text-red-700"
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                Logout
+              </Button>
             </div>
           </div>
         </header>
@@ -130,9 +144,10 @@ export default function Dashboard() {
             }}
           />
           
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
             <RealtimeChart data={connectionData} />
             <SystemStatus />
+            <ConnectionHealth />
           </div>
 
           <UserTable 

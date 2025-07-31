@@ -3,6 +3,7 @@ import {
   Shield, 
   BarChart3, 
   Users, 
+  UserPlus,
   Network, 
   TrendingUp, 
   Settings, 
@@ -13,6 +14,7 @@ import { cn } from "@/lib/utils";
 const navigation = [
   { name: "Dashboard", href: "/", icon: BarChart3 },
   { name: "User Management", href: "/users", icon: Users },
+  { name: "User Provisioning", href: "/user-provisioning", icon: UserPlus },
   { name: "IP Pool Management", href: "/ip-pool", icon: Network },
   { name: "Admin Management", href: "/admin-management", icon: Shield },
   { name: "Analytics", href: "/analytics", icon: TrendingUp },

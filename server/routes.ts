@@ -226,17 +226,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/users/:id", authenticateToken, async (req, res) => {
     try {
       const { id } = req.params;
-      const success = await storage.deleteUser(id);
       
+      // Get user info before deletion for cleanup
+      const user = await storage.getUser(id);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      const success = await storage.deleteUser(id);
       if (!success) {
         return res.status(404).json({ message: "User not found" });
       }
       
-      // Reload SOCKS proxy users
+      // Release IP if assigned
+      if (user.ipAddress) {
+        const allIPs = await storage.getAllIPs();
+        const assignedIP = allIPs.find(ip => ip.ipAddress === user.ipAddress);
+        if (assignedIP) {
+          await storage.releaseIP(assignedIP.id);
+        }
+      }
+      
+      // Reload SOCKS proxy users to remove deleted user
       await socksProxy.loadUsers();
       
       res.status(204).send();
     } catch (error) {
+      console.error("Error deleting user:", error);
       res.status(500).json({ message: "Failed to delete user" });
     }
   });
@@ -392,6 +408,126 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: "Failed to delete IP address" });
+    }
+  });
+
+  // Automated User Provisioning API
+  app.post("/api/provision-user", authenticateToken, async (req, res) => {
+    try {
+      const { count = 1, dataLimitGB = 10, daysValid = 30, prefix = "user" } = req.body;
+      
+      if (count < 1 || count > 100) {
+        return res.status(400).json({ message: "Count must be between 1 and 100" });
+      }
+
+      const results = [];
+      const availableIPs = await storage.getAvailableIPs();
+      
+      if (availableIPs.length < count) {
+        return res.status(400).json({ 
+          message: `Not enough available IPs. Available: ${availableIPs.length}, Requested: ${count}` 
+        });
+      }
+
+      for (let i = 0; i < count; i++) {
+        const username = `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+        const password = Math.random().toString(36).substr(2, 12);
+        const assignedIP = availableIPs[i];
+        const port = 1080 + Math.floor(Math.random() * 1000);
+        
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + daysValid);
+
+        const userData = {
+          username,
+          password,
+          email: `${username}@generated.local`,
+          ipAddress: assignedIP.ipAddress,
+          port,
+          dataLimit: dataLimitGB * 1024 * 1024 * 1024, // Convert GB to bytes
+          daysValid,
+          expiresAt,
+          isActive: true,
+        };
+
+        const user = await storage.createUser(userData);
+        await storage.assignIP(assignedIP.id, user.id);
+        
+        results.push({
+          id: user.id,
+          username: user.username,
+          password: password, // Return plaintext password for provisioning
+          ipAddress: user.ipAddress,
+          port: user.port,
+          dataLimitGB: dataLimitGB,
+          expiresAt: user.expiresAt,
+        });
+      }
+
+      // Reload SOCKS proxy users
+      await socksProxy.loadUsers();
+
+      res.status(201).json({
+        message: `Successfully provisioned ${count} user(s)`,
+        users: results,
+        totalProvisioned: results.length,
+      });
+    } catch (error: any) {
+      console.error("Error provisioning users:", error);
+      res.status(500).json({ message: error.message || "Failed to provision users" });
+    }
+  });
+
+  // Real-time Connection Health API
+  app.get("/api/health", authenticateToken, async (req, res) => {
+    try {
+      const connections = await storage.getActiveConnections();
+      const users = await storage.getAllUsers();
+      const ipPool = await storage.getAllIPs();
+      
+      const healthData = {
+        status: "healthy",
+        timestamp: new Date().toISOString(),
+        connections: {
+          active: connections.length,
+          details: connections.map(conn => ({
+            id: conn.id,
+            userId: conn.userId,
+            ipAddress: conn.ipAddress,
+            duration: conn.startTime ? 
+              Math.floor((Date.now() - new Date(conn.startTime).getTime()) / 1000) : 0,
+            bytesTransferred: conn.bytesTransferred || 0,
+          }))
+        },
+        users: {
+          total: users.length,
+          active: users.filter(u => u.isActive).length,
+          expiringSoon: users.filter(u => {
+            const expiresAt = new Date(u.expiresAt);
+            const inThreeDays = new Date();
+            inThreeDays.setDate(inThreeDays.getDate() + 3);
+            return expiresAt <= inThreeDays && u.isActive;
+          }).length
+        },
+        ipPool: {
+          total: ipPool.length,
+          available: ipPool.filter(ip => ip.isAvailable).length,
+          assigned: ipPool.filter(ip => !ip.isAvailable).length,
+        },
+        server: {
+          uptime: process.uptime(),
+          memory: process.memoryUsage(),
+          nodeVersion: process.version,
+        }
+      };
+
+      res.json(healthData);
+    } catch (error) {
+      res.status(500).json({ 
+        status: "unhealthy",
+        message: "Failed to fetch health data",
+        timestamp: new Date().toISOString()
+      });
     }
   });
 
