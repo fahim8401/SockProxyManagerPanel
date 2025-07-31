@@ -1,10 +1,20 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, bigint, timestamp, boolean } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  text,
+  varchar,
+  integer,
+  bigint,
+  timestamp,
+  boolean,
+} from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
 export const users = pgTable("users", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
   email: text("email"),
@@ -20,8 +30,12 @@ export const users = pgTable("users", {
 });
 
 export const connections = pgTable("connections", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").references(() => users.id).notNull(),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  userId: varchar("user_id")
+    .references(() => users.id)
+    .notNull(),
   ipAddress: text("ip_address").notNull(),
   startTime: timestamp("start_time").defaultNow(),
   endTime: timestamp("end_time"),
@@ -29,24 +43,29 @@ export const connections = pgTable("connections", {
 });
 
 export const ipPool = pgTable("ip_pool", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   ipAddress: text("ip_address").notNull().unique(),
   ipType: text("ip_type").notNull(), // 'IPv4' or 'IPv6'
   isAvailable: boolean("is_available").default(true),
   assignedUserId: varchar("assigned_user_id").references(() => users.id),
 });
 
-export const insertUserSchema = createInsertSchema(users).omit({
-  id: true,
-  createdAt: true,
-  dataUsed: true,
-  lastConnection: true,
-}).extend({
-  confirmPassword: z.string().min(1, "Confirm password is required"),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords don't match",
-  path: ["confirmPassword"],
-});
+export const insertUserSchema = createInsertSchema(users)
+  .omit({
+    id: true,
+    createdAt: true,
+    dataUsed: true,
+    lastConnection: true,
+  })
+  .extend({
+    confirmPassword: z.string().min(1, "Confirm password is required"),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords don't match",
+    path: ["confirmPassword"],
+  });
 
 export const insertConnectionSchema = createInsertSchema(connections).omit({
   id: true,
