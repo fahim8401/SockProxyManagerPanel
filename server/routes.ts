@@ -74,7 +74,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/auth/verify", authenticateToken, (req, res) => {
+  app.post("/api/auth/verify", authenticateToken, (req: any, res) => {
     res.json({ valid: true, user: req.user });
   });
 
@@ -145,7 +145,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         port: 1080, // Default SOCKS5 port
         dataLimit: user.dataLimit,
         dataUsed: user.dataUsed,
-        expirationDate: user.expirationDate,
+        expiresAt: user.expiresAt,
         isActive: user.isActive,
         lastConnection: user.lastConnection
       });
