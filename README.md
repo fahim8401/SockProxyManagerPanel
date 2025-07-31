@@ -275,10 +275,18 @@ MIT License - see LICENSE file for details.
 
 ## 🆘 Support
 
-- 📧 Email: support@example.com
-- 🐛 Issues: GitHub Issues
-- 📖 Documentation: See README.md
+- 🐛 Issues: https://github.com/fahim8401/SockProxyManagerPanel/issues
+- 📖 Documentation: README.md, DEPLOYMENT.md, TROUBLESHOOTING.md
 - 💬 Discussions: GitHub Discussions
+
+## 🔧 Build Fix for Debian 12
+
+If you encounter "vite: not found" during installation, the updated install.sh script now handles this by:
+1. Installing all dependencies (including dev dependencies)
+2. Building the application
+3. Cleaning up dev dependencies for production
+
+For manual installations, always run `npm install` (not `npm install --production`) before building.
 
 ---
 

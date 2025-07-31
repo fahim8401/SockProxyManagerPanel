@@ -144,11 +144,17 @@ install_app_dependencies() {
     print_step "Installing application dependencies..."
     
     cd $INSTALL_DIR
-    sudo -u socks5admin npm install --production
+    
+    # Install all dependencies first (including dev dependencies for build)
+    sudo -u socks5admin npm install
     
     # Build the application
     print_info "Building application..."
     sudo -u socks5admin npm run build
+    
+    # Clean up dev dependencies after build (optional optimization)
+    print_info "Cleaning up development dependencies..."
+    sudo -u socks5admin npm prune --production
 }
 
 setup_database() {

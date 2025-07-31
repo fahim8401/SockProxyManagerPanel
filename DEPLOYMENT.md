@@ -336,10 +336,11 @@ EOF
 
 3. Update code:
    ```bash
-   cd /opt/socks5-proxy-admin
+   cd /opt/SockProxyManagerPanel
    sudo -u socks5admin git pull origin main
    sudo -u socks5admin npm install
    sudo -u socks5admin npm run build
+   sudo -u socks5admin npm prune --production
    ```
 
 4. Start service:
