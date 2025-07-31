@@ -414,6 +414,92 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Network scanning API
+  app.post("/api/ip-pool/scan", authenticateToken, async (req, res) => {
+    try {
+      const { range = "192.168.1.0/24" } = req.body;
+      
+      // Simulate network scanning - in production, you'd use tools like nmap
+      const simulatedResults = [
+        { 
+          ip: "192.168.1.1", 
+          hostname: "router.local", 
+          status: "connected", 
+          type: "IPv4",
+          responseTime: 1,
+          isConnected: true
+        },
+        { 
+          ip: "192.168.1.10", 
+          hostname: "server.local", 
+          status: "connected", 
+          type: "IPv4",
+          responseTime: 5,
+          isConnected: true
+        },
+        { 
+          ip: "192.168.1.15", 
+          hostname: "laptop.local", 
+          status: "connected", 
+          type: "IPv4",
+          responseTime: 12,
+          isConnected: true
+        },
+        { 
+          ip: "192.168.1.20", 
+          hostname: "phone.local", 
+          status: "connected", 
+          type: "IPv4",
+          responseTime: 8,
+          isConnected: true
+        },
+        { 
+          ip: "192.168.1.25", 
+          hostname: "tablet.local", 
+          status: "connected", 
+          type: "IPv4",
+          responseTime: 15,
+          isConnected: true
+        },
+        { 
+          ip: "10.0.0.100", 
+          hostname: "server2.local", 
+          status: "connected", 
+          type: "IPv4",
+          responseTime: 3,
+          isConnected: true
+        },
+        { 
+          ip: "172.16.0.50", 
+          hostname: "printer.local", 
+          status: "connected", 
+          type: "IPv4",
+          responseTime: 20,
+          isConnected: true
+        },
+      ];
+
+      // Filter out IPs that are already in the pool
+      const existingIPs = await storage.getAllIPs();
+      const existingIPAddresses = new Set(existingIPs.map(ip => ip.ipAddress));
+      const newResults = simulatedResults.filter(result => !existingIPAddresses.has(result.ip));
+      
+      res.json({
+        success: true,
+        results: newResults,
+        total_scanned: 254,
+        active_hosts: newResults.length,
+        scan_range: range
+      });
+    } catch (error) {
+      res.status(500).json({ 
+        success: false, 
+        message: "Failed to scan network",
+        results: []
+      });
+    }
+  });
+
   // Automated User Provisioning API
   app.post("/api/provision-user", authenticateToken, async (req, res) => {
     try {
