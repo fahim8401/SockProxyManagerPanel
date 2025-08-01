@@ -127,13 +127,13 @@ export class DatabaseStorage implements IStorage {
       email: insertUser.email || null,
     }).returning();
     
-    // Assign IP to user
+    // Update IP usage count (multiple users can share same IP)
     await db.update(ipPool)
-      .set({ isAvailable: false, assignedUserId: id })
-      .where(and(
-        eq(ipPool.ipAddress, insertUser.ipAddress),
-        eq(ipPool.isAvailable, true)
-      ));
+      .set({ 
+        userCount: sql`user_count + 1`,
+        isAvailable: false // Keep false for tracking but allow multiple users
+      })
+      .where(eq(ipPool.ipAddress, insertUser.ipAddress));
     
     return user;
   }
@@ -149,10 +149,17 @@ export class DatabaseStorage implements IStorage {
 
   async deleteUser(id: string): Promise<boolean> {
     try {
-      // Release IP
-      await db.update(ipPool)
-        .set({ isAvailable: true, assignedUserId: null })
-        .where(eq(ipPool.assignedUserId, id));
+      // Get user's IP address to update count
+      const user = await this.getUser(id);
+      if (user) {
+        // Decrease IP usage count
+        await db.update(ipPool)
+          .set({ 
+            userCount: sql`user_count - 1`,
+            isAvailable: sql`CASE WHEN user_count - 1 = 0 THEN 1 ELSE 0 END`
+          })
+          .where(eq(ipPool.ipAddress, user.ipAddress));
+      }
       
       // Delete user connections
       await db.delete(connections).where(eq(connections.userId, id));
@@ -478,12 +485,14 @@ export class DatabaseStorage implements IStorage {
         this.onlineUsers.delete(userId);
       }
       
-      // Update last connection time
-      await db.update(users)
-        .set({ 
-          lastConnection: isOnline ? Math.floor(Date.now() / 1000) : undefined
-        })
-        .where(eq(users.id, userId));
+      // Update last connection time if user comes online
+      if (isOnline) {
+        await db.update(users)
+          .set({ 
+            lastConnection: Math.floor(Date.now() / 1000)
+          })
+          .where(eq(users.id, userId));
+      }
     } catch (error) {
       console.error('Error updating user online status:', error);
     }

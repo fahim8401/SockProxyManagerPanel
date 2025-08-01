@@ -25,6 +25,7 @@ interface IpAddress {
   ipAddress: string;
   ipType: string;
   isAvailable: boolean;
+  userCount?: number;
 }
 
 interface Package {
@@ -62,9 +63,9 @@ export default function CreateUser() {
     },
   });
 
-  // Fetch available IP addresses
+  // Fetch ALL IP addresses (for multiple users per IP)
   const { data: availableIPs = [], isLoading: ipsLoading, error: ipsError } = useQuery({
-    queryKey: ["/api/ip-pool?available=true"],
+    queryKey: ["/api/ip-pool"],
     retry: false,
   }) as { data: IpAddress[]; isLoading: boolean; error: any };
 
@@ -334,7 +335,8 @@ export default function CreateUser() {
                                 <SelectContent>
                                   {availableIPs.map((ip) => (
                                     <SelectItem key={ip.id} value={ip.ipAddress}>
-                                      {ip.ipAddress} ({ip.ipType})
+                                      {ip.ipAddress} ({ip.ipType}) 
+                                      {ip.userCount > 0 && ` - ${ip.userCount} users`}
                                     </SelectItem>
                                   ))}
                                 </SelectContent>
