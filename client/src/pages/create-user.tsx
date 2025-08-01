@@ -76,6 +76,8 @@ export default function CreateUser() {
   });
 
   const onSubmit = (data: CreateUserFormData) => {
+    console.log("Form submission data:", data);
+    console.log("Form errors:", form.formState.errors);
     createUserMutation.mutate(data);
   };
 

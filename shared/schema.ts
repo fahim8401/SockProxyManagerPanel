@@ -66,6 +66,7 @@ export const insertUserSchema = createInsertSchema(users)
     createdAt: true,
     dataUsed: true,
     lastConnection: true,
+    expiresAt: true,
   })
   .extend({
     confirmPassword: z.string().min(1, "Confirm password is required"),
