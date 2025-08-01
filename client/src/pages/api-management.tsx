@@ -7,11 +7,11 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Copy, Key, Trash2, Eye, EyeOff, Plus, Code, Book, Database } from "lucide-react";
+import { Copy, Key, Trash2, Eye, EyeOff, Plus, Code, Book, Database, Activity } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import Sidebar from "@/components/ui/sidebar";
-import { ApiKey } from "@shared/schema";
+import { type ApiKey } from "@shared/schema";
 
 export default function ApiManagement() {
   const [showNewKeyForm, setShowNewKeyForm] = useState(false);

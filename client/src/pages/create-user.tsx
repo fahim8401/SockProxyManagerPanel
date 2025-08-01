@@ -13,7 +13,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { UserPlus, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { insertUserSchema } from "@shared/schema";
+import { insertUserSchema, type User } from "@shared/schema";
 import Sidebar from "@/components/ui/sidebar";
 import { CardSkeleton } from "@/components/ui/skeleton";
 import { useLocation } from "wouter";
