@@ -454,7 +454,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async createUserFromPackage(packageId: string, username: string, password: string, ipAddress: string, port: number): Promise<User> {
+  async createUserFromPackage(packageId: string, username: string, password: string, ipAddress: string, port: number, outboundIp?: string): Promise<User> {
     const pkg = await this.getPackage(packageId);
     if (!pkg) {
       throw new Error("Package not found");
@@ -468,6 +468,7 @@ export class DatabaseStorage implements IStorage {
       username,
       password,
       ipAddress,
+      outboundIp,
       port,
       dataLimit: pkg.dataLimitGB * 1024 * 1024 * 1024, // Convert GB to bytes
       daysValid: pkg.timeLimit,
@@ -532,6 +533,17 @@ export class DatabaseStorage implements IStorage {
       })) as (User & { isOnline: boolean })[];
     } catch (error) {
       console.error('Error fetching all users:', error);
+      return [];
+    }
+  }
+
+  // Get public IPs for routing
+  async getPublicIPs(): Promise<Array<{ id: string; ipAddress: string; isAvailable: boolean; assignedUserId?: string }>> {
+    try {
+      const publicIPs = await db.select().from(ipPool).where(eq(ipPool.isPublic, true));
+      return publicIPs;
+    } catch (error) {
+      console.error('Error fetching public IPs:', error);
       return [];
     }
   }

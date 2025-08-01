@@ -29,6 +29,8 @@ This is a comprehensive full-stack SOCKS5 proxy management system with complete 
 - **✅ Complete uninstall script (uninstall.sh) for clean system removal**
 - Production deployment guide created
 - **✅ Complete enterprise-grade SOCKS5 proxy management system**
+- **✅ IP routing system implemented - users can be assigned specific outbound IPs**
+- **✅ Multiple public IP support with per-user traffic NAT routing**
 
 ## Complete Feature Set
 

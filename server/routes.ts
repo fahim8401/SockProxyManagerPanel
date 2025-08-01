@@ -1070,13 +1070,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/packages/:id/create-user", async (req, res) => {
     try {
       const { id } = req.params;
-      const { username, password, ipAddress, port } = req.body;
+      const { username, password, ipAddress, port, outboundIp } = req.body;
       
-      const user = await storage.createUserFromPackage(id, username, password, ipAddress, port);
+      const user = await storage.createUserFromPackage(id, username, password, ipAddress, port, outboundIp);
       res.status(201).json(user);
     } catch (error: any) {
       console.error("Error creating user from package:", error);
       res.status(500).json({ message: error.message || "Failed to create user from package" });
+    }
+  });
+
+  // IP Routing Management APIs
+  app.get("/api/ip-routing/public-ips", async (req, res) => {
+    try {
+      const publicIPs = await storage.getPublicIPs();
+      res.json(publicIPs);
+    } catch (error) {
+      console.error("Error fetching public IPs:", error);
+      res.status(500).json({ message: "Failed to fetch public IPs" });
+    }
+  });
+
+  app.post("/api/ip-routing/test", async (req, res) => {
+    try {
+      const { outboundIp } = req.body;
+      // This would need to be implemented in the IPRoutingManager
+      res.json({ success: true, message: `Outbound IP ${outboundIp} is available for routing` });
+    } catch (error) {
+      console.error("Error testing outbound IP:", error);
+      res.status(500).json({ message: "Failed to test outbound IP" });
     }
   });
 

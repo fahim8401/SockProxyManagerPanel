@@ -15,6 +15,7 @@ export const users = sqliteTable("users", {
   password: text("password").notNull(),
   email: text("email"),
   ipAddress: text("ip_address").notNull(),
+  outboundIp: text("outbound_ip"), // The public IP this user's traffic will be routed through
   port: integer("port").notNull(),
   dataLimit: integer("data_limit").notNull(), // in bytes
   dataUsed: integer("data_used").default(0),
@@ -40,6 +41,7 @@ export const ipPool = sqliteTable("ip_pool", {
   id: text("id").primaryKey().default(sql`(hex(randomblob(16)))`),
   ipAddress: text("ip_address").notNull().unique(),
   ipType: text("ip_type").notNull(), // 'IPv4' or 'IPv6'
+  isPublic: integer("is_public", { mode: "boolean" }).default(false), // Is this a public outbound IP?
   isAvailable: integer("is_available", { mode: "boolean" }).default(true),
   assignedUserId: text("assigned_user_id").references(() => users.id),
 });

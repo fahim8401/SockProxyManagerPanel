@@ -1,11 +1,13 @@
 import net from 'net';
 import dns from 'dns';
 import { storage } from '../storage';
+import { IPRoutingManager } from './ipRouting';
 
 interface ProxyUser {
   username: string;
   password: string;
   userId: string;
+  outboundIp?: string; // The public IP this user's traffic should be routed through
 }
 
 export class SocksProxyServer {
@@ -13,13 +15,22 @@ export class SocksProxyServer {
   private users: Map<string, ProxyUser> = new Map();
   private activeConnections: Map<string, { userId: string; bytesTransferred: number }> = new Map();
   private onlineUsers: Set<string> = new Set();
+  private routingManager: IPRoutingManager;
 
   constructor(private port: number = 1080) {
     this.server = net.createServer(this.handleConnection.bind(this));
+    this.routingManager = IPRoutingManager.getInstance();
   }
 
   async start(): Promise<void> {
     await this.loadUsers();
+    
+    // Initialize routing manager with users that have outbound IPs
+    const usersWithRouting = Array.from(this.users.values())
+      .filter(user => user.outboundIp)
+      .map(user => ({ id: user.userId, outboundIp: user.outboundIp }));
+    
+    await this.routingManager.initialize(usersWithRouting);
     
     this.server.listen(this.port, '0.0.0.0', () => {
       console.log(`SOCKS5 proxy server listening on port ${this.port}`);
@@ -35,7 +46,8 @@ export class SocksProxyServer {
         this.users.set(user.username, {
           username: user.username,
           password: user.password,
-          userId: user.id
+          userId: user.id,
+          outboundIp: user.outboundIp || undefined
         });
       }
     });
@@ -291,13 +303,19 @@ export class SocksProxyServer {
     connectionId: string | null, 
     currentUser: ProxyUser | null
   ): void {
-    // Enhanced connection options for HTTPS/TLS support
+    // Enhanced connection options with IP routing support
     const connectionOptions: net.NetConnectOpts = {
       port: targetPort,
       host: targetHost,
       // For HTTPS connections, ensure proper socket handling
       allowHalfOpen: false
     };
+
+    // If user has a specific outbound IP, bind to that interface
+    if (currentUser?.outboundIp) {
+      connectionOptions.localAddress = currentUser.outboundIp;
+      console.log(`🌐 Routing ${currentUser.username} traffic through outbound IP: ${currentUser.outboundIp}`);
+    }
     
     const targetSocket = net.createConnection(connectionOptions);
     
