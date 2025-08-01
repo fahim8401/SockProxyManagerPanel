@@ -51,7 +51,7 @@ const authenticateApiKey = async (req: any, res: any, next: any) => {
     
     for (const key of apiKeys) {
       if (key.isActive) {
-        const isValid = await bcrypt.compare(apiKey, key.password);
+        const isValid = await bcrypt.compare(apiKey, key.keyHash);
         if (isValid) {
           validKey = key;
           break;
@@ -63,8 +63,8 @@ const authenticateApiKey = async (req: any, res: any, next: any) => {
       return res.status(401).json({ success: false, message: "Invalid API key" });
     }
 
-    // Update last used timestamp
-    await storage.updateAdminLastLogin(validKey.id);
+    // Update API key usage
+    await storage.updateApiKeyUsage(validKey.keyHash);
     
     req.apiKey = validKey;
     next();

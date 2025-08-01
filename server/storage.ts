@@ -5,8 +5,9 @@ import {
   users, connections, ipPool, admins, packages, apiKeys 
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, isNull } from "drizzle-orm";
+import { eq, and, isNull, sql } from "drizzle-orm";
 import { randomUUID } from "crypto";
+import bcrypt from "bcryptjs";
 
 export interface IStorage {
   // User management
@@ -457,7 +458,6 @@ export class DatabaseStorage implements IStorage {
       port,
       dataLimit: pkg.dataLimitGB * 1024 * 1024 * 1024, // Convert GB to bytes
       daysValid: pkg.timeLimit,
-      expiresAt,
       packageId: packageId,
     };
 

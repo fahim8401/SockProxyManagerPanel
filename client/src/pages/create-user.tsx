@@ -63,14 +63,16 @@ export default function CreateUser() {
   });
 
   // Fetch available IP addresses
-  const { data: availableIPs = [], isLoading: ipsLoading } = useQuery({
+  const { data: availableIPs = [], isLoading: ipsLoading, error: ipsError } = useQuery({
     queryKey: ["/api/ip-pool?available=true"],
-  }) as { data: IpAddress[]; isLoading: boolean };
+    retry: false,
+  }) as { data: IpAddress[]; isLoading: boolean; error: any };
 
   // Fetch available packages
-  const { data: packages = [], isLoading: packagesLoading } = useQuery({
+  const { data: packages = [], isLoading: packagesLoading, error: packagesError } = useQuery({
     queryKey: ["/api/packages"],
-  }) as { data: Package[]; isLoading: boolean };
+    retry: false,
+  }) as { data: Package[]; isLoading: boolean; error: any };
 
   const createUserMutation = useMutation({
     mutationFn: async (data: CreateUserFormData) => {
@@ -172,6 +174,21 @@ export default function CreateUser() {
         {/* Main Content */}
         <main className="flex-1 overflow-y-auto p-6">
           <div className="max-w-2xl mx-auto">
+            {/* Debug information */}
+            {(ipsError || packagesError) && (
+              <Card className="mb-4 border-red-200 bg-red-50">
+                <CardContent className="p-4">
+                  <div className="text-sm text-red-600">
+                    <p>Debug Info:</p>
+                    {ipsError && <p>IPs Error: {ipsError.message}</p>}
+                    {packagesError && <p>Packages Error: {packagesError.message}</p>}
+                    <p>Available IPs: {availableIPs?.length || 0}</p>
+                    <p>Available Packages: {packages?.length || 0}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+            
             {ipsLoading || packagesLoading ? (
               <CardSkeleton />
             ) : (
