@@ -5,7 +5,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Trash2, Users, Edit, Eye, Pause, Play, Calendar, Database, Network } from "lucide-react";
+import { Trash2, Users, Edit, Eye, Pause, Play, Calendar, Database, Network, Copy } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import Sidebar from "@/components/ui/sidebar";
@@ -14,6 +14,7 @@ import { Link } from "wouter";
 interface User {
   id: string;
   username: string;
+  password: string;
   email?: string;
   ipAddress: string;
   port: number;
@@ -347,6 +348,34 @@ export default function UserManagement() {
                                             <div className="flex justify-between">
                                               <span className="text-sm text-gray-600">Port:</span>
                                               <span className="text-sm font-mono">{user.port}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                              <span className="text-sm text-gray-600">Protocol:</span>
+                                              <span className="text-sm">SOCKS5</span>
+                                            </div>
+                                            <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                                              <div className="flex justify-between items-center mb-2">
+                                                <span className="text-sm font-medium text-blue-900">Connection URL:</span>
+                                                <Button
+                                                  variant="ghost"
+                                                  size="sm"
+                                                  onClick={() => {
+                                                    const url = `socks5://${user.username}:${user.password}@${user.ipAddress}:${user.port}`;
+                                                    navigator.clipboard.writeText(url);
+                                                    toast({
+                                                      title: "Copied!",
+                                                      description: "SOCKS5 URL copied to clipboard",
+                                                    });
+                                                  }}
+                                                  className="h-6 px-2 text-xs text-blue-700 hover:text-blue-900"
+                                                >
+                                                  <Copy className="h-3 w-3 mr-1" />
+                                                  Copy
+                                                </Button>
+                                              </div>
+                                              <div className="text-xs font-mono text-blue-800 bg-blue-100 p-2 rounded border break-all">
+                                                socks5://{user.username}:{user.password}@{user.ipAddress}:{user.port}
+                                              </div>
                                             </div>
                                           </div>
                                         </div>

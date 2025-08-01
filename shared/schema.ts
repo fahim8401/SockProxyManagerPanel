@@ -23,6 +23,7 @@ export const users = sqliteTable("users", {
   expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
   isActive: integer("is_active", { mode: "boolean" }).default(true),
   lastConnection: integer("last_connection", { mode: "timestamp" }),
+  packageId: text("package_id").references(() => packages.id),
 });
 
 // Connections table
@@ -117,18 +118,17 @@ export const packages = sqliteTable("packages", {
   isActive: integer("is_active", { mode: "boolean" }).default(true),
   createdAt: integer("created_at", { mode: "timestamp" }).default(sql`CURRENT_TIMESTAMP`),
   updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`CURRENT_TIMESTAMP`),
-  packageId: text("package_id").references(() => packages.id),
 });
 
-export type Package = typeof packages.$inferSelect;
-export type InsertPackage = typeof packages.$inferInsert;
-
-// Package insert schema for validation
 export const insertPackageSchema = createInsertSchema(packages).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
 });
+
+export type Package = typeof packages.$inferSelect;
+export type InsertPackage = z.infer<typeof insertPackageSchema>;
+
 export type Connection = typeof connections.$inferSelect;
 export type IpPool = typeof ipPool.$inferSelect;
 export type InsertConnection = z.infer<typeof insertConnectionSchema>;
