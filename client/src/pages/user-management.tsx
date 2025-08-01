@@ -23,6 +23,7 @@ interface User {
   dataUsed: number;
   expiresAt: string;
   isActive: boolean;
+  isOnline?: boolean;
   createdAt: string;
   lastConnection?: string;
   daysValid: number;
@@ -218,13 +219,16 @@ export default function UserManagement() {
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm font-medium text-gray-600">Expired Users</p>
-                        <p className="text-2xl font-bold text-red-600">
-                          {users.filter((user: User) => new Date(user.expiresAt) < new Date()).length}
+                        <p className="text-sm font-medium text-gray-600">Online Users</p>
+                        <p className="text-2xl font-bold text-green-600">
+                          {users.filter((user: User) => user.isOnline).length}
                         </p>
                       </div>
-                      <div className="p-3 bg-red-50 rounded-full transition-transform hover:scale-110">
-                        <Users className="text-red-600 w-5 h-5" />
+                      <div className="p-3 bg-green-50 rounded-full transition-transform hover:scale-110">
+                        <div className="relative">
+                          <Users className="text-green-600 w-5 h-5" />
+                          <div className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                        </div>
                       </div>
                     </div>
                   </CardContent>
@@ -270,7 +274,17 @@ export default function UserManagement() {
                     ) : (
                       users.map((user: User) => (
                         <TableRow key={user.id}>
-                          <TableCell className="font-mono text-sm">{user.username}</TableCell>
+                          <TableCell className="font-mono text-sm">
+                            <div className="flex items-center space-x-2">
+                              <span>{user.username}</span>
+                              {user.isOnline && (
+                                <div className="flex items-center space-x-1">
+                                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                                  <span className="text-xs text-green-600 font-medium">Online</span>
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
                           <TableCell>{user.email || "-"}</TableCell>
                           <TableCell className="font-mono">{user.ipAddress}</TableCell>
                           <TableCell>{user.port}</TableCell>

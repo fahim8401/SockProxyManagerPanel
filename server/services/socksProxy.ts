@@ -1,4 +1,5 @@
 import net from 'net';
+import dns from 'dns';
 import { storage } from '../storage';
 
 interface ProxyUser {
@@ -11,6 +12,7 @@ export class SocksProxyServer {
   private server: net.Server;
   private users: Map<string, ProxyUser> = new Map();
   private activeConnections: Map<string, { userId: string; bytesTransferred: number }> = new Map();
+  private onlineUsers: Set<string> = new Set();
 
   constructor(private port: number = 1080) {
     this.server = net.createServer(this.handleConnection.bind(this));
@@ -104,6 +106,12 @@ export class SocksProxyServer {
                       clientSocket.write(Buffer.from([0x01, 0x00])); // Auth success
                       console.log(`✅ SOCKS5 authentication successful for user: ${username}`);
                       
+                      // Mark user as online
+                      this.onlineUsers.add(user.userId);
+                      if (storage.updateUserOnlineStatus) {
+                        await storage.updateUserOnlineStatus(user.userId, true);
+                      }
+                      
                       // Create connection record
                       connectionId = (await storage.createConnection({
                         userId: user.userId,
@@ -196,49 +204,13 @@ export class SocksProxyServer {
             
             console.log(`SOCKS5 connecting to ${targetHost}:${targetPort}`);
             
-            // Connect to target
-            const targetSocket = net.createConnection(targetPort, targetHost);
-            
-            targetSocket.on('connect', () => {
-              // Send success response
-              const response = Buffer.from([0x05, 0x00, 0x00, 0x01, 0, 0, 0, 0, 0, 0]);
-              clientSocket.write(response);
-              
-              // Start proxying data
-              clientSocket.pipe(targetSocket);
-              targetSocket.pipe(clientSocket);
-              
-              // Track data transfer
-              if (connectionId) {
-                clientSocket.on('data', (chunk) => {
-                  this.updateDataTransfer(connectionId!, chunk.length);
-                });
-                
-                targetSocket.on('data', (chunk) => {
-                  this.updateDataTransfer(connectionId!, chunk.length);
-                });
-              }
-              
-              console.log(`✅ SOCKS5 proxy connection established for ${currentUser?.username}`);
-            });
-            
-            targetSocket.on('error', (err) => {
-              console.log(`❌ SOCKS5 target connection error to ${targetHost}:${targetPort}:`, err.message);
-              
-              // Map Node.js errors to SOCKS5 error codes
-              let errorCode = 0x01; // General SOCKS server failure
-              if (err.message.includes('ENOTFOUND')) {
-                errorCode = 0x04; // Host unreachable
-              } else if (err.message.includes('ECONNREFUSED')) {
-                errorCode = 0x05; // Connection refused
-              } else if (err.message.includes('ETIMEDOUT')) {
-                errorCode = 0x06; // TTL expired
-              }
-              
-              const response = Buffer.from([0x05, errorCode, 0x00, 0x01, 0, 0, 0, 0, 0, 0]);
-              clientSocket.write(response);
-              clientSocket.end();
-            });
+            // For domain names, resolve DNS first to handle IPv6 properly
+            if (addressType === 0x03) {
+              this.resolveDomainAndConnect(targetHost, targetPort, clientSocket, connectionId, currentUser);
+            } else {
+              // Direct connection for IP addresses
+              this.connectToTarget(targetHost, targetPort, clientSocket, connectionId, currentUser);
+            }
           }
         }
       } catch (error) {
@@ -252,6 +224,18 @@ export class SocksProxyServer {
         const connData = this.activeConnections.get(connectionId)!;
         await storage.endConnection(connectionId, connData.bytesTransferred);
         this.activeConnections.delete(connectionId);
+        
+        // Check if user has other active connections
+        const hasOtherConnections = Array.from(this.activeConnections.values())
+          .some(conn => conn.userId === currentUser?.userId);
+        
+        if (!hasOtherConnections && currentUser) {
+          this.onlineUsers.delete(currentUser.userId);
+          if (storage.updateUserOnlineStatus) {
+            await storage.updateUserOnlineStatus(currentUser.userId, false);
+          }
+        }
+        
         console.log(`SOCKS5 connection closed for ${currentUser?.username}`);
       }
     });
@@ -268,7 +252,101 @@ export class SocksProxyServer {
     }
   }
 
+  private async resolveDomainAndConnect(
+    domain: string, 
+    port: number, 
+    clientSocket: net.Socket, 
+    connectionId: string | null, 
+    currentUser: ProxyUser | null
+  ): Promise<void> {
+    console.log(`🔍 Resolving domain: ${domain}`);
+    
+    // Try IPv4 first, then IPv6 if that fails
+    dns.resolve4(domain, (err4, addresses4) => {
+      if (!err4 && addresses4.length > 0) {
+        console.log(`✅ Resolved ${domain} to IPv4: ${addresses4[0]}`);
+        this.connectToTarget(addresses4[0], port, clientSocket, connectionId, currentUser);
+        return;
+      }
+      
+      // Try IPv6 if IPv4 fails
+      dns.resolve6(domain, (err6, addresses6) => {
+        if (!err6 && addresses6.length > 0) {
+          console.log(`✅ Resolved ${domain} to IPv6: ${addresses6[0]}`);
+          this.connectToTarget(`[${addresses6[0]}]`, port, clientSocket, connectionId, currentUser);
+          return;
+        }
+        
+        // Both failed, try direct connection (might be IP address)
+        console.log(`⚠️ DNS resolution failed for ${domain}, trying direct connection`);
+        this.connectToTarget(domain, port, clientSocket, connectionId, currentUser);
+      });
+    });
+  }
+
+  private connectToTarget(
+    targetHost: string, 
+    targetPort: number, 
+    clientSocket: net.Socket, 
+    connectionId: string | null, 
+    currentUser: ProxyUser | null
+  ): void {
+    const targetSocket = net.createConnection(targetPort, targetHost);
+    
+    targetSocket.on('connect', () => {
+      // Send success response
+      const response = Buffer.from([0x05, 0x00, 0x00, 0x01, 0, 0, 0, 0, 0, 0]);
+      clientSocket.write(response);
+      
+      // Start proxying data
+      clientSocket.pipe(targetSocket);
+      targetSocket.pipe(clientSocket);
+      
+      // Track data transfer
+      if (connectionId) {
+        clientSocket.on('data', (chunk) => {
+          this.updateDataTransfer(connectionId!, chunk.length);
+        });
+        
+        targetSocket.on('data', (chunk) => {
+          this.updateDataTransfer(connectionId!, chunk.length);
+        });
+      }
+      
+      console.log(`✅ SOCKS5 proxy connection established for ${currentUser?.username} to ${targetHost}:${targetPort}`);
+    });
+    
+    targetSocket.on('error', (err) => {
+      console.log(`❌ SOCKS5 target connection error to ${targetHost}:${targetPort}:`, err.message);
+      
+      // Map Node.js errors to SOCKS5 error codes
+      let errorCode = 0x01; // General SOCKS server failure
+      if (err.message.includes('ENOTFOUND')) {
+        errorCode = 0x04; // Host unreachable
+      } else if (err.message.includes('ECONNREFUSED')) {
+        errorCode = 0x05; // Connection refused
+      } else if (err.message.includes('ETIMEDOUT')) {
+        errorCode = 0x06; // TTL expired
+      }
+      
+      const response = Buffer.from([0x05, errorCode, 0x00, 0x01, 0, 0, 0, 0, 0, 0]);
+      clientSocket.write(response);
+      clientSocket.end();
+    });
+  }
+
+  getOnlineUsers(): string[] {
+    return Array.from(this.onlineUsers);
+  }
+
   async stop(): Promise<void> {
+    // Mark all users offline when stopping
+    if (storage.updateUserOnlineStatus) {
+      for (const userId of Array.from(this.onlineUsers)) {
+        await storage.updateUserOnlineStatus(userId, false);
+      }
+    }
+    this.onlineUsers.clear();
     this.server.close();
   }
 }

@@ -192,7 +192,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
 
           // Calculate data usage percentage
-          const dataUsagePercent = (user.dataUsed / user.dataLimit) * 100;
+          const dataUsagePercent = ((user.dataUsed || 0) / user.dataLimit) * 100;
           const daysUntilExpiry = Math.ceil((user.expiresAt * 1000 - Date.now()) / (1000 * 60 * 60 * 24));
 
           res.json({
@@ -419,6 +419,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(connections);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch connections" });
+    }
+  });
+
+  // Get online users
+  app.get("/api/users/online", async (req, res) => {
+    try {
+      const onlineUsers = socksProxy.getOnlineUsers();
+      const onlineUserData = await Promise.all(
+        onlineUsers.map(async (userId) => {
+          const user = await storage.getUser(userId);
+          return user;
+        })
+      );
+      res.json(onlineUserData.filter(Boolean));
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch online users" });
     }
   });
 
@@ -689,7 +705,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const execAsync = promisify(exec);
       
       // Get actual system network interfaces
-      let systemIPs = [];
+      let systemIPs: any[] = [];
       try {
         const { stdout } = await execAsync('hostname -I');
         const hostIPs = stdout.trim().split(/\s+/).filter(ip => ip && ip !== '127.0.0.1');
@@ -1021,7 +1037,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Package not found" });
       }
       res.json({ message: "Package deleted successfully" });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error deleting package:", error);
       res.status(500).json({ message: "Failed to delete package" });
     }

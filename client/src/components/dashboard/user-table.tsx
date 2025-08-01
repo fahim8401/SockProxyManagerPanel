@@ -139,11 +139,21 @@ export default function UserTable({ users, onCreateUser, onRefresh }: UserTableP
                     <TableRow key={user.id}>
                       <TableCell>
                         <div className="flex items-center">
-                          <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
+                          <div className="relative w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
                             <User className="w-4 h-4 text-gray-600" />
+                            {user.isOnline && (
+                              <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 border-2 border-white rounded-full animate-pulse"></div>
+                            )}
                           </div>
                           <div className="ml-3">
-                            <div className="text-sm font-medium text-gray-900">{user.username}</div>
+                            <div className="flex items-center space-x-2">
+                              <span className="text-sm font-medium text-gray-900">{user.username}</span>
+                              {user.isOnline && (
+                                <span className="text-xs text-green-600 font-medium bg-green-50 px-2 py-1 rounded-full">
+                                  Online
+                                </span>
+                              )}
+                            </div>
                             {user.email && (
                               <div className="text-sm text-gray-500">{user.email}</div>
                             )}

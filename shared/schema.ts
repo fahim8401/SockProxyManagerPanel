@@ -23,7 +23,6 @@ export const users = sqliteTable("users", {
   expiresAt: integer("expires_at").notNull(),
   isActive: integer("is_active", { mode: "boolean" }).default(true),
   lastConnection: integer("last_connection"),
-  packageId: text("package_id").references(() => packages.id),
 });
 
 // Connections table

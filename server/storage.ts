@@ -62,6 +62,10 @@ export interface IStorage {
   updatePackage(id: string, updates: Partial<Package>): Promise<Package | undefined>;
   deletePackage(id: string): Promise<boolean>;
   createUserFromPackage(packageId: string, username: string, password: string, ipAddress: string, port: number): Promise<User>;
+  
+  // Online status management
+  updateUserOnlineStatus?(userId: string, isOnline: boolean): Promise<void>;
+  getOnlineUsers?(): Promise<User[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -461,6 +465,62 @@ export class DatabaseStorage implements IStorage {
     };
 
     return await this.createUser(userData);
+  }
+
+  // In-memory online status tracking
+  private onlineUsers: Set<string> = new Set();
+
+  async updateUserOnlineStatus(userId: string, isOnline: boolean): Promise<void> {
+    try {
+      if (isOnline) {
+        this.onlineUsers.add(userId);
+      } else {
+        this.onlineUsers.delete(userId);
+      }
+      
+      // Update last connection time
+      await db.update(users)
+        .set({ 
+          lastConnection: isOnline ? Math.floor(Date.now() / 1000) : undefined
+        })
+        .where(eq(users.id, userId));
+    } catch (error) {
+      console.error('Error updating user online status:', error);
+    }
+  }
+
+  async getOnlineUsers(): Promise<User[]> {
+    try {
+      if (this.onlineUsers.size === 0) return [];
+      
+      const onlineUserIds = Array.from(this.onlineUsers);
+      const onlineUserData = await Promise.all(
+        onlineUserIds.map(userId => this.getUser(userId))
+      );
+      return onlineUserData.filter(Boolean) as User[];
+    } catch (error) {
+      console.error('Error getting online users:', error);
+      return [];
+    }
+  }
+
+  getOnlineUserIds(): string[] {
+    return Array.from(this.onlineUsers);
+  }
+
+  // Enhanced getAllUsers to include online status from memory  
+  async getAllUsers(): Promise<User[]> {
+    try {
+      const allUsers = await db.select().from(users);
+      // Add online status from in-memory tracking
+      return allUsers.map(user => ({
+        ...user,
+        isOnline: this.onlineUsers.has(user.id)
+      })) as (User & { isOnline: boolean })[];
+    } catch (error) {
+      console.error('Error fetching all users:', error);
+      return [];
+    }
   }
 }
 
