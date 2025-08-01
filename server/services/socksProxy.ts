@@ -291,10 +291,21 @@ export class SocksProxyServer {
     connectionId: string | null, 
     currentUser: ProxyUser | null
   ): void {
-    const targetSocket = net.createConnection(targetPort, targetHost);
+    // Enhanced connection options for HTTPS/TLS support
+    const connectionOptions: net.NetConnectOpts = {
+      port: targetPort,
+      host: targetHost,
+      // For HTTPS connections, ensure proper socket handling
+      allowHalfOpen: false
+    };
+    
+    const targetSocket = net.createConnection(connectionOptions);
+    
+    // Set proper timeouts for HTTPS connections
+    targetSocket.setTimeout(30000); // 30 second timeout
     
     targetSocket.on('connect', () => {
-      console.log(`✅ SOCKS5 target connection established to ${targetHost}:${targetPort}`);
+      console.log(`✅ SOCKS5 target connection established to ${targetHost}:${targetPort} (${targetPort === 443 ? 'HTTPS' : 'HTTP'})`);
       
       // Send proper SOCKS5 success response with bound address and port
       const response = Buffer.alloc(10);
@@ -311,7 +322,7 @@ export class SocksProxyServer {
       response.writeUInt16BE(targetPort, 8);
       
       clientSocket.write(response);
-      console.log(`📤 Sent SOCKS5 success response for ${currentUser?.username}`);
+      console.log(`📤 Sent SOCKS5 success response for ${currentUser?.username} (port ${targetPort})`);
       
       // Start proxying data between client and target
       clientSocket.pipe(targetSocket, { end: false });

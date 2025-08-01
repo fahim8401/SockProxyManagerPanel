@@ -152,13 +152,13 @@ export class DatabaseStorage implements IStorage {
       // Get user's IP address to update count
       const user = await this.getUser(id);
       if (user) {
-        // Decrease IP usage count
-        await db.update(ipPool)
-          .set({ 
-            userCount: sql`user_count - 1`,
-            isAvailable: sql`CASE WHEN user_count - 1 = 0 THEN 1 ELSE 0 END`
-          })
-          .where(eq(ipPool.ipAddress, user.ipAddress));
+        // Release IP assignment (multiple users can share IPs)
+        const [ipRecord] = await db.select().from(ipPool).where(eq(ipPool.ipAddress, user.ipAddress));
+        if (ipRecord) {
+          await db.update(ipPool)
+            .set({ isAvailable: true, assignedUserId: null })
+            .where(eq(ipPool.ipAddress, user.ipAddress));
+        }
       }
       
       // Delete user connections
