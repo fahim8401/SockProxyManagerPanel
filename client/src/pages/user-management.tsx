@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -101,6 +101,44 @@ export default function UserManagement() {
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return diffDays;
   };
+
+  // Live server time component
+  function ServerTimeDisplay() {
+    const [serverTime, setServerTime] = useState<string>("");
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+      const fetchServerTime = async () => {
+        try {
+          const response = await fetch('/api/server-time');
+          const data = await response.json();
+          setServerTime(data.local);
+          setIsLoading(false);
+        } catch (error) {
+          console.error('Failed to fetch server time:', error);
+          setServerTime(new Date().toLocaleString());
+          setIsLoading(false);
+        }
+      };
+
+      // Initial fetch
+      fetchServerTime();
+      
+      // Update every second
+      const interval = setInterval(fetchServerTime, 1000);
+      
+      return () => clearInterval(interval);
+    }, []);
+
+    return (
+      <div className="flex justify-between">
+        <span className="text-sm text-gray-600">Current Server Time:</span>
+        <span className="text-sm font-mono">
+          {isLoading ? "Loading..." : serverTime}
+        </span>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -281,6 +319,10 @@ export default function UserManagement() {
                                               <span className="text-sm">{user.email || "Not provided"}</span>
                                             </div>
                                             <div className="flex justify-between">
+                                              <span className="text-sm text-gray-600">Password:</span>
+                                              <span className="text-sm font-mono bg-gray-100 px-2 py-1 rounded">{user.password}</span>
+                                            </div>
+                                            <div className="flex justify-between">
                                               <span className="text-sm text-gray-600">Status:</span>
                                               <Badge 
                                                 variant={user.isActive ? "default" : "secondary"}
@@ -365,6 +407,7 @@ export default function UserManagement() {
                                                 {user.lastConnection ? formatDate(user.lastConnection) : "Never"}
                                               </span>
                                             </div>
+                                            <ServerTimeDisplay />
                                           </div>
                                         </div>
                                       </div>

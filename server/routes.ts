@@ -755,6 +755,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Server time endpoint
+  app.get("/api/server-time", (req, res) => {
+    const now = new Date();
+    res.json({
+      timestamp: now.toISOString(),
+      unix: Math.floor(now.getTime() / 1000),
+      formatted: now.toLocaleString('en-US', { 
+        timeZone: 'UTC',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        timeZoneName: 'short'
+      }),
+      local: now.toLocaleString(),
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+    });
+  });
+
   // IP Scanning Routes
   app.post("/api/ip-pool/scan", authenticateToken, async (req, res) => {
     try {
