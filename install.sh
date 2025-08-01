@@ -147,7 +147,8 @@ install_app_dependencies() {
     print_step "Installing application dependencies..."
     
     cd $APP_DIR
-    npm install --production
+    # Install all dependencies first (including devDependencies for build)
+    npm install
     
     print_success "Application dependencies installed"
 }
@@ -330,6 +331,13 @@ display_completion() {
     echo "• Configure SSL/TLS certificates for production"
     echo "• Review firewall settings"
     echo "• Set up regular database backups"
+    echo ""
+    echo -e "${BLUE}Quick Start:${NC}"
+    echo "• Access Admin Panel: Login with admin/admin123"
+    echo "• Create SOCKS5 Users: Use User Management tab"
+    echo "• Generate API Keys: Use API Management tab"
+    echo "• Monitor Usage: Check Analytics dashboard"
+    echo "• User Portal: Users login at /user-portal"
     echo ""
     echo -e "${GREEN}Installation completed successfully!${NC}"
 }
