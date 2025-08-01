@@ -8,7 +8,8 @@ import {
   TrendingUp, 
   Settings, 
   FileText,
-  Key
+  Key,
+  Package
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -16,6 +17,7 @@ const navigation = [
   { name: "Dashboard", href: "/", icon: BarChart3 },
   { name: "Create User", href: "/create-user", icon: UserPlus },
   { name: "User Management", href: "/users", icon: Users },
+  { name: "Package Management", href: "/packages", icon: Package },
   { name: "API Management", href: "/api-management", icon: Key },
   { name: "IP Pool Management", href: "/ip-pool", icon: Network },
   { name: "Admin Management", href: "/admin-management", icon: Shield },

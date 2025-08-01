@@ -1,4 +1,9 @@
-import { type User, type InsertUser, type Connection, type InsertConnection, type IpPool, type InsertIpPool, type Admin, type InsertAdmin, users, connections, ipPool, admins } from "@shared/schema";
+import { 
+  type User, type InsertUser, type Connection, type InsertConnection, 
+  type IpPool, type InsertIpPool, type Admin, type InsertAdmin,
+  type Package, type InsertPackage,
+  users, connections, ipPool, admins, packages 
+} from "@shared/schema";
 import { db } from "./db";
 import { eq, and, isNull } from "drizzle-orm";
 import { randomUUID } from "crypto";
@@ -47,6 +52,14 @@ export interface IStorage {
   getAllApiKeys(): Promise<Admin[]>;
   createApiKey(name: string): Promise<{ id: string; name: string; key: string }>;
   deleteApiKey(id: string): Promise<boolean>;
+  
+  // Package management
+  getAllPackages(): Promise<Package[]>;
+  getPackage(id: string): Promise<Package | undefined>;
+  createPackage(pkg: InsertPackage): Promise<Package>;
+  updatePackage(id: string, updates: Partial<Package>): Promise<Package | undefined>;
+  deletePackage(id: string): Promise<boolean>;
+  createUserFromPackage(packageId: string, username: string, password: string, ipAddress: string, port: number): Promise<User>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -365,6 +378,81 @@ export class DatabaseStorage implements IStorage {
     const result = await db.delete(admins)
       .where(and(eq(admins.id, id), eq(admins.role, 'api_key')));
     return result.changes > 0;
+  }
+
+  // Package management methods
+  async getAllPackages(): Promise<Package[]> {
+    try {
+      return await db.select().from(packages);
+    } catch (error) {
+      console.error("Error getting packages:", error);
+      return [];
+    }
+  }
+
+  async getPackage(id: string): Promise<Package | undefined> {
+    try {
+      const [pkg] = await db.select().from(packages).where(eq(packages.id, id));
+      return pkg;
+    } catch (error) {
+      console.error("Error getting package:", error);
+      return undefined;
+    }
+  }
+
+  async createPackage(pkg: InsertPackage): Promise<Package> {
+    const [newPackage] = await db.insert(packages).values({
+      ...pkg,
+      id: randomUUID(),
+    }).returning();
+    return newPackage;
+  }
+
+  async updatePackage(id: string, updates: Partial<Package>): Promise<Package | undefined> {
+    try {
+      const [updated] = await db.update(packages)
+        .set({ ...updates, updatedAt: new Date() })
+        .where(eq(packages.id, id))
+        .returning();
+      return updated;
+    } catch (error) {
+      console.error("Error updating package:", error);
+      return undefined;
+    }
+  }
+
+  async deletePackage(id: string): Promise<boolean> {
+    try {
+      await db.delete(packages).where(eq(packages.id, id));
+      return true;
+    } catch (error) {
+      console.error("Error deleting package:", error);
+      return false;
+    }
+  }
+
+  async createUserFromPackage(packageId: string, username: string, password: string, ipAddress: string, port: number): Promise<User> {
+    const pkg = await this.getPackage(packageId);
+    if (!pkg) {
+      throw new Error("Package not found");
+    }
+
+    // Calculate expiration date based on package time limit
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + pkg.timeLimit);
+
+    const userData: Omit<InsertUser, 'confirmPassword'> = {
+      username,
+      password,
+      ipAddress,
+      port,
+      dataLimit: pkg.dataLimitGB * 1024 * 1024 * 1024, // Convert GB to bytes
+      daysValid: pkg.timeLimit,
+      expiresAt,
+      packageId: packageId,
+    };
+
+    return await this.createUser(userData);
   }
 }
 

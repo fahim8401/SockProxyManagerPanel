@@ -103,6 +103,32 @@ export const insertAdminSchema = createInsertSchema(admins)
 // Type exports
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
+
+// Product Packages table
+export const packages = sqliteTable("packages", {
+  id: text("id").primaryKey().default(sql`(hex(randomblob(16)))`),
+  name: text("name").notNull(),
+  description: text("description"),
+  dataLimitGB: integer("data_limit_gb").notNull(),
+  timeLimit: integer("time_limit").notNull(), // in days
+  maxConnections: integer("max_connections").default(1),
+  allowedIPs: text("allowed_ips"), // comma-separated
+  price: real("price"),
+  isActive: integer("is_active", { mode: "boolean" }).default(true),
+  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`CURRENT_TIMESTAMP`),
+  packageId: text("package_id").references(() => packages.id),
+});
+
+export type Package = typeof packages.$inferSelect;
+export type InsertPackage = typeof packages.$inferInsert;
+
+// Package insert schema for validation
+export const insertPackageSchema = createInsertSchema(packages).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
 export type Connection = typeof connections.$inferSelect;
 export type IpPool = typeof ipPool.$inferSelect;
 export type InsertConnection = z.infer<typeof insertConnectionSchema>;

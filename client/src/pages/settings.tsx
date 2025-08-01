@@ -17,7 +17,9 @@ import {
   Key,
   AlertTriangle,
   Save,
-  RefreshCw
+  RefreshCw,
+  Route,
+  Globe
 } from "lucide-react";
 import Sidebar from "@/components/ui/sidebar";
 import { useToast } from "@/hooks/use-toast";
@@ -52,6 +54,28 @@ export default function SettingsPage() {
   // Database Settings
   const [backupFrequency, setBackupFrequency] = useState("daily");
   const [retentionDays, setRetentionDays] = useState("30");
+
+  // Firewall Settings
+  const [enableFirewall, setEnableFirewall] = useState(true);
+  const [allowedPorts, setAllowedPorts] = useState("22,80,443,1080,5000");
+  const [blockedIPs, setBlockedIPs] = useState("");
+  const [firewallRules, setFirewallRules] = useState("");
+  const [enableDDoSProtection, setEnableDDoSProtection] = useState(true);
+
+  // Routing Settings  
+  const [enableCustomRouting, setEnableCustomRouting] = useState(false);
+  const [routingTable, setRoutingTable] = useState("");
+  const [enableTrafficShaping, setEnableTrafficShaping] = useState(false);
+  const [bandwidthLimit, setBandwidthLimit] = useState("1000");
+  const [routingProtocol, setRoutingProtocol] = useState("static");
+
+  // DNS Settings
+  const [primaryDNS, setPrimaryDNS] = useState("8.8.8.8");
+  const [secondaryDNS, setSecondaryDNS] = useState("8.8.4.4");
+  const [enableDNSFiltering, setEnableDNSFiltering] = useState(false);
+  const [blockedDomains, setBlockedDomains] = useState("");
+  const [enableDNSCache, setEnableDNSCache] = useState(true);
+  const [dnsCacheTTL, setDnsCacheTTL] = useState("3600");
 
   const saveSettingsMutation = useMutation({
     mutationFn: async (settings: any) => {
@@ -118,6 +142,28 @@ export default function SettingsPage() {
       database: {
         backupFrequency,
         retentionDays
+      },
+      firewall: {
+        enableFirewall,
+        allowedPorts: allowedPorts.split(',').map(p => p.trim()),
+        blockedIPs: blockedIPs.split(',').map(ip => ip.trim()).filter(ip => ip),
+        firewallRules,
+        enableDDoSProtection
+      },
+      routing: {
+        enableCustomRouting,
+        routingTable,
+        enableTrafficShaping,
+        bandwidthLimit,
+        routingProtocol
+      },
+      dns: {
+        primaryDNS,
+        secondaryDNS,
+        enableDNSFiltering,
+        blockedDomains: blockedDomains.split(',').map(d => d.trim()).filter(d => d),
+        enableDNSCache,
+        dnsCacheTTL
       }
     };
     
@@ -157,7 +203,7 @@ export default function SettingsPage() {
 
         <main className="flex-1 overflow-y-auto p-6">
           <Tabs defaultValue="server" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-7">
               <TabsTrigger value="server" className="flex items-center space-x-2">
                 <Server className="w-4 h-4" />
                 <span>Server</span>
@@ -165,6 +211,18 @@ export default function SettingsPage() {
               <TabsTrigger value="security" className="flex items-center space-x-2">
                 <Shield className="w-4 h-4" />
                 <span>Security</span>
+              </TabsTrigger>
+              <TabsTrigger value="firewall" className="flex items-center space-x-2">
+                <Shield className="w-4 h-4" />
+                <span>Firewall</span>
+              </TabsTrigger>
+              <TabsTrigger value="routing" className="flex items-center space-x-2">
+                <Route className="w-4 h-4" />
+                <span>Routing</span>
+              </TabsTrigger>
+              <TabsTrigger value="dns" className="flex items-center space-x-2">
+                <Globe className="w-4 h-4" />
+                <span>DNS</span>
               </TabsTrigger>
               <TabsTrigger value="notifications" className="flex items-center space-x-2">
                 <Bell className="w-4 h-4" />
@@ -340,6 +398,234 @@ export default function SettingsPage() {
                           className="w-32"
                         />
                         <p className="text-sm text-gray-500">IP will be banned after this many failed attempts</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="firewall">
+              <div className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center space-x-2">
+                      <Shield className="w-5 h-5" />
+                      <span>Firewall Configuration</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        id="enable-firewall"
+                        checked={enableFirewall}
+                        onCheckedChange={setEnableFirewall}
+                      />
+                      <Label htmlFor="enable-firewall">Enable Firewall</Label>
+                    </div>
+
+                    {enableFirewall && (
+                      <div className="space-y-6 ml-6">
+                        <div className="space-y-2">
+                          <Label htmlFor="allowed-ports">Allowed Ports (comma-separated)</Label>
+                          <Input
+                            id="allowed-ports"
+                            value={allowedPorts}
+                            onChange={(e) => setAllowedPorts(e.target.value)}
+                            placeholder="22,80,443,1080,5000"
+                          />
+                          <p className="text-sm text-gray-500">List of ports that should be accessible</p>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="blocked-ips">Blocked IPs (comma-separated)</Label>
+                          <Input
+                            id="blocked-ips"
+                            value={blockedIPs}
+                            onChange={(e) => setBlockedIPs(e.target.value)}
+                            placeholder="192.168.1.100,10.0.0.50"
+                          />
+                          <p className="text-sm text-gray-500">IP addresses to block from accessing the server</p>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="firewall-rules">Custom Firewall Rules</Label>
+                          <Textarea
+                            id="firewall-rules"
+                            value={firewallRules}
+                            onChange={(e) => setFirewallRules(e.target.value)}
+                            placeholder="Enter custom iptables rules (one per line)"
+                            rows={6}
+                          />
+                          <p className="text-sm text-gray-500">Advanced firewall rules using iptables syntax</p>
+                        </div>
+
+                        <div className="flex items-center space-x-2">
+                          <Switch
+                            id="enable-ddos-protection"
+                            checked={enableDDoSProtection}
+                            onCheckedChange={setEnableDDoSProtection}
+                          />
+                          <Label htmlFor="enable-ddos-protection">Enable DDoS Protection</Label>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="routing">
+              <div className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center space-x-2">
+                      <Route className="w-5 h-5" />
+                      <span>Network Routing</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        id="enable-custom-routing"
+                        checked={enableCustomRouting}
+                        onCheckedChange={setEnableCustomRouting}
+                      />
+                      <Label htmlFor="enable-custom-routing">Enable Custom Routing</Label>
+                    </div>
+
+                    {enableCustomRouting && (
+                      <div className="space-y-6 ml-6">
+                        <div className="space-y-2">
+                          <Label htmlFor="routing-protocol">Routing Protocol</Label>
+                          <Select value={routingProtocol} onValueChange={setRoutingProtocol}>
+                            <SelectTrigger id="routing-protocol">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="static">Static Routing</SelectItem>
+                              <SelectItem value="dynamic">Dynamic Routing</SelectItem>
+                              <SelectItem value="bgp">BGP</SelectItem>
+                              <SelectItem value="ospf">OSPF</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="routing-table">Routing Table</Label>
+                          <Textarea
+                            id="routing-table"
+                            value={routingTable}
+                            onChange={(e) => setRoutingTable(e.target.value)}
+                            placeholder="192.168.1.0/24 via 10.0.0.1 dev eth0&#10;0.0.0.0/0 via 192.168.1.1 dev eth0"
+                            rows={8}
+                          />
+                          <p className="text-sm text-gray-500">Define custom routing rules (CIDR format)</p>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        id="enable-traffic-shaping"
+                        checked={enableTrafficShaping}
+                        onCheckedChange={setEnableTrafficShaping}
+                      />
+                      <Label htmlFor="enable-traffic-shaping">Enable Traffic Shaping</Label>
+                    </div>
+
+                    {enableTrafficShaping && (
+                      <div className="space-y-2 ml-6">
+                        <Label htmlFor="bandwidth-limit">Bandwidth Limit (Mbps)</Label>
+                        <Input
+                          id="bandwidth-limit"
+                          type="number"
+                          value={bandwidthLimit}
+                          onChange={(e) => setBandwidthLimit(e.target.value)}
+                          placeholder="1000"
+                        />
+                        <p className="text-sm text-gray-500">Maximum bandwidth per connection</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="dns">
+              <div className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center space-x-2">
+                      <Globe className="w-5 h-5" />
+                      <span>DNS Configuration</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <Label htmlFor="primary-dns">Primary DNS Server</Label>
+                        <Input
+                          id="primary-dns"
+                          value={primaryDNS}
+                          onChange={(e) => setPrimaryDNS(e.target.value)}
+                          placeholder="8.8.8.8"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="secondary-dns">Secondary DNS Server</Label>
+                        <Input
+                          id="secondary-dns"
+                          value={secondaryDNS}
+                          onChange={(e) => setSecondaryDNS(e.target.value)}
+                          placeholder="8.8.4.4"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        id="enable-dns-cache"
+                        checked={enableDNSCache}
+                        onCheckedChange={setEnableDNSCache}
+                      />
+                      <Label htmlFor="enable-dns-cache">Enable DNS Caching</Label>
+                    </div>
+
+                    {enableDNSCache && (
+                      <div className="space-y-2 ml-6">
+                        <Label htmlFor="dns-cache-ttl">Cache TTL (seconds)</Label>
+                        <Input
+                          id="dns-cache-ttl"
+                          type="number"
+                          value={dnsCacheTTL}
+                          onChange={(e) => setDnsCacheTTL(e.target.value)}
+                          placeholder="3600"
+                        />
+                        <p className="text-sm text-gray-500">How long to cache DNS responses</p>
+                      </div>
+                    )}
+
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        id="enable-dns-filtering"
+                        checked={enableDNSFiltering}
+                        onCheckedChange={setEnableDNSFiltering}
+                      />
+                      <Label htmlFor="enable-dns-filtering">Enable DNS Filtering</Label>
+                    </div>
+
+                    {enableDNSFiltering && (
+                      <div className="space-y-2 ml-6">
+                        <Label htmlFor="blocked-domains">Blocked Domains (comma-separated)</Label>
+                        <Textarea
+                          id="blocked-domains"
+                          value={blockedDomains}
+                          onChange={(e) => setBlockedDomains(e.target.value)}
+                          placeholder="malware.com,phishing.net,adserver.org"
+                          rows={4}
+                        />
+                        <p className="text-sm text-gray-500">Domains to block DNS resolution for</p>
                       </div>
                     )}
                   </CardContent>

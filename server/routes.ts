@@ -859,6 +859,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Package management routes
+  app.get("/api/packages", authenticateToken, async (req, res) => {
+    try {
+      const packages = await storage.getAllPackages();
+      res.json(packages);
+    } catch (error) {
+      console.error("Error fetching packages:", error);
+      res.status(500).json({ message: "Failed to fetch packages" });
+    }
+  });
+
+  app.post("/api/packages", authenticateToken, async (req, res) => {
+    try {
+      const packageData = req.body;
+      const newPackage = await storage.createPackage(packageData);
+      res.status(201).json(newPackage);
+    } catch (error) {
+      console.error("Error creating package:", error);
+      res.status(500).json({ message: "Failed to create package" });
+    }
+  });
+
+  app.put("/api/packages/:id", authenticateToken, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updates = req.body;
+      const updatedPackage = await storage.updatePackage(id, updates);
+      if (!updatedPackage) {
+        return res.status(404).json({ message: "Package not found" });
+      }
+      res.json(updatedPackage);
+    } catch (error) {
+      console.error("Error updating package:", error);
+      res.status(500).json({ message: "Failed to update package" });
+    }
+  });
+
+  app.delete("/api/packages/:id", authenticateToken, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const success = await storage.deletePackage(id);
+      if (!success) {
+        return res.status(404).json({ message: "Package not found" });
+      }
+      res.json({ message: "Package deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting package:", error);
+      res.status(500).json({ message: "Failed to delete package" });
+    }
+  });
+
+  // Create user from package API
+  app.post("/api/packages/:id/create-user", authenticateToken, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { username, password, ipAddress, port } = req.body;
+      
+      const user = await storage.createUserFromPackage(id, username, password, ipAddress, port);
+      res.status(201).json(user);
+    } catch (error) {
+      console.error("Error creating user from package:", error);
+      res.status(500).json({ message: error.message || "Failed to create user from package" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   // WebSocket server for real-time updates
