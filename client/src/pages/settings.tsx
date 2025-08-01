@@ -73,6 +73,14 @@ export default function SettingsPage() {
   const [primaryDNS, setPrimaryDNS] = useState("8.8.8.8");
   const [secondaryDNS, setSecondaryDNS] = useState("8.8.4.4");
   const [enableDNSFiltering, setEnableDNSFiltering] = useState(false);
+
+  // Regional & Time Settings
+  const [timezone, setTimezone] = useState("America/New_York");
+  const [dateFormat, setDateFormat] = useState("MM/DD/YYYY");
+  const [timeFormat, setTimeFormat] = useState("12");
+  const [language, setLanguage] = useState("en");
+  const [currency, setCurrency] = useState("USD");
+  const [region, setRegion] = useState("US");
   const [blockedDomains, setBlockedDomains] = useState("");
   const [enableDNSCache, setEnableDNSCache] = useState(true);
   const [dnsCacheTTL, setDnsCacheTTL] = useState("3600");
@@ -164,6 +172,14 @@ export default function SettingsPage() {
         blockedDomains: blockedDomains.split(',').map(d => d.trim()).filter(d => d),
         enableDNSCache,
         dnsCacheTTL
+      },
+      regional: {
+        timezone,
+        dateFormat,
+        timeFormat,
+        language,
+        currency,
+        region
       }
     };
     
@@ -203,7 +219,7 @@ export default function SettingsPage() {
 
         <main className="flex-1 overflow-y-auto p-6">
           <Tabs defaultValue="server" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-7">
+            <TabsList className="grid w-full grid-cols-8">
               <TabsTrigger value="server" className="flex items-center space-x-2">
                 <Server className="w-4 h-4" />
                 <span>Server</span>
@@ -223,6 +239,10 @@ export default function SettingsPage() {
               <TabsTrigger value="dns" className="flex items-center space-x-2">
                 <Globe className="w-4 h-4" />
                 <span>DNS</span>
+              </TabsTrigger>
+              <TabsTrigger value="regional" className="flex items-center space-x-2">
+                <Globe className="w-4 h-4" />
+                <span>Regional</span>
               </TabsTrigger>
               <TabsTrigger value="notifications" className="flex items-center space-x-2">
                 <Bell className="w-4 h-4" />
@@ -704,6 +724,154 @@ export default function SettingsPage() {
                           }))}
                         />
                       </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="regional">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <Globe className="w-5 h-5" />
+                    <span>Regional & Time Settings</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <Label htmlFor="timezone">Timezone</Label>
+                      <Select value={timezone} onValueChange={setTimezone}>
+                        <SelectTrigger id="timezone">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="America/New_York">Eastern Time (UTC-5)</SelectItem>
+                          <SelectItem value="America/Chicago">Central Time (UTC-6)</SelectItem>
+                          <SelectItem value="America/Denver">Mountain Time (UTC-7)</SelectItem>
+                          <SelectItem value="America/Los_Angeles">Pacific Time (UTC-8)</SelectItem>
+                          <SelectItem value="Europe/London">London (UTC+0)</SelectItem>
+                          <SelectItem value="Europe/Paris">Paris (UTC+1)</SelectItem>
+                          <SelectItem value="Europe/Berlin">Berlin (UTC+1)</SelectItem>
+                          <SelectItem value="Asia/Tokyo">Tokyo (UTC+9)</SelectItem>
+                          <SelectItem value="Asia/Shanghai">Shanghai (UTC+8)</SelectItem>
+                          <SelectItem value="Asia/Mumbai">Mumbai (UTC+5:30)</SelectItem>
+                          <SelectItem value="Australia/Sydney">Sydney (UTC+10)</SelectItem>
+                          <SelectItem value="UTC">UTC</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-sm text-gray-500">Set your local timezone for accurate timestamps</p>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="date-format">Date Format</Label>
+                      <Select value={dateFormat} onValueChange={setDateFormat}>
+                        <SelectTrigger id="date-format">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="MM/DD/YYYY">MM/DD/YYYY (US)</SelectItem>
+                          <SelectItem value="DD/MM/YYYY">DD/MM/YYYY (UK)</SelectItem>
+                          <SelectItem value="YYYY-MM-DD">YYYY-MM-DD (ISO)</SelectItem>
+                          <SelectItem value="DD.MM.YYYY">DD.MM.YYYY (German)</SelectItem>
+                          <SelectItem value="DD/MM/YY">DD/MM/YY (Short)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-sm text-gray-500">Choose your preferred date display format</p>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="time-format">Time Format</Label>
+                      <Select value={timeFormat} onValueChange={setTimeFormat}>
+                        <SelectTrigger id="time-format">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="12">12-hour (AM/PM)</SelectItem>
+                          <SelectItem value="24">24-hour</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-sm text-gray-500">Choose between 12-hour and 24-hour time display</p>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="language">Language</Label>
+                      <Select value={language} onValueChange={setLanguage}>
+                        <SelectTrigger id="language">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="en">English</SelectItem>
+                          <SelectItem value="es">Español</SelectItem>
+                          <SelectItem value="fr">Français</SelectItem>
+                          <SelectItem value="de">Deutsch</SelectItem>
+                          <SelectItem value="zh">中文</SelectItem>
+                          <SelectItem value="ja">日本語</SelectItem>
+                          <SelectItem value="ko">한국어</SelectItem>
+                          <SelectItem value="ru">Русский</SelectItem>
+                          <SelectItem value="pt">Português</SelectItem>
+                          <SelectItem value="it">Italiano</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-sm text-gray-500">Set your preferred interface language</p>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="currency">Currency</Label>
+                      <Select value={currency} onValueChange={setCurrency}>
+                        <SelectTrigger id="currency">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="USD">USD ($)</SelectItem>
+                          <SelectItem value="EUR">EUR (€)</SelectItem>
+                          <SelectItem value="GBP">GBP (£)</SelectItem>
+                          <SelectItem value="JPY">JPY (¥)</SelectItem>
+                          <SelectItem value="CNY">CNY (¥)</SelectItem>
+                          <SelectItem value="CAD">CAD ($)</SelectItem>
+                          <SelectItem value="AUD">AUD ($)</SelectItem>
+                          <SelectItem value="CHF">CHF (Fr)</SelectItem>
+                          <SelectItem value="KRW">KRW (₩)</SelectItem>
+                          <SelectItem value="INR">INR (₹)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-sm text-gray-500">Currency for pricing and billing displays</p>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="region">Region</Label>
+                      <Select value={region} onValueChange={setRegion}>
+                        <SelectTrigger id="region">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="US">United States</SelectItem>
+                          <SelectItem value="CA">Canada</SelectItem>
+                          <SelectItem value="GB">United Kingdom</SelectItem>
+                          <SelectItem value="DE">Germany</SelectItem>
+                          <SelectItem value="FR">France</SelectItem>
+                          <SelectItem value="JP">Japan</SelectItem>
+                          <SelectItem value="CN">China</SelectItem>
+                          <SelectItem value="KR">South Korea</SelectItem>
+                          <SelectItem value="AU">Australia</SelectItem>
+                          <SelectItem value="IN">India</SelectItem>
+                          <SelectItem value="BR">Brazil</SelectItem>
+                          <SelectItem value="RU">Russia</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-sm text-gray-500">Your geographical region for localization</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start space-x-3 p-4 bg-blue-50 rounded-lg">
+                    <Globe className="w-5 h-5 text-blue-600 mt-0.5" />
+                    <div>
+                      <h4 className="font-medium text-blue-800">Regional Settings</h4>
+                      <p className="text-sm text-blue-700 mt-1">
+                        These settings affect how dates, times, and numbers are displayed throughout the system. 
+                        Changes will apply to all new data displays and reports.
+                      </p>
                     </div>
                   </div>
                 </CardContent>
