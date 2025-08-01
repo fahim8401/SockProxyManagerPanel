@@ -1,293 +1,408 @@
-# SOCKS5 Proxy Admin Panel
+# 🚀 SOCKS5 Proxy Admin Panel - Final Production Release
 
-A comprehensive full-stack SOCKS5 proxy management system with complete admin interface, built with React, Node.js, TypeScript, and SQLite.
+![SOCKS5 Proxy Admin Panel](https://img.shields.io/badge/Status-Production%20Ready-brightgreen.svg)
+![Version](https://img.shields.io/badge/Version-1.0.0-blue.svg)
+![License](https://img.shields.io/badge/License-MIT-yellow.svg)
 
-## 🚀 Features
+A comprehensive, enterprise-grade SOCKS5 proxy management system with complete administrative interface. Features real-time monitoring, user management, API integration, IP pool management, and advanced analytics.
 
-### 📊 Admin Dashboard
-- Real-time statistics and KPIs
-- Live connection monitoring via WebSocket
-- System status indicators with health checks
-- Data transfer analytics and charts
-- User activity overview
+## ✨ Key Features
 
-### 👥 User Management
-- Create/edit/delete SOCKS5 users
-- Username/password authentication with bcrypt
-- Data quota management (GB limits)
-- Expiration date controls
-- IP address assignment from pool
-- Custom port assignment (default: 1080)
-- User status management (active/inactive)
+### 🎯 Complete SOCKS5 Proxy Server
+- **Multi-user Authentication**: Secure username/password authentication
+- **Real-time Connection Tracking**: Monitor active connections and bandwidth usage
+- **Data Quota Management**: Per-user bandwidth limits and monitoring
+- **IP Pool Assignment**: Automatic IP address assignment from managed pool
+- **Custom Port Configuration**: Flexible port assignment for users
+
+### 🖥️ Advanced Admin Dashboard
+- **Real-time Statistics**: Live monitoring of users, connections, and data transfer
+- **WebSocket Integration**: Real-time updates without page refresh
+- **System Health Monitoring**: Server status and performance metrics
+- **Interactive Analytics**: Charts and graphs for usage patterns
+- **Connection Health**: Live connection status and diagnostics
+
+### 👥 Enhanced User Management
+- **Complete User Profiles**: Detailed user information with network configuration
+- **Visual Data Usage**: Progress bars and usage statistics
+- **Suspend/Resume Controls**: Instant user account management
+- **Expiration Tracking**: Time-based access control with alerts
+- **Activity Timeline**: User connection history and patterns
+
+### 🔑 API Management System
+- **API Key Generation**: Secure API key creation and management
+- **External API Endpoints**: RESTful API for integration (/api/v1/users)
+- **Complete Documentation**: Built-in API documentation with examples
+- **Rate Limiting**: API usage controls and monitoring
+- **Authentication Security**: Secure API key validation
 
 ### 🌐 IP Pool Management
-- IPv4 and IPv6 address management
-- Automatic IP assignment to users
-- IP availability tracking
-- Bulk IP import capabilities
-- Geographic distribution support
+- **IPv4/IPv6 Support**: Complete support for both IP versions
+- **Network Scanning**: Automatic detection of available IP addresses
+- **Dynamic Assignment**: Automatic IP assignment to users
+- **Geographic Distribution**: Support for multiple IP ranges
+- **Availability Tracking**: Real-time IP usage monitoring
 
-### 📈 Real-time Analytics
-- Connection patterns and trends
-- Data transfer monitoring
-- Geographic user distribution
-- Protocol usage statistics
-- Historical data analysis
+### 📊 Comprehensive Analytics
+- **Usage Patterns**: Detailed analysis of user behavior
+- **Bandwidth Analytics**: Data transfer patterns and trends
+- **Connection Statistics**: Success rates and performance metrics
+- **Geographic Distribution**: User location analytics
+- **Historical Data**: Long-term usage trends and reporting
 
-### 🔒 Security Features
-- JWT authentication for admin panel
-- bcrypt password hashing
-- Rate limiting protection
-- Session management
-- Role-based access control
+### 🔒 Enterprise Security
+- **JWT Authentication**: Secure admin panel access
+- **bcrypt Password Hashing**: Industry-standard password security
+- **Rate Limiting**: Protection against abuse and attacks
+- **Session Management**: Secure session handling
+- **Audit Logging**: Complete activity logging
 
-### 🔧 System Administration
-- Comprehensive settings panel
-- SQLite database (portable)
-- Real-time monitoring
-- Service health checks
-- Automated user provisioning API
+## 🚀 Quick Installation
 
-## 🛠 One-Click Installation
-
-### Ubuntu/Debian/CentOS/RHEL
-
+### One-Click Installation (Recommended)
 ```bash
-curl -sSL https://raw.githubusercontent.com/fahim8401/SockProxyManagerPanel/refs/heads/MAIN/install.sh | sudo bash
+# Download and run the installation script
+curl -fsSL https://raw.githubusercontent.com/fahim8401/SockProxyManagerPanel/main/install.sh | bash
+
+# Or clone and run locally
+git clone https://github.com/fahim8401/SockProxyManagerPanel.git
+cd SockProxyManagerPanel
+chmod +x install.sh
+sudo ./install.sh
 ```
 
 ### Manual Installation
-
 ```bash
-# Clone repository
+# Clone the repository
 git clone https://github.com/fahim8401/SockProxyManagerPanel.git
 cd SockProxyManagerPanel
 
 # Install dependencies
 npm install
 
+# Build for production
+npm run build
+
+# Initialize database
+npm run db:push
+
+# Start the application
+npm start
+```
+
+## 🎯 Access Information
+
+### Admin Panel
+- **URL**: `http://your-server-ip` or `http://localhost:5000`
+- **Default Username**: `admin`
+- **Default Password**: `admin123`
+
+### SOCKS5 Proxy
+- **Host**: Your server IP address
+- **Port**: `1080`
+- **Authentication**: Username/password from created users
+
+## 📡 API Documentation
+
+### Authentication
+All API endpoints require authentication via API key:
+```bash
+Authorization: Bearer <your-api-key>
+```
+
+### External API Endpoints
+
+#### Get All Users
+```bash
+GET /api/v1/users
+```
+
+#### Create User
+```bash
+POST /api/v1/users
+Content-Type: application/json
+
+{
+  "username": "newuser",
+  "password": "securepassword",
+  "email": "user@example.com",
+  "dataLimit": 10737418240,
+  "daysValid": 30,
+  "ipAddress": "192.168.1.100",
+  "port": 1080
+}
+```
+
+#### Update User
+```bash
+PATCH /api/v1/users/:id
+Content-Type: application/json
+
+{
+  "isActive": false,
+  "dataLimit": 21474836480
+}
+```
+
+#### Delete User
+```bash
+DELETE /api/v1/users/:id
+```
+
+### Response Format
+```json
+{
+  "success": true,
+  "data": {
+    "id": "user-id",
+    "username": "username",
+    "email": "user@example.com",
+    "isActive": true,
+    "dataLimit": 10737418240,
+    "dataUsed": 1073741824,
+    "ipAddress": "192.168.1.100",
+    "port": 1080,
+    "expiresAt": "2024-12-31T23:59:59Z"
+  }
+}
+```
+
+## 🛠️ Configuration
+
+### Environment Variables
+```bash
+# Required
+DATABASE_URL=file:./database.sqlite
+JWT_SECRET=your-super-secret-jwt-key
+NODE_ENV=production
+
+# Optional
+PORT=5000
+SOCKS_PORT=1080
+```
+
+### System Requirements
+- **OS**: Linux (Ubuntu 18+, Debian 9+, CentOS 7+)
+- **Node.js**: 18.0+ or 20.0+ (recommended)
+- **RAM**: 512MB minimum, 2GB+ recommended
+- **Storage**: 1GB minimum, 10GB+ recommended
+- **Network**: Public IP address
+
+## 🔧 Service Management
+
+### Systemd Commands
+```bash
+# Start service
+sudo systemctl start socks-proxy-admin
+
+# Stop service
+sudo systemctl stop socks-proxy-admin
+
+# Restart service
+sudo systemctl restart socks-proxy-admin
+
+# Check status
+sudo systemctl status socks-proxy-admin
+
+# View logs
+sudo journalctl -u socks-proxy-admin -f
+```
+
+### Manual Commands
+```bash
+# Development mode
+npm run dev
+
+# Production mode
+npm start
+
 # Build application
 npm run build
 
-# Start production server
-npm start
+# Database operations
+npm run db:push
 ```
 
-## 🔧 Configuration
+## 📊 Usage Examples
 
-### Environment Variables
+### SOCKS5 Client Configuration
 
-Create a `.env` file in the root directory:
+#### Node.js with socks-proxy-agent
+```javascript
+const { SocksProxyAgent } = require('socks-proxy-agent');
 
-```env
-NODE_ENV=production
-PORT=5000
-JWT_SECRET=your-secret-key-here
-DATABASE_URL=sqlite:./data/database.sqlite
+const agent = new SocksProxyAgent({
+  hostname: 'your-server-ip',
+  port: 1080,
+  username: 'your-username',
+  password: 'your-password'
+});
 
-# Default admin credentials (CHANGE THESE!)
-ADMIN_USERNAME=admin
-ADMIN_PASSWORD=admin123
-
-# SOCKS5 Proxy Configuration
-SOCKS_PORT=1080
-SOCKS_HOST=0.0.0.0
+const response = await fetch('https://api.example.com', { agent });
 ```
 
-### Default Credentials
-
-**⚠️ Important: Change these before production use!**
-
-- **Admin Panel**: `admin` / `admin123`
-- **Access URL**: `http://your-server-ip:5000`
-
-## 🌐 Usage
-
-### Admin Panel Access
-
-1. Open browser to `http://your-server-ip:5000`
-2. Login with admin credentials
-3. Create SOCKS5 users through the user management interface
-4. Monitor connections in real-time via dashboard
-
-### SOCKS5 Proxy Configuration
-
-Configure your applications to use:
-- **Host**: `your-server-ip`
-- **Port**: `1080`
-- **Username**: User created in admin panel
-- **Password**: Password set in admin panel
-
-### API Endpoints
-
-- `POST /api/auth/login` - Admin authentication
-- `GET /api/stats` - System statistics
-- `GET /api/users` - List all users
-- `POST /api/users` - Create new user
-- `PUT /api/users/:id` - Update user
-- `DELETE /api/users/:id` - Delete user
-- `GET /api/ip-pool` - IP pool management
-- `GET /api/connections` - Active connections
-- `GET /api/health` - Health check
-
-## 🏗 Architecture
-
-### Frontend
-- **React 18** with TypeScript
-- **shadcn/ui** components (Radix UI primitives)
-- **Tailwind CSS** for styling
-- **TanStack Query** for state management
-- **Wouter** for routing
-- **React Hook Form** with Zod validation
-
-### Backend
-- **Express.js** with TypeScript
-- **SQLite** database with Drizzle ORM
-- **WebSocket** for real-time updates
-- **JWT** authentication
-- **bcrypt** password hashing
-- **Custom SOCKS5** proxy server
-
-### Database Schema
-- **Users**: SOCKS5 user credentials and settings
-- **IP Pool**: Available IPv4/IPv6 addresses
-- **Connections**: Active and historical proxy connections
-- **Admins**: Admin panel user management
-
-## 🔄 Management Commands
-
+#### cURL
 ```bash
-# Service Management (if installed via install.sh)
-sudo systemctl start socks5-proxy-admin
-sudo systemctl stop socks5-proxy-admin
-sudo systemctl restart socks5-proxy-admin
-sudo systemctl status socks5-proxy-admin
-
-# View logs
-sudo journalctl -u socks5-proxy-admin -f
-
-# Development
-npm run dev          # Start development server
-npm run build        # Build for production
-npm start           # Start production server
-npm run db:push     # Push database schema changes
+curl --socks5 username:password@your-server-ip:1080 https://api.example.com
 ```
 
-## 📁 Project Structure
+#### Python with requests
+```python
+import requests
 
-```
-SockProxyManagerPanel/
-├── client/                 # React frontend
-│   ├── src/
-│   │   ├── components/    # UI components
-│   │   ├── pages/        # Application pages
-│   │   ├── hooks/        # Custom React hooks
-│   │   └── lib/          # Utilities
-├── server/                # Express.js backend
-│   ├── services/         # Business logic
-│   ├── routes.ts         # API endpoints
-│   ├── storage.ts        # Database operations
-│   └── index.ts          # Server entry point
-├── shared/                # Shared TypeScript types
-│   └── schema.ts         # Database schema
-├── data/                  # SQLite database files
-├── install.sh            # One-click installation script
-└── README.md
+proxies = {
+    'http': 'socks5://username:password@your-server-ip:1080',
+    'https': 'socks5://username:password@your-server-ip:1080'
+}
+
+response = requests.get('https://api.example.com', proxies=proxies)
 ```
 
-## 🔐 Security Considerations
+## 🔒 Security Best Practices
 
-1. **Change Default Credentials**: Always change admin username/password
-2. **Use HTTPS**: Configure SSL/TLS for production
-3. **Firewall**: Ensure ports 5000 and 1080 are properly configured
-4. **Database**: SQLite file is stored locally - ensure proper backup
-5. **JWT Secret**: Use a strong, random JWT secret key
-6. **Updates**: Keep dependencies updated regularly
+### Initial Setup
+1. **Change Default Password**: Immediately change the default admin password
+2. **Update System**: Keep the server OS and packages updated
+3. **Configure Firewall**: Properly configure firewall rules
+4. **SSL/TLS**: Install SSL certificates for HTTPS access
+5. **Regular Backups**: Set up automated database backups
 
-## 🐛 Troubleshooting
+### Ongoing Security
+- Monitor system logs regularly
+- Update application dependencies
+- Review user access patterns
+- Implement fail2ban for additional protection
+- Use strong passwords for all accounts
+
+## 📈 Monitoring & Analytics
+
+### Built-in Dashboard
+- Real-time connection monitoring
+- Bandwidth usage analytics
+- User activity tracking
+- System performance metrics
+- Geographic distribution maps
+
+### Log Files
+- Application logs: `journalctl -u socks-proxy-admin`
+- Nginx logs: `/var/log/nginx/`
+- System logs: `/var/log/syslog`
+
+## 🚀 Production Deployment
+
+### Nginx Configuration
+The installation script automatically configures Nginx as a reverse proxy. For manual setup:
+
+```nginx
+server {
+    listen 80;
+    server_name your-domain.com;
+    
+    location / {
+        proxy_pass http://localhost:5000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
+    
+    location /ws {
+        proxy_pass http://localhost:5000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}
+```
+
+### SSL/TLS Setup (Let's Encrypt)
+```bash
+# Install Certbot
+sudo apt install certbot python3-certbot-nginx
+
+# Obtain certificate
+sudo certbot --nginx -d your-domain.com
+
+# Auto-renewal
+sudo crontab -e
+# Add: 0 12 * * * /usr/bin/certbot renew --quiet
+```
+
+## 📋 Troubleshooting
 
 ### Common Issues
 
-1. **Service won't start**:
-   ```bash
-   sudo journalctl -u socks5-proxy-admin --no-pager
-   ```
-
-2. **Database permissions**:
-   ```bash
-   sudo chown -R socks5admin:socks5admin /opt/SockProxyManagerPanel/data
-   ```
-
-3. **Port conflicts**:
-   ```bash
-   sudo netstat -tlnp | grep :5000
-   sudo netstat -tlnp | grep :1080
-   ```
-
-4. **Firewall issues**:
-   ```bash
-   sudo ufw status
-   sudo ufw allow 5000/tcp
-   sudo ufw allow 1080/tcp
-   ```
-
-## 📝 Development
-
-### Prerequisites
-- Node.js 18+ 
-- npm or yarn
-- Git
-
-### Development Setup
-
+#### Port Already in Use
 ```bash
-# Clone and install
-git clone https://github.com/fahim8401/SockProxyManagerPanel.git
-cd SockProxyManagerPanel
-npm install
+# Check what's using the port
+sudo lsof -i :5000
+sudo lsof -i :1080
 
-# Start development server
-npm run dev
-
-# Database operations
-npm run db:push     # Push schema changes
-npm run db:studio   # Open database studio (if available)
+# Kill the process
+sudo kill -9 <PID>
 ```
 
-### Building for Production
-
+#### Database Issues
 ```bash
-npm run build
-npm start
+# Reset database
+rm database.sqlite
+npm run db:push
 ```
+
+#### Permission Issues
+```bash
+# Fix file permissions
+sudo chown -R $USER:$USER /opt/socks-proxy-admin
+chmod +x /opt/socks-proxy-admin/install.sh
+```
+
+#### Service Won't Start
+```bash
+# Check logs
+sudo journalctl -u socks-proxy-admin -n 50
+
+# Check configuration
+sudo systemctl status socks-proxy-admin
+```
+
+## 📞 Support & Documentation
+
+### Additional Resources
+- **Installation Guide**: [UBUNTU_INSTALLATION_GUIDE.md](UBUNTU_INSTALLATION_GUIDE.md)
+- **VPS Setup**: [VPS_SETUP_GUIDE.md](VPS_SETUP_GUIDE.md)
+- **Production Deployment**: [PRODUCTION_DEPLOYMENT.md](PRODUCTION_DEPLOYMENT.md)
+- **Troubleshooting**: [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
+
+### Getting Help
+1. Check the troubleshooting guide first
+2. Review system logs for error messages
+3. Ensure all requirements are met
+4. Verify network connectivity and firewall settings
+
+## 🏆 Features Summary
+
+✅ **Complete SOCKS5 Proxy Server** with multi-user authentication  
+✅ **Real-time Admin Dashboard** with live monitoring  
+✅ **Enhanced User Management** with detailed profiles and controls  
+✅ **API Management System** with key generation and documentation  
+✅ **IP Pool Management** with automatic assignment  
+✅ **Comprehensive Analytics** with historical data  
+✅ **Enterprise Security** with rate limiting and encryption  
+✅ **Cross-platform Support** for Linux distributions  
+✅ **One-click Installation** with automated setup  
+✅ **Production Ready** with optimization and monitoring  
 
 ## 📄 License
 
-MIT License - see LICENSE file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 🤝 Contributing
 
-1. Fork the repository
-2. Create feature branch: `git checkout -b feature-name`
-3. Commit changes: `git commit -am 'Add feature'`
-4. Push to branch: `git push origin feature-name`
-5. Create Pull Request
-
-## 🆘 Support
-
-- 🐛 Issues: https://github.com/fahim8401/SockProxyManagerPanel/issues
-- 📖 Documentation: README.md, DEPLOYMENT.md, TROUBLESHOOTING.md
-- 💬 Discussions: GitHub Discussions
-
-## 🔧 Build Fix for Debian 12
-
-If you encounter "vite: not found" during installation, the updated install.sh script now handles this by:
-1. Installing all dependencies (including dev dependencies)
-2. Building the application
-3. Cleaning up dev dependencies for production
-
-For manual installations, always run `npm install` (not `npm install --production`) before building.
+Contributions are welcome! Please feel free to submit pull requests or open issues for bugs and feature requests.
 
 ---
 
-**⚠️ Security Notice**: This software is provided as-is. Always review security settings and change default credentials before production deployment.
+**Ready for production deployment!** 🚀
+
+This system provides enterprise-level SOCKS5 proxy management with complete administrative control, real-time monitoring, and comprehensive user management capabilities.

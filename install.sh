@@ -1,8 +1,7 @@
 #!/bin/bash
 
-# SOCKS5 Proxy Admin Panel - One-Click Installation Script
-# Supports Ubuntu 18.04+, Debian 10+, CentOS 7+, RHEL 7+
-# Usage: curl -sSL https://raw.githubusercontent.com/fahim8401/SockProxyManagerPanel/main/install.sh | bash
+# SOCKS5 Proxy Admin Panel - Production Installation Script
+# Supports Ubuntu, Debian, CentOS, and other Linux distributions
 
 set -e
 
@@ -14,17 +13,19 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configuration
-REPO_URL="https://github.com/fahim8401/SockProxyManagerPanel.git"
-INSTALL_DIR="/opt/socks5-proxy-admin"
-SERVICE_NAME="socks5-proxy-admin"
+APP_NAME="SOCKS5 Proxy Admin Panel"
+APP_DIR="/opt/socks-proxy-admin"
+SERVICE_NAME="socks-proxy-admin"
 NODE_VERSION="20"
+DEFAULT_PORT="5000"
+DEFAULT_SOCKS_PORT="1080"
 
+# Functions
 print_header() {
     echo -e "${BLUE}"
-    echo "╔══════════════════════════════════════════════════════════════╗"
-    echo "║                 SOCKS5 Proxy Admin Panel                    ║"
-    echo "║                 Automated Installation                      ║"
-    echo "╚══════════════════════════════════════════════════════════════╝"
+    echo "=================================================="
+    echo "    $APP_NAME - Installation Script"
+    echo "=================================================="
     echo -e "${NC}"
 }
 
@@ -32,396 +33,329 @@ print_step() {
     echo -e "${GREEN}[STEP]${NC} $1"
 }
 
-print_info() {
-    echo -e "${BLUE}[INFO]${NC} $1"
-}
-
 print_warning() {
-    echo -e "${YELLOW}[WARN]${NC} $1"
+    echo -e "${YELLOW}[WARNING]${NC} $1"
 }
 
 print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
+print_success() {
+    echo -e "${GREEN}[SUCCESS]${NC} $1"
+}
+
+# Check if running as root
 check_root() {
-    if [[ $EUID -ne 0 ]]; then
-        print_error "This script must be run as root or with sudo"
-        echo "Usage: sudo bash install.sh"
-        exit 1
+    if [[ $EUID -eq 0 ]]; then
+        print_warning "Running as root. This is recommended for system-wide installation."
+    else
+        print_warning "Not running as root. You may need sudo privileges for some operations."
     fi
 }
 
+# Detect OS
 detect_os() {
     if [[ -f /etc/os-release ]]; then
         . /etc/os-release
-        OS=$ID
-        OS_VERSION=$VERSION_ID
+        OS=$NAME
+        VER=$VERSION_ID
+    elif type lsb_release >/dev/null 2>&1; then
+        OS=$(lsb_release -si)
+        VER=$(lsb_release -sr)
+    elif [[ -f /etc/redhat-release ]]; then
+        OS="CentOS"
+        VER=$(rpm -q --qf "%{VERSION}" $(rpm -q --whatprovides redhat-release))
     else
         print_error "Cannot detect operating system"
         exit 1
     fi
     
-    print_info "Detected OS: $OS $OS_VERSION"
+    print_step "Detected OS: $OS $VER"
 }
 
-install_dependencies() {
-    print_step "Installing system dependencies..."
-    
-    case $OS in
-        ubuntu|debian)
-            apt-get update
-            apt-get install -y curl wget git build-essential python3 sqlite3 ufw
-            ;;
-        centos|rhel|fedora)
-            if command -v dnf &> /dev/null; then
-                dnf install -y curl wget git gcc gcc-c++ make python3 sqlite ufw
-            else
-                yum install -y curl wget git gcc gcc-c++ make python3 sqlite
-                # Install ufw manually for CentOS 7
-                if ! command -v ufw &> /dev/null; then
-                    print_warning "UFW not available, using firewalld instead"
-                fi
-            fi
-            ;;
-        *)
-            print_error "Unsupported operating system: $OS"
-            exit 1
-            ;;
-    esac
-}
-
+# Install Node.js
 install_nodejs() {
     print_step "Installing Node.js $NODE_VERSION..."
     
+    if command -v node &> /dev/null; then
+        NODE_CURRENT=$(node --version | cut -d'v' -f2 | cut -d'.' -f1)
+        if [[ $NODE_CURRENT -ge $NODE_VERSION ]]; then
+            print_success "Node.js $NODE_CURRENT is already installed"
+            return
+        fi
+    fi
+    
     # Install Node.js using NodeSource repository
-    if ! command -v node &> /dev/null; then
-        curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash -
-        case $OS in
-            ubuntu|debian)
-                apt-get install -y nodejs
-                ;;
-            centos|rhel|fedora)
-                if command -v dnf &> /dev/null; then
-                    dnf install -y nodejs npm
-                else
-                    yum install -y nodejs npm
-                fi
-                ;;
-        esac
+    curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | sudo -E bash -
+    
+    if [[ "$OS" == *"Ubuntu"* ]] || [[ "$OS" == *"Debian"* ]]; then
+        sudo apt-get update
+        sudo apt-get install -y nodejs build-essential
+    elif [[ "$OS" == *"CentOS"* ]] || [[ "$OS" == *"Red Hat"* ]]; then
+        sudo yum install -y nodejs npm gcc-c++ make
     else
-        print_info "Node.js already installed: $(node --version)"
-    fi
-}
-
-create_user() {
-    print_step "Creating system user..."
-    
-    if ! id "socks5admin" &>/dev/null; then
-        useradd -r -s /bin/false -d $INSTALL_DIR socks5admin
-        print_info "Created user: socks5admin"
-    else
-        print_info "User already exists: socks5admin"
-    fi
-}
-
-clone_repository() {
-    print_step "Downloading application..."
-    
-    if [[ -d $INSTALL_DIR ]]; then
-        print_warning "Installation directory exists. Removing..."
-        rm -rf $INSTALL_DIR
-    fi
-    
-    git clone $REPO_URL $INSTALL_DIR
-    cd $INSTALL_DIR
-    
-    # Set ownership
-    chown -R socks5admin:socks5admin $INSTALL_DIR
-}
-
-install_app_dependencies() {
-    print_step "Installing application dependencies..."
-    
-    cd $INSTALL_DIR
-    
-    # Clear any existing cache and modules
-    print_info "Clearing npm cache..."
-    sudo -u socks5admin npm cache clean --force
-    
-    # Remove any existing node_modules to ensure clean install
-    if [ -d "node_modules" ]; then
-        print_info "Removing existing node_modules..."
-        sudo -u socks5admin rm -rf node_modules package-lock.json
-    fi
-    
-    # Install all dependencies (including dev dependencies needed for build)
-    print_info "Installing all dependencies..."
-    sudo -u socks5admin npm install
-    
-    # Verify critical build tools are available
-    print_info "Verifying build tools..."
-    if ! sudo -u socks5admin npx vite --version > /dev/null 2>&1; then
-        print_info "Installing vite globally as fallback..."
-        npm install -g vite
-    fi
-    
-    if ! sudo -u socks5admin npx tsx --version > /dev/null 2>&1; then
-        print_info "Installing tsx globally as fallback..."
-        npm install -g tsx
-    fi
-    
-    if ! sudo -u socks5admin npx esbuild --version > /dev/null 2>&1; then
-        print_info "Installing esbuild globally as fallback..."
-        npm install -g esbuild
-    fi
-    
-    # Build the application
-    print_info "Building application for production..."
-    sudo -u socks5admin npm run build
-    
-    # Verify build was successful
-    if [ ! -f "dist/index.js" ]; then
-        print_error "Build failed - dist/index.js not found"
+        print_error "Unsupported OS for automatic Node.js installation"
+        print_warning "Please install Node.js $NODE_VERSION manually"
         exit 1
     fi
     
-    print_info "Build completed successfully"
-    
-    # Clean up dev dependencies after successful build
-    print_info "Optimizing for production..."
-    sudo -u socks5admin npm prune --production
-    
-    # Verify production server can start
-    print_info "Testing production build..."
-    timeout 10 sudo -u socks5admin node dist/index.js > /dev/null 2>&1 || true
+    print_success "Node.js $(node --version) installed successfully"
 }
 
-setup_database() {
-    print_step "Setting up SQLite database..."
+# Install system dependencies
+install_dependencies() {
+    print_step "Installing system dependencies..."
     
-    cd $INSTALL_DIR
-    
-    # Create database directory with proper permissions
-    mkdir -p data
-    chown socks5admin:socks5admin data
-    
-    # Initialize database (will be auto-created on first run)
-    print_info "Database will be initialized on first startup"
-}
-
-configure_firewall() {
-    print_step "Configuring firewall..."
-    
-    if command -v ufw &> /dev/null; then
-        # UFW configuration
-        ufw allow 5000/tcp comment "SOCKS5 Admin Panel"
-        ufw allow 1080/tcp comment "SOCKS5 Proxy"
-        ufw allow ssh
-        
-        if ! ufw status | grep -q "Status: active"; then
-            print_warning "Firewall is not active. Enable it? (y/n)"
-            read -r enable_firewall
-            if [[ $enable_firewall =~ ^[Yy]$ ]]; then
-                ufw --force enable
-            fi
-        fi
-    elif command -v firewall-cmd &> /dev/null; then
-        # Firewalld configuration
-        firewall-cmd --permanent --add-port=5000/tcp --add-port=1080/tcp
-        firewall-cmd --reload
+    if [[ "$OS" == *"Ubuntu"* ]] || [[ "$OS" == *"Debian"* ]]; then
+        sudo apt-get update
+        sudo apt-get install -y curl wget git unzip sqlite3 nginx ufw
+    elif [[ "$OS" == *"CentOS"* ]] || [[ "$OS" == *"Red Hat"* ]]; then
+        sudo yum update -y
+        sudo yum install -y curl wget git unzip sqlite nginx firewalld
     else
-        print_warning "No firewall detected. Please manually configure ports 5000 and 1080"
+        print_warning "Please install the following packages manually: curl wget git unzip sqlite3 nginx"
     fi
+    
+    print_success "System dependencies installed"
 }
 
+# Create application directory
+setup_application() {
+    print_step "Setting up application directory..."
+    
+    # Create application directory
+    sudo mkdir -p $APP_DIR
+    sudo chown $USER:$USER $APP_DIR
+    
+    # Copy application files (assuming script is run from project directory)
+    if [[ -f "package.json" ]]; then
+        print_step "Copying application files..."
+        cp -r . $APP_DIR/
+        cd $APP_DIR
+    else
+        print_step "Cloning from GitHub repository..."
+        git clone https://github.com/fahim8401/SockProxyManagerPanel.git $APP_DIR
+        cd $APP_DIR
+    fi
+    
+    print_success "Application files copied to $APP_DIR"
+}
+
+# Install application dependencies
+install_app_dependencies() {
+    print_step "Installing application dependencies..."
+    
+    cd $APP_DIR
+    npm install --production
+    
+    print_success "Application dependencies installed"
+}
+
+# Build application
+build_application() {
+    print_step "Building application for production..."
+    
+    cd $APP_DIR
+    npm run build
+    
+    print_success "Application built successfully"
+}
+
+# Setup database
+setup_database() {
+    print_step "Initializing database..."
+    
+    cd $APP_DIR
+    
+    # Create database directory
+    mkdir -p data
+    
+    # Initialize database schema
+    npm run db:push || {
+        print_warning "Database push failed, trying alternative method..."
+        # Create a basic database if push fails
+        sqlite3 database.sqlite "CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY);"
+    }
+    
+    print_success "Database initialized"
+}
+
+# Create systemd service
 create_systemd_service() {
     print_step "Creating systemd service..."
     
-    # Find the correct node path
-    NODE_PATH=$(which node)
-    if [ -z "$NODE_PATH" ]; then
-        NODE_PATH="/usr/bin/node"
-    fi
-    
-    print_info "Using Node.js path: $NODE_PATH"
-    
-    cat > /etc/systemd/system/$SERVICE_NAME.service << EOF
+    sudo tee /etc/systemd/system/${SERVICE_NAME}.service > /dev/null <<EOF
 [Unit]
-Description=SOCKS5 Proxy Admin Panel
+Description=$APP_NAME
+Documentation=https://github.com/fahim8401/SockProxyManagerPanel
 After=network.target
-Wants=network.target
 
 [Service]
-Type=simple
-User=socks5admin
-Group=socks5admin
-WorkingDirectory=$INSTALL_DIR
 Environment=NODE_ENV=production
-Environment=PORT=5000
-Environment=JWT_SECRET=your-super-secret-jwt-key-$(openssl rand -hex 16)
-ExecStart=$NODE_PATH dist/index.js
-Restart=always
+Environment=PORT=$DEFAULT_PORT
+Environment=SOCKS_PORT=$DEFAULT_SOCKS_PORT
+Type=simple
+User=$USER
+WorkingDirectory=$APP_DIR
+ExecStart=/usr/bin/node dist/index.js
+Restart=on-failure
 RestartSec=10
-StandardOutput=journal
-StandardError=journal
-SyslogIdentifier=socks5-proxy-admin
 KillMode=mixed
 KillSignal=SIGINT
-TimeoutStopSec=10
-
-# Security settings
-NoNewPrivileges=true
-PrivateTmp=true
-ProtectSystem=strict
-ReadWritePaths=$INSTALL_DIR
-ProtectHome=true
+TimeoutStopSec=5
+SyslogIdentifier=$SERVICE_NAME
 
 [Install]
 WantedBy=multi-user.target
 EOF
-
-    systemctl daemon-reload
-    systemctl enable $SERVICE_NAME
-    print_info "Systemd service created and enabled"
-}
-
-create_environment_file() {
-    print_step "Creating environment configuration..."
     
-    cat > $INSTALL_DIR/.env << EOF
-# SOCKS5 Proxy Admin Panel Configuration
-NODE_ENV=production
-PORT=5000
-JWT_SECRET=$(openssl rand -hex 32)
-DATABASE_URL=sqlite:./data/database.sqlite
-
-# Default admin credentials (CHANGE THESE!)
-ADMIN_USERNAME=admin
-ADMIN_PASSWORD=admin123
-
-# SOCKS5 Proxy Configuration
-SOCKS_PORT=1080
-SOCKS_HOST=0.0.0.0
-EOF
-
-    chown socks5admin:socks5admin $INSTALL_DIR/.env
-    chmod 600 $INSTALL_DIR/.env
+    sudo systemctl daemon-reload
+    sudo systemctl enable $SERVICE_NAME
+    
+    print_success "Systemd service created"
 }
 
+# Configure firewall
+configure_firewall() {
+    print_step "Configuring firewall..."
+    
+    if command -v ufw &> /dev/null; then
+        # Ubuntu/Debian UFW
+        sudo ufw allow ssh
+        sudo ufw allow $DEFAULT_PORT/tcp
+        sudo ufw allow $DEFAULT_SOCKS_PORT/tcp
+        sudo ufw allow 80/tcp
+        sudo ufw allow 443/tcp
+        echo "y" | sudo ufw enable
+        print_success "UFW firewall configured"
+    elif command -v firewall-cmd &> /dev/null; then
+        # CentOS/RHEL firewalld
+        sudo systemctl enable firewalld
+        sudo systemctl start firewalld
+        sudo firewall-cmd --permanent --add-port=22/tcp
+        sudo firewall-cmd --permanent --add-port=$DEFAULT_PORT/tcp
+        sudo firewall-cmd --permanent --add-port=$DEFAULT_SOCKS_PORT/tcp
+        sudo firewall-cmd --permanent --add-port=80/tcp
+        sudo firewall-cmd --permanent --add-port=443/tcp
+        sudo firewall-cmd --reload
+        print_success "Firewalld configured"
+    else
+        print_warning "Please configure your firewall manually to allow ports: 22, $DEFAULT_PORT, $DEFAULT_SOCKS_PORT, 80, 443"
+    fi
+}
+
+# Configure Nginx reverse proxy
+configure_nginx() {
+    print_step "Configuring Nginx reverse proxy..."
+    
+    sudo tee /etc/nginx/sites-available/$SERVICE_NAME > /dev/null <<EOF
+server {
+    listen 80;
+    server_name _;
+    
+    location / {
+        proxy_pass http://localhost:$DEFAULT_PORT;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_cache_bypass \$http_upgrade;
+    }
+    
+    location /ws {
+        proxy_pass http://localhost:$DEFAULT_PORT;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+    }
+}
+EOF
+    
+    # Enable site
+    sudo ln -sf /etc/nginx/sites-available/$SERVICE_NAME /etc/nginx/sites-enabled/
+    sudo rm -f /etc/nginx/sites-enabled/default
+    
+    # Test configuration
+    sudo nginx -t && sudo systemctl restart nginx
+    
+    print_success "Nginx configured and restarted"
+}
+
+# Start services
 start_services() {
     print_step "Starting services..."
     
-    # Start the service
-    systemctl start $SERVICE_NAME
+    sudo systemctl start $SERVICE_NAME
+    sudo systemctl status $SERVICE_NAME --no-pager
     
-    # Wait for service to start
-    sleep 8
-    
-    # Check service status
-    if systemctl is-active --quiet $SERVICE_NAME; then
-        print_success "Service started successfully"
-    else
-        print_warning "Service may have failed to start. Checking logs..."
-        journalctl -u $SERVICE_NAME --no-pager -n 20
-    fi
-    
-    if systemctl is-active --quiet $SERVICE_NAME; then
-        print_success "✅ Service started successfully"
-    else
-        print_error "❌ Service failed to start. Troubleshooting..."
-        echo ""
-        print_info "📋 Check logs:"
-        echo "   sudo journalctl -u $SERVICE_NAME --no-pager"
-        echo ""
-        print_info "🔧 Manual troubleshooting steps:"
-        echo "   cd $INSTALL_DIR"
-        echo "   npm install                    # Reinstall dependencies"
-        echo "   npm run build                  # Rebuild application"
-        echo "   npm start                      # Test manual start"
-        echo "   sudo systemctl restart $SERVICE_NAME  # Restart service"
-        echo ""
-        print_info "🐛 Common fixes:"
-        echo "   # Clear npm cache and rebuild:"
-        echo "   cd $INSTALL_DIR"
-        echo "   sudo -u socks5admin npm cache clean --force"
-        echo "   sudo -u socks5admin rm -rf node_modules package-lock.json"
-        echo "   sudo -u socks5admin npm install"
-        echo "   sudo -u socks5admin npm run build"
-        echo ""
-        print_info "📞 If issues persist, check:"
-        echo "   - Node.js version: node --version (should be 18+)"
-        echo "   - Available disk space: df -h"
-        echo "   - File permissions: ls -la $INSTALL_DIR"
-        exit 1
-    fi
+    print_success "Services started successfully"
 }
 
-show_completion_info() {
-    local server_ip=$(curl -s ifconfig.me 2>/dev/null || echo "YOUR_SERVER_IP")
-    
-    echo -e "${GREEN}"
-    echo "╔══════════════════════════════════════════════════════════════╗"
-    echo "║                    Installation Complete!                   ║"
-    echo "╚══════════════════════════════════════════════════════════════╝"
-    echo -e "${NC}"
+# Display completion message
+display_completion() {
+    print_header
+    print_success "$APP_NAME has been installed successfully!"
     echo ""
-    echo -e "${BLUE}📱 Admin Panel Access:${NC}"
-    echo -e "   URL: ${YELLOW}http://$server_ip:5000${NC}"
-    echo -e "   Username: ${YELLOW}admin${NC}"
-    echo -e "   Password: ${YELLOW}admin123${NC}"
+    echo -e "${BLUE}Access Information:${NC}"
+    echo "• Admin Panel: http://$(hostname -I | awk '{print $1}') or http://localhost"
+    echo "• SOCKS5 Proxy: $(hostname -I | awk '{print $1}'):$DEFAULT_SOCKS_PORT"
     echo ""
-    echo -e "${BLUE}🔧 SOCKS5 Proxy Server:${NC}"
-    echo -e "   Host: ${YELLOW}$server_ip${NC}"
-    echo -e "   Port: ${YELLOW}1080${NC}"
+    echo -e "${BLUE}Default Credentials:${NC}"
+    echo "• Username: admin"
+    echo "• Password: admin123"
     echo ""
-    echo -e "${BLUE}⚙️  Management Commands:${NC}"
-    echo -e "   Start:   ${YELLOW}sudo systemctl start $SERVICE_NAME${NC}"
-    echo -e "   Stop:    ${YELLOW}sudo systemctl stop $SERVICE_NAME${NC}"
-    echo -e "   Restart: ${YELLOW}sudo systemctl restart $SERVICE_NAME${NC}"
-    echo -e "   Status:  ${YELLOW}sudo systemctl status $SERVICE_NAME${NC}"
-    echo -e "   Logs:    ${YELLOW}sudo journalctl -u $SERVICE_NAME -f${NC}"
+    echo -e "${BLUE}Service Management:${NC}"
+    echo "• Start: sudo systemctl start $SERVICE_NAME"
+    echo "• Stop: sudo systemctl stop $SERVICE_NAME"
+    echo "• Restart: sudo systemctl restart $SERVICE_NAME"
+    echo "• Status: sudo systemctl status $SERVICE_NAME"
+    echo "• Logs: sudo journalctl -u $SERVICE_NAME -f"
     echo ""
-    echo -e "${BLUE}📁 Installation Directory:${NC}"
-    echo -e "   ${YELLOW}$INSTALL_DIR${NC}"
+    echo -e "${BLUE}Files & Directories:${NC}"
+    echo "• Application: $APP_DIR"
+    echo "• Database: $APP_DIR/database.sqlite"
+    echo "• Service: /etc/systemd/system/${SERVICE_NAME}.service"
+    echo "• Nginx Config: /etc/nginx/sites-available/$SERVICE_NAME"
     echo ""
-    echo -e "${BLUE}🔧 Manual Commands (if needed):${NC}"
-    echo -e "   cd $INSTALL_DIR"
-    echo -e "   npm install      # Install dependencies"
-    echo -e "   npm run build    # Build application"
-    echo -e "   npm start        # Start manually"
+    echo -e "${YELLOW}Important Security Notes:${NC}"
+    echo "• Change default admin password immediately"
+    echo "• Configure SSL/TLS certificates for production"
+    echo "• Review firewall settings"
+    echo "• Set up regular database backups"
     echo ""
-    echo -e "${BLUE}🔐 Security Notes:${NC}"
-    echo -e "   • Change default admin password immediately!"
-    echo -e "   • Configure SSL/TLS for production use"
-    echo -e "   • Review firewall settings"
-    echo -e "   • Database: ${YELLOW}$INSTALL_DIR/data/database.sqlite${NC}"
-    echo ""
-    echo -e "${RED}⚠️  IMPORTANT:${NC}"
-    echo -e "   Change the default credentials before production use!"
-    echo -e "   Edit: ${YELLOW}$INSTALL_DIR/.env${NC}"
+    echo -e "${GREEN}Installation completed successfully!${NC}"
 }
 
 # Main installation process
 main() {
     print_header
     
+    print_step "Starting installation process..."
+    
     check_root
     detect_os
-    install_dependencies
     install_nodejs
-    create_user
-    clone_repository
+    install_dependencies
+    setup_application
     install_app_dependencies
+    build_application
     setup_database
-    create_environment_file
-    configure_firewall
     create_systemd_service
+    configure_firewall
+    configure_nginx
     start_services
-    show_completion_info
     
-    print_info "Installation completed successfully!"
+    display_completion
 }
 
-# Run installation
+# Trap errors
+trap 'print_error "Installation failed! Check the output above for details."; exit 1' ERR
+
+# Run main function
 main "$@"

@@ -47,15 +47,19 @@ const authenticateApiKey = async (req: any, res: any, next: any) => {
   try {
     // Check if API key exists and is active
     const apiKeys = await storage.getAllApiKeys();
-    const validKey = apiKeys.find(key => key.isActive);
+    let validKey = null;
+    
+    for (const key of apiKeys) {
+      if (key.isActive) {
+        const isValid = await bcrypt.compare(apiKey, key.password);
+        if (isValid) {
+          validKey = key;
+          break;
+        }
+      }
+    }
     
     if (!validKey) {
-      return res.status(401).json({ success: false, message: "Invalid API key" });
-    }
-
-    // Verify the API key hash
-    const isValid = await bcrypt.compare(apiKey, validKey.password);
-    if (!isValid) {
       return res.status(401).json({ success: false, message: "Invalid API key" });
     }
 
