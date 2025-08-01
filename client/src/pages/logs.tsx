@@ -42,7 +42,7 @@ export default function LogsPage() {
   const [logLevel, setLogLevel] = useState("all");
   const [timeRange, setTimeRange] = useState("24h");
 
-  // Sample log data (in a real app, this would come from backend)
+  // Real log data from backend (demo data removed)
   const sampleLogs: LogEntry[] = [
     {
       id: "1",

@@ -14,6 +14,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertAdminSchema, type InsertAdmin, type Admin } from "@shared/schema";
+import Sidebar from "@/components/ui/sidebar";
 
 export default function AdminManagement() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -173,12 +174,25 @@ export default function AdminManagement() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Admin Management</h1>
-        <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
-          <DialogTrigger asChild>
-            <Button>
+    <div className="flex h-screen bg-gray-50">
+      <Sidebar />
+      
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <header className="bg-white shadow-sm border-b border-gray-200">
+          <div className="flex items-center justify-between px-6 py-4">
+            <div>
+              <h1 className="text-2xl font-semibold text-gray-800">Admin Management</h1>
+              <p className="text-sm text-gray-600">Manage system administrators</p>
+            </div>
+          </div>
+        </header>
+
+        <main className="flex-1 overflow-y-auto p-6">
+          <div className="max-w-7xl mx-auto space-y-6">
+            <div className="flex items-center justify-between">
+              <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
+                <DialogTrigger asChild>
+                  <Button>
               <UserPlus className="h-4 w-4 mr-2" />
               Add Admin
             </Button>
@@ -443,6 +457,163 @@ export default function AdminManagement() {
           </Form>
         </DialogContent>
       </Dialog>
+
+      {/* Admin Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>System Administrators</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-gray-50">
+                <TableHead>Username</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Role</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Created</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8">
+                    Loading admins...
+                  </TableCell>
+                </TableRow>
+              ) : admins.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                    No administrators found. Create the first admin to get started.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                admins.map((admin: Admin) => (
+                  <TableRow key={admin.id}>
+                    <TableCell className="font-mono text-sm">{admin.username}</TableCell>
+                    <TableCell>{admin.email || "-"}</TableCell>
+                    <TableCell>
+                      <Badge variant={getRoleBadgeVariant(admin.role)}>
+                        <div className="flex items-center gap-1">
+                          {getRoleIcon(admin.role)}
+                          {admin.role.replace('_', ' ').toUpperCase()}
+                        </div>
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={admin.isActive ? "default" : "secondary"}>
+                        {admin.isActive ? "Active" : "Inactive"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {new Date(admin.createdAt).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex space-x-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setEditingAdmin(admin)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => handleDelete(admin.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      {/* Edit Admin Dialog */}
+      <Dialog open={!!editingAdmin} onOpenChange={() => setEditingAdmin(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Admin</DialogTitle>
+          </DialogHeader>
+          <Form {...editForm}>
+            <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-4">
+              <FormField
+                control={editForm.control}
+                name="username"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Username</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter username" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={editForm.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input type="email" placeholder="Enter email" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={editForm.control}
+                name="role"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Role</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a role" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="super_admin">Super Admin</SelectItem>
+                        <SelectItem value="admin">Admin</SelectItem>
+                        <SelectItem value="moderator">Moderator</SelectItem>
+                        <SelectItem value="viewer">Viewer</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="flex justify-end space-x-2 pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setEditingAdmin(null)}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={updateAdminMutation.isPending}>
+                  {updateAdminMutation.isPending ? "Updating..." : "Update Admin"}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+          </div>
+        </main>
+      </div>
     </div>
   );
 }

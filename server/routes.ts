@@ -266,6 +266,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // User management routes
+  app.get("/api/users", authenticateToken, async (req, res) => {
+    try {
+      const users = await storage.getAllUsers();
+      res.json(users);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+
+  app.post("/api/users", authenticateToken, async (req, res) => {
+    try {
+      const user = await storage.createUser(req.body);
+      res.status(201).json(user);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message || "Failed to create user" });
+    }
+  });
+
+  app.delete("/api/users/:id", authenticateToken, async (req, res) => {
+    try {
+      const userId = req.params.id;
+      const success = await storage.deleteUser(userId);
+      
+      if (success) {
+        res.json({ message: "User deleted successfully" });
+      } else {
+        res.status(404).json({ message: "User not found" });
+      }
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      res.status(500).json({ message: "Failed to delete user" });
+    }
+  });
+
   // Admin management routes
   app.get("/api/admins", authenticateToken, async (req, res) => {
     try {

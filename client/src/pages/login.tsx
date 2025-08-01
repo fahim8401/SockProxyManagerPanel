@@ -181,15 +181,7 @@ export default function LoginPage({ onLogin }: LoginProps) {
               </form>
             </Form>
 
-            {/* Demo Credentials Alert */}
-            <Alert className="mt-6 border-blue-200 bg-blue-50">
-              <Shield className="h-4 w-4 text-blue-600" />
-              <AlertDescription className="text-blue-800">
-                <strong>Demo Credentials:</strong><br />
-                Username: <code className="bg-blue-100 px-1 rounded">admin</code><br />
-                Password: <code className="bg-blue-100 px-1 rounded">admin123</code>
-              </AlertDescription>
-            </Alert>
+
           </CardContent>
         </Card>
 

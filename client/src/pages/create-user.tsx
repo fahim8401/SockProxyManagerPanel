@@ -65,7 +65,7 @@ export default function CreateUser() {
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
       queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/ip-pool"] });
-      setLocation("/dashboard");
+      setLocation("/users");
     },
     onError: (error: any) => {
       toast({

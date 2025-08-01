@@ -13,6 +13,7 @@ import LoginPage from "@/pages/login";
 import UserPortal from "@/pages/user-portal";
 import AdminManagement from "@/pages/admin-management";
 import UserProvisioning from "@/pages/user-provisioning";
+import UserManagement from "@/pages/user-management";
 import NotFound from "@/pages/not-found";
 import CreateUser from "@/pages/create-user";
 
@@ -37,7 +38,7 @@ function AuthenticatedRouter() {
     <Switch>
       <Route path="/login" component={() => <LoginPage onLogin={login} />} />
       <Route path="/" component={() => <ProtectedRoute component={Dashboard} />} />
-      <Route path="/users" component={() => <ProtectedRoute component={Dashboard} />} />
+      <Route path="/users" component={() => <ProtectedRoute component={UserManagement} />} />
       <Route path="/ip-pool" component={() => <ProtectedRoute component={IpPoolPage} />} />
       <Route path="/analytics" component={() => <ProtectedRoute component={AnalyticsPage} />} />
       <Route path="/settings" component={() => <ProtectedRoute component={SettingsPage} />} />
