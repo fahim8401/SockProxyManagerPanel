@@ -126,16 +126,21 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteUser(id: string): Promise<boolean> {
-    // Release IP
-    await db.update(ipPool)
-      .set({ isAvailable: true, assignedUserId: null })
-      .where(eq(ipPool.assignedUserId, id));
-    
-    // Delete user connections
-    await db.delete(connections).where(eq(connections.userId, id));
-    
-    const result = await db.delete(users).where(eq(users.id, id));
-    return result.rowCount! > 0;
+    try {
+      // Release IP
+      await db.update(ipPool)
+        .set({ isAvailable: true, assignedUserId: null })
+        .where(eq(ipPool.assignedUserId, id));
+      
+      // Delete user connections
+      await db.delete(connections).where(eq(connections.userId, id));
+      
+      const result = await db.delete(users).where(eq(users.id, id));
+      return result.changes > 0;
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      return false;
+    }
   }
 
   async createConnection(connection: InsertConnection): Promise<Connection> {
@@ -215,10 +220,7 @@ export class DatabaseStorage implements IStorage {
       .where(eq(ipPool.id, ipId));
   }
 
-  async deleteIP(ipId: string): Promise<boolean> {
-    const result = await db.delete(ipPool).where(eq(ipPool.id, ipId));
-    return result.rowCount > 0;
-  }
+
 
   async updateIPAvailability(ipId: string, isAvailable: boolean, assignedUserId?: string): Promise<void> {
     await db.update(ipPool)
@@ -292,12 +294,17 @@ export class DatabaseStorage implements IStorage {
 
   async deleteAdmin(id: string): Promise<boolean> {
     const result = await db.delete(admins).where(eq(admins.id, id));
-    return result.rowCount > 0;
+    return result.changes > 0;
   }
 
   async deleteIP(id: string): Promise<boolean> {
-    const result = await db.delete(ipPool).where(eq(ipPool.id, id));
-    return result.rowCount! > 0;
+    try {
+      const result = await db.delete(ipPool).where(eq(ipPool.id, id));
+      return result.changes > 0;
+    } catch (error) {
+      console.error("Error deleting IP:", error);
+      return false;
+    }
   }
 
   async updateAdminLastLogin(id: string): Promise<void> {
