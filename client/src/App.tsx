@@ -20,6 +20,7 @@ import CreateUser from "@/pages/create-user";
 import CreateUserSimple from "@/pages/create-user-simple";
 import CreateUserDebug from "@/pages/create-user-debug";
 import CreateUserWorking from "@/pages/create-user-working";
+import CreateUserSimpleWorking from "@/pages/create-user-simple-working";
 import TestPage from "@/pages/test";
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
@@ -30,7 +31,7 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
 function AuthenticatedRouter() {
   return (
     <Switch>
-      <Route path="/login" component={LoginPage} />
+      <Route path="/login" component={() => <LoginPage onLogin={() => {}} />} />
       <Route path="/" component={() => <ProtectedRoute component={Dashboard} />} />
       <Route path="/users" component={() => <ProtectedRoute component={UserManagement} />} />
       <Route path="/ip-pool" component={() => <ProtectedRoute component={IpPoolPage} />} />
@@ -40,7 +41,7 @@ function AuthenticatedRouter() {
       <Route path="/admin-management" component={() => <ProtectedRoute component={AdminManagement} />} />
       <Route path="/api-management" component={() => <ProtectedRoute component={ApiManagement} />} />
       <Route path="/packages" component={() => <ProtectedRoute component={PackageManagement} />} />
-      <Route path="/create-user" component={() => <ProtectedRoute component={CreateUserWorking} />} />
+      <Route path="/create-user" component={() => <ProtectedRoute component={CreateUserSimpleWorking} />} />
       <Route path="/create-user-full" component={() => <ProtectedRoute component={CreateUser} />} />
       <Route path="/test" component={TestPage} />
       <Route path="/user-portal" component={UserPortal} />
