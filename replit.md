@@ -26,6 +26,7 @@ This is a comprehensive full-stack SOCKS5 proxy management system with complete 
 - Package-based user creation with auto-filled limits
 - **✅ Regional & timezone settings with comprehensive localization options**
 - One-click installation script and comprehensive documentation
+- **✅ Complete uninstall script (uninstall.sh) for clean system removal**
 - Production deployment guide created
 - **✅ Complete enterprise-grade SOCKS5 proxy management system**
 
