@@ -412,8 +412,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Network scanning API - uses real system interfaces
   app.post("/api/ip-pool/scan", authenticateToken, async (req, res) => {
     try {
-      const { exec } = require('child_process');
-      const { promisify } = require('util');
+      const { exec } = await import('child_process');
+      const { promisify } = await import('util');
       const execAsync = promisify(exec);
       
       // Get actual system network interfaces
