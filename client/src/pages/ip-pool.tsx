@@ -23,7 +23,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, Network, Trash2, CheckCircle, XCircle, Search, Monitor, Activity, AlertCircle } from "lucide-react";
+import { Plus, Network, Trash2, CheckCircle, XCircle, Search, Monitor, Activity, AlertCircle, Users } from "lucide-react";
 import { IpPool, insertIpPoolSchema } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -194,26 +194,25 @@ export default function IpPoolPage() {
 
   const handleShowConnectedIPs = async () => {
     try {
-      const response = await apiRequest("GET", "/api/system/connected-ips");
-      const data = await response.json();
-      setConnectedIPs(data.connections);
+      const data = await apiRequest("GET", "/api/system/connected-ips");
+      setConnectedIPs(data.interfaces || []);
       setIsShowingConnected(true);
       
       toast({
-        title: "System connections loaded",
-        description: `Found ${data.total_connections} active connections`,
+        title: "OS Network Interfaces",
+        description: `Found ${data.total_interfaces} network interfaces`,
       });
     } catch (error) {
       toast({
-        title: "Failed to load connections",
-        description: "Unable to fetch system connections",
+        title: "Failed to load network interfaces",
+        description: "Unable to fetch OS network interfaces",
         variant: "destructive",
       });
     }
   };
 
-  const availableCount = ipPool.filter(ip => ip.isAvailable).length;
-  const assignedCount = ipPool.filter(ip => !ip.isAvailable).length;
+  const totalUsers = ipPool.reduce((sum, ip) => sum + (ip.userCount || 0), 0);
+  const usedIPs = ipPool.filter(ip => (ip.userCount || 0) > 0).length;
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -250,8 +249,8 @@ export default function IpPoolPage() {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">Available</p>
-                    <p className="text-2xl font-bold text-green-600">{availableCount}</p>
+                    <p className="text-sm font-medium text-gray-600">IPs in Use</p>
+                    <p className="text-2xl font-bold text-green-600">{usedIPs}</p>
                   </div>
                   <div className="p-3 bg-green-50 rounded-full">
                     <CheckCircle className="text-green-600 w-5 h-5" />
@@ -264,11 +263,11 @@ export default function IpPoolPage() {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">Assigned</p>
-                    <p className="text-2xl font-bold text-red-600">{assignedCount}</p>
+                    <p className="text-sm font-medium text-gray-600">Total Users</p>
+                    <p className="text-2xl font-bold text-blue-600">{totalUsers}</p>
                   </div>
-                  <div className="p-3 bg-red-50 rounded-full">
-                    <XCircle className="text-red-600 w-5 h-5" />
+                  <div className="p-3 bg-blue-50 rounded-full">
+                    <Users className="text-blue-600 w-5 h-5" />
                   </div>
                 </div>
               </CardContent>
@@ -353,8 +352,8 @@ export default function IpPoolPage() {
                   <TableRow className="bg-gray-50">
                     <TableHead>IP Address</TableHead>
                     <TableHead>Type</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Assigned User</TableHead>
+                    <TableHead>User Count</TableHead>
+                    <TableHead>Latest User</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -376,25 +375,25 @@ export default function IpPoolPage() {
                         </TableCell>
                         <TableCell>
                           <Badge 
-                            variant={ip.isAvailable ? "default" : "secondary"}
+                            variant="default"
                             className={
-                              ip.isAvailable ? 
-                              "bg-green-100 text-green-800 hover:bg-green-100" : 
-                              "bg-red-100 text-red-800 hover:bg-red-100"
+                              (ip.userCount || 0) > 0 ? 
+                              "bg-blue-100 text-blue-800 hover:bg-blue-100" : 
+                              "bg-gray-100 text-gray-800 hover:bg-gray-100"
                             }
                           >
-                            {ip.isAvailable ? "Available" : "Assigned"}
+                            {ip.userCount || 0} {(ip.userCount || 0) === 1 ? 'user' : 'users'}
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          {ip.assignedUserId ? ip.assignedUserId : "-"}
+                          {ip.assignedUserId ? ip.assignedUserId.slice(0, 8) + '...' : "-"}
                         </TableCell>
                         <TableCell>
                           <Button 
                             variant="ghost" 
                             size="sm"
                             onClick={() => deleteIpMutation.mutate(ip.id)}
-                            disabled={deleteIpMutation.isPending || !ip.isAvailable}
+                            disabled={deleteIpMutation.isPending || (ip.userCount || 0) > 0}
                             className="text-red-600 hover:text-red-800"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -502,7 +501,7 @@ export default function IpPoolPage() {
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   <Monitor className="w-5 h-5" />
-                  System Network Connections
+                  OS Network Interfaces
                 </DialogTitle>
               </DialogHeader>
               
@@ -510,7 +509,7 @@ export default function IpPoolPage() {
                 <Alert>
                   <Activity className="h-4 w-4" />
                   <AlertDescription>
-                    Showing {connectedIPs.length} active network connections on this system
+                    Showing {connectedIPs.length} network interfaces from the host operating system
                   </AlertDescription>
                 </Alert>
                 
@@ -518,42 +517,56 @@ export default function IpPoolPage() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Local IP:Port</TableHead>
-                        <TableHead>Remote IP:Port</TableHead>
-                        <TableHead>Protocol</TableHead>
-                        <TableHead>State</TableHead>
-                        <TableHead>Process</TableHead>
-                        <TableHead>PID</TableHead>
+                        <TableHead>Interface</TableHead>
+                        <TableHead>IP Address</TableHead>
+                        <TableHead>Family</TableHead>
+                        <TableHead>MAC Address</TableHead>
+                        <TableHead>CIDR</TableHead>
+                        <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {connectedIPs.map((conn, index) => (
-                        <TableRow key={index}>
-                          <TableCell className="font-mono text-sm">
-                            {conn.local_ip}:{conn.local_port}
-                          </TableCell>
-                          <TableCell className="font-mono text-sm">
-                            {conn.remote_ip}:{conn.remote_port}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline">{conn.protocol}</Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Badge 
-                              variant={conn.state === "ESTABLISHED" ? "default" : "secondary"}
-                              className={
-                                conn.state === "ESTABLISHED" ? 
-                                "bg-green-100 text-green-800" : 
-                                "bg-yellow-100 text-yellow-800"
-                              }
-                            >
-                              {conn.state}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="font-mono text-sm">{conn.process}</TableCell>
-                          <TableCell>{conn.pid}</TableCell>
-                        </TableRow>
-                      ))}
+                      {connectedIPs.map((iface, index) => {
+                        const isAlreadyAdded = ipPool.some(ip => ip.ipAddress === iface.ip_address);
+                        return (
+                          <TableRow key={index}>
+                            <TableCell className="font-mono text-sm font-semibold">
+                              {iface.interface}
+                            </TableCell>
+                            <TableCell className="font-mono text-sm">
+                              {iface.ip_address}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline">{iface.family}</Badge>
+                            </TableCell>
+                            <TableCell className="font-mono text-xs">
+                              {iface.mac || '-'}
+                            </TableCell>
+                            <TableCell className="font-mono text-sm">
+                              {iface.cidr || '-'}
+                            </TableCell>
+                            <TableCell>
+                              {isAlreadyAdded ? (
+                                <Badge variant="secondary">Already Added</Badge>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  onClick={() => {
+                                    addIpMutation.mutate({
+                                      ipAddress: iface.ip_address,
+                                      ipType: iface.family
+                                    });
+                                  }}
+                                  disabled={addIpMutation.isPending}
+                                >
+                                  <Plus className="w-4 h-4 mr-1" />
+                                  Add
+                                </Button>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </div>

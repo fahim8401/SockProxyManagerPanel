@@ -504,7 +504,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const availableOnly = req.query.available === 'true';
       const ips = availableOnly ? await storage.getAvailableIPs() : await storage.getAllIPs();
-      res.json(ips);
+      // Add usage count for each IP
+      const ipsWithUsage = await Promise.all(
+        ips.map(async (ip) => ({
+          ...ip,
+          userCount: await storage.getIPUsageCount(ip.ipAddress)
+        }))
+      );
+      res.json(ipsWithUsage);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch IP pool" });
     }
@@ -674,8 +681,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
 
         const user = await storage.createUser(userData);
-        // Mark IP as assigned by updating its availability
-        await storage.updateIPAvailability(assignedIP.id, false, user.id.toString());
+        // Assign IP to user (multiple users can share same IP)
+        await storage.updateIPAvailability(assignedIP.id, true, user.id.toString());
         
         results.push({
           id: user.id,
@@ -813,50 +820,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get Connected IPs (simulate system network connections)
+  // Get Connected IPs (real OS network interfaces)
   app.get("/api/system/connected-ips", authenticateToken, async (req, res) => {
     try {
-      // Simulate system network connections
-      const connections = [
-        {
-          local_ip: "192.168.1.100",
-          remote_ip: "8.8.8.8",
-          protocol: "TCP",
-          local_port: 53421,
-          remote_port: 443,
-          state: "ESTABLISHED",
-          process: "chrome.exe",
-          pid: 1234
-        },
-        {
-          local_ip: "192.168.1.100", 
-          remote_ip: "1.1.1.1",
-          protocol: "UDP",
-          local_port: 53,
-          remote_port: 53,
-          state: "OPEN",
-          process: "dns.exe",
-          pid: 5678
-        },
-        {
-          local_ip: "192.168.1.100",
-          remote_ip: "74.125.224.72", 
-          protocol: "TCP",
-          local_port: 80,
-          remote_port: 80,
-          state: "TIME_WAIT",
-          process: "firefox.exe", 
-          pid: 9012
+      const os = require('os');
+      const networkInterfaces = os.networkInterfaces();
+      
+      const interfaceData = [];
+      
+      for (const [interfaceName, addresses] of Object.entries(networkInterfaces)) {
+        if (addresses && Array.isArray(addresses)) {
+          for (const addr of addresses) {
+            // Skip loopback and internal addresses
+            if (!addr.internal) {
+              interfaceData.push({
+                interface: interfaceName,
+                ip_address: addr.address,
+                family: addr.family,
+                mac: addr.mac,
+                netmask: addr.netmask,
+                cidr: addr.cidr || `${addr.address}/${addr.family === 'IPv4' ? '24' : '64'}`,
+                status: "active"
+              });
+            }
+          }
         }
-      ];
+      }
 
       res.json({
-        total_connections: connections.length,
-        local_ip: "192.168.1.100",
-        connections
+        total_interfaces: interfaceData.length,
+        hostname: os.hostname(),
+        platform: os.platform(),
+        arch: os.arch(),
+        interfaces: interfaceData
       });
     } catch (error) {
-      res.status(500).json({ message: "Failed to get system connections" });
+      res.status(500).json({ message: "Failed to get network interfaces" });
     }
   });
 

@@ -195,7 +195,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAvailableIPs(): Promise<IpPool[]> {
-    return await db.select().from(ipPool).where(eq(ipPool.isAvailable, true));
+    // Return all IPs since multiple users can share the same IP
+    return await db.select().from(ipPool);
   }
 
   async getAllIPs(): Promise<IpPool[]> {
@@ -214,24 +215,38 @@ export class DatabaseStorage implements IStorage {
   }
 
   async assignIP(ipId: string, userId: string): Promise<void> {
+    // No longer marks IP as unavailable - multiple users can share same IP
+    // Just track that this user is using this IP in the users table
     await db.update(ipPool)
-      .set({ isAvailable: false, assignedUserId: userId })
+      .set({ assignedUserId: userId })
       .where(eq(ipPool.id, ipId));
   }
 
   async releaseIP(ipId: string): Promise<void> {
-    await db.update(ipPool)
-      .set({ isAvailable: true, assignedUserId: null })
-      .where(eq(ipPool.id, ipId));
+    // Only release if no other users are using this IP
+    const usersUsingIP = await db.select().from(users).where(eq(users.ipAddress, 
+      (await db.select({ ip: ipPool.ipAddress }).from(ipPool).where(eq(ipPool.id, ipId)))[0]?.ip || ''
+    ));
+    
+    if (usersUsingIP.length === 0) {
+      await db.update(ipPool)
+        .set({ assignedUserId: null })
+        .where(eq(ipPool.id, ipId));
+    }
+  }
+
+  async getIPUsageCount(ipAddress: string): Promise<number> {
+    const result = await db.select().from(users).where(eq(users.ipAddress, ipAddress));
+    return result.length;
   }
 
 
 
   async updateIPAvailability(ipId: string, isAvailable: boolean, assignedUserId?: string): Promise<void> {
+    // IPs are always available for sharing - just update the assigned user if needed
     await db.update(ipPool)
       .set({ 
-        isAvailable, 
-        assignedUserId: isAvailable ? null : assignedUserId || null 
+        assignedUserId: assignedUserId || null 
       })
       .where(eq(ipPool.id, ipId));
   }
