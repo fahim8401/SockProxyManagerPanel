@@ -19,10 +19,10 @@ export const users = sqliteTable("users", {
   dataLimit: integer("data_limit").notNull(), // in bytes
   dataUsed: integer("data_used").default(0),
   daysValid: integer("days_valid").notNull(),
-  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`CURRENT_TIMESTAMP`),
+  createdAt: integer("created_at").default(sql`CURRENT_TIMESTAMP`),
   expiresAt: integer("expires_at").notNull(),
   isActive: integer("is_active", { mode: "boolean" }).default(true),
-  lastConnection: integer("last_connection", { mode: "timestamp" }),
+  lastConnection: integer("last_connection"),
   packageId: text("package_id").references(() => packages.id),
 });
 
@@ -31,8 +31,8 @@ export const connections = sqliteTable("connections", {
   id: text("id").primaryKey().default(sql`(hex(randomblob(16)))`),
   userId: text("user_id").references(() => users.id).notNull(),
   ipAddress: text("ip_address").notNull(),
-  startTime: integer("start_time", { mode: "timestamp" }).default(sql`CURRENT_TIMESTAMP`),
-  endTime: integer("end_time", { mode: "timestamp" }),
+  startTime: integer("start_time").default(sql`CURRENT_TIMESTAMP`),
+  endTime: integer("end_time"),
   bytesTransferred: integer("bytes_transferred").default(0),
 });
 
@@ -54,9 +54,9 @@ export const admins = sqliteTable("admins", {
   role: text("role").notNull().default("admin"), // super_admin, admin, moderator, viewer
   permissions: text("permissions").default("{}"), // JSON string for permissions
   isActive: integer("is_active", { mode: "boolean" }).default(true),
-  lastLogin: integer("last_login", { mode: "timestamp" }),
-  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`CURRENT_TIMESTAMP`),
+  lastLogin: integer("last_login"),
+  createdAt: integer("created_at").default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: integer("updated_at").default(sql`CURRENT_TIMESTAMP`),
   createdBy: text("created_by"), // ID of admin who created this account
 });
 
@@ -71,8 +71,8 @@ export const packages = sqliteTable("packages", {
   allowedIPs: text("allowed_ips"), // comma-separated
   price: real("price"),
   isActive: integer("is_active", { mode: "boolean" }).default(true),
-  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`CURRENT_TIMESTAMP`),
+  createdAt: integer("created_at").default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: integer("updated_at").default(sql`CURRENT_TIMESTAMP`),
 });
 
 // API Keys table
@@ -82,8 +82,8 @@ export const apiKeys = sqliteTable("api_keys", {
   keyHash: text("key_hash").notNull().unique(),
   isActive: integer("is_active", { mode: "boolean" }).default(true),
   usageCount: integer("usage_count").default(0),
-  lastUsed: integer("last_used", { mode: "timestamp" }),
-  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`CURRENT_TIMESTAMP`),
+  lastUsed: integer("last_used"),
+  createdAt: integer("created_at").default(sql`CURRENT_TIMESTAMP`),
   createdBy: text("created_by").notNull(),
 });
 

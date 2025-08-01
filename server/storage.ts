@@ -111,14 +111,12 @@ export class DatabaseStorage implements IStorage {
 
   async createUser(insertUser: Omit<InsertUser, 'confirmPassword'>): Promise<User> {
     const id = randomUUID();
-    const now = new Date();
-    const expiresAt = new Date(now.getTime() + insertUser.daysValid * 24 * 60 * 60 * 1000);
+    const now = Math.floor(Date.now() / 1000);
     
     const [user] = await db.insert(users).values({
       ...insertUser,
       id,
       createdAt: now,
-      expiresAt,
       dataUsed: 0,
       isActive: true,
       lastConnection: null,
@@ -165,17 +163,18 @@ export class DatabaseStorage implements IStorage {
 
   async createConnection(connection: InsertConnection): Promise<Connection> {
     const id = randomUUID();
+    const now = Math.floor(Date.now() / 1000);
     const [conn] = await db.insert(connections).values({
       ...connection,
       id,
-      startTime: new Date(),
+      startTime: now,
       endTime: null,
       bytesTransferred: 0,
     }).returning();
     
     // Update user's last connection
     await db.update(users)
-      .set({ lastConnection: new Date() })
+      .set({ lastConnection: now })
       .where(eq(users.id, connection.userId));
     
     return conn;
@@ -192,7 +191,7 @@ export class DatabaseStorage implements IStorage {
   async endConnection(id: string, bytesTransferred: number): Promise<void> {
     const [connection] = await db.update(connections)
       .set({ 
-        endTime: new Date(), 
+        endTime: Math.floor(Date.now() / 1000), 
         bytesTransferred 
       })
       .where(eq(connections.id, id))
@@ -311,8 +310,8 @@ export class DatabaseStorage implements IStorage {
       ...admin,
       id: randomUUID(),
       createdBy,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      createdAt: Math.floor(Date.now() / 1000),
+      updatedAt: Math.floor(Date.now() / 1000),
     }).returning();
     
     return newAdmin;
@@ -320,7 +319,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateAdmin(id: string, updates: Partial<Admin>): Promise<Admin | undefined> {
     const [updatedAdmin] = await db.update(admins)
-      .set({ ...updates, updatedAt: new Date() })
+      .set({ ...updates, updatedAt: Math.floor(Date.now() / 1000) })
       .where(eq(admins.id, id))
       .returning();
     
@@ -344,7 +343,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateAdminLastLogin(id: string): Promise<void> {
     await db.update(admins)
-      .set({ lastLogin: new Date() })
+      .set({ lastLogin: Math.floor(Date.now() / 1000) })
       .where(eq(admins.id, id));
   }
 

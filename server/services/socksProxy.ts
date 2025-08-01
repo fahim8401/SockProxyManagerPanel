@@ -29,7 +29,7 @@ export class SocksProxyServer {
     this.users.clear();
     
     users.forEach(user => {
-      if (user.isActive && new Date() < new Date(user.expiresAt)) {
+      if (user.isActive && Math.floor(Date.now() / 1000) < user.expiresAt) {
         this.users.set(user.username, {
           username: user.username,
           password: user.password,

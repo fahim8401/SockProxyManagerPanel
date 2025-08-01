@@ -140,7 +140,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check if user is expired
-      if (new Date(user.expiresAt) < new Date()) {
+      if (user.expiresAt < Math.floor(Date.now() / 1000)) {
         return res.status(401).json({ message: "Account has expired" });
       }
 
@@ -193,7 +193,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           // Calculate data usage percentage
           const dataUsagePercent = (user.dataUsed / user.dataLimit) * 100;
-          const daysUntilExpiry = Math.ceil((new Date(user.expiresAt).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+          const daysUntilExpiry = Math.ceil((user.expiresAt * 1000 - Date.now()) / (1000 * 60 * 60 * 24));
 
           res.json({
             id: user.id,
@@ -332,6 +332,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log("Received user data:", req.body);
       const validatedData = insertUserSchema.parse(req.body);
+      console.log("Validated data:", validatedData);
       const { confirmPassword, ...userData } = validatedData;
       
       // Check if username already exists
@@ -340,13 +341,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Username already exists" });
       }
 
+      console.log("Creating user with data:", userData);
       const user = await storage.createUser(userData);
+      console.log("User created successfully:", user);
       
       // Reload SOCKS proxy users
-      await socksProxy.loadUsers();
+      try {
+        await socksProxy.loadUsers();
+        console.log("SOCKS proxy users reloaded successfully");
+      } catch (socksError) {
+        console.error("Error reloading SOCKS proxy users:", socksError);
+      }
       
       res.status(201).json(user);
     } catch (error: any) {
+      console.error("User creation error:", error);
       res.status(400).json({ message: error.message || "Failed to create user" });
     }
   });
@@ -511,8 +520,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         keyHash: key.keyHash, // This will be shown partially
         isActive: key.isActive,
         usageCount: key.usageCount || 0,
-        createdAt: key.createdAt ? Math.floor(new Date(key.createdAt).getTime() / 1000) : Math.floor(Date.now() / 1000),
-        lastUsed: key.lastUsed ? Math.floor(new Date(key.lastUsed).getTime() / 1000) : null,
+        createdAt: key.createdAt || Math.floor(Date.now() / 1000),
+        lastUsed: key.lastUsed || null,
       }));
       res.json(formattedKeys);
     } catch (error) {
@@ -774,8 +783,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const assignedIP = availableIPs[i];
         const port = 1080;
         
-        const expiresAt = new Date();
-        expiresAt.setDate(expiresAt.getDate() + daysValid);
+        const expiresAt = Math.floor((Date.now() + daysValid * 24 * 60 * 60 * 1000) / 1000);
 
         const userData = {
           username,
@@ -835,7 +843,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             userId: conn.userId,
             ipAddress: conn.ipAddress,
             duration: conn.startTime ? 
-              Math.floor((Date.now() - new Date(conn.startTime).getTime()) / 1000) : 0,
+              Math.floor(Date.now() / 1000) - conn.startTime : 0,
             bytesTransferred: conn.bytesTransferred || 0,
           }))
         },
@@ -876,7 +884,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const now = new Date();
     res.json({
       timestamp: now.toISOString(),
-      unix: Math.floor(now.getTime() / 1000),
+      unix: Math.floor(Date.now() / 1000),
       formatted: now.toLocaleString('en-US', { 
         timeZone: 'UTC',
         year: 'numeric',
