@@ -99,8 +99,10 @@ export default function ApiManagement() {
     setVisibleKeys(newVisible);
   };
 
-  const formatDate = (timestamp: number) => {
-    return new Date(timestamp * 1000).toLocaleDateString();
+  const formatDate = (timestamp: number | Date | null) => {
+    if (!timestamp) return "Never";
+    const date = typeof timestamp === 'number' ? new Date(timestamp * 1000) : new Date(timestamp);
+    return date.toLocaleDateString();
   };
 
   return (
@@ -127,6 +129,10 @@ export default function ApiManagement() {
               <TabsTrigger value="endpoints" className="flex items-center">
                 <Code className="h-4 w-4 mr-2" />
                 Endpoints
+              </TabsTrigger>
+              <TabsTrigger value="analytics" className="flex items-center">
+                <Database className="h-4 w-4 mr-2" />
+                Analytics
               </TabsTrigger>
               <TabsTrigger value="docs" className="flex items-center">
                 <Book className="h-4 w-4 mr-2" />
@@ -328,6 +334,91 @@ export default function ApiManagement() {
                       </div>
                     </div>
                   </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* API Usage Analytics Tab */}
+            <TabsContent value="analytics" className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <Card>
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">Total API Calls</p>
+                        <p className="text-2xl font-bold text-gray-900">
+                          {apiKeys.reduce((sum, key) => sum + (key.usageCount || 0), 0)}
+                        </p>
+                      </div>
+                      <div className="p-3 bg-blue-50 rounded-full">
+                        <Database className="text-blue-600 w-5 h-5" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">Active API Keys</p>
+                        <p className="text-2xl font-bold text-green-600">
+                          {apiKeys.filter(key => key.isActive).length}
+                        </p>
+                      </div>
+                      <div className="p-3 bg-green-50 rounded-full">
+                        <Key className="text-green-600 w-5 h-5" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">Rate Limit Status</p>
+                        <p className="text-2xl font-bold text-blue-600">100/min</p>
+                      </div>
+                      <div className="p-3 bg-blue-50 rounded-full">
+                        <Activity className="text-blue-600 w-5 h-5" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>API Usage by Key</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>API Key Name</TableHead>
+                        <TableHead>Usage Count</TableHead>
+                        <TableHead>Last Used</TableHead>
+                        <TableHead>Rate Limit</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {apiKeys.map((key) => (
+                        <TableRow key={key.id}>
+                          <TableCell className="font-medium">{key.name}</TableCell>
+                          <TableCell>{key.usageCount || 0} calls</TableCell>
+                          <TableCell>{key.lastUsed ? formatDate(key.lastUsed) : "Never"}</TableCell>
+                          <TableCell>100/min</TableCell>
+                          <TableCell>
+                            <Badge variant={key.isActive ? "default" : "secondary"}>
+                              {key.isActive ? "Active" : "Inactive"}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
                 </CardContent>
               </Card>
             </TabsContent>

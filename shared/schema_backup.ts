@@ -60,33 +60,6 @@ export const admins = sqliteTable("admins", {
   createdBy: text("created_by"), // ID of admin who created this account
 });
 
-// Product Packages table
-export const packages = sqliteTable("packages", {
-  id: text("id").primaryKey().default(sql`(hex(randomblob(16)))`),
-  name: text("name").notNull(),
-  description: text("description"),
-  dataLimitGB: integer("data_limit_gb").notNull(),
-  timeLimit: integer("time_limit").notNull(), // in days
-  maxConnections: integer("max_connections").default(1),
-  allowedIPs: text("allowed_ips"), // comma-separated
-  price: real("price"),
-  isActive: integer("is_active", { mode: "boolean" }).default(true),
-  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`CURRENT_TIMESTAMP`),
-});
-
-// API Keys table
-export const apiKeys = sqliteTable("api_keys", {
-  id: text("id").primaryKey().default(sql`(hex(randomblob(16)))`),
-  name: text("name").notNull(),
-  keyHash: text("key_hash").notNull().unique(),
-  isActive: integer("is_active", { mode: "boolean" }).default(true),
-  usageCount: integer("usage_count").default(0),
-  lastUsed: integer("last_used", { mode: "timestamp" }),
-  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`CURRENT_TIMESTAMP`),
-  createdBy: text("created_by").notNull(),
-});
-
 // Schema validation
 export const insertUserSchema = createInsertSchema(users)
   .omit({
@@ -129,10 +102,45 @@ export const insertAdminSchema = createInsertSchema(admins)
     path: ["confirmPassword"],
   });
 
-export const insertPackageSchema = createInsertSchema(packages).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
+// Type exports
+export type InsertUser = z.infer<typeof insertUserSchema>;
+export type User = typeof users.$inferSelect;
+export type InsertConnection = z.infer<typeof insertConnectionSchema>;
+export type Connection = typeof connections.$inferSelect;
+export type InsertIpPool = z.infer<typeof insertIpPoolSchema>;
+export type IpPool = typeof ipPool.$inferSelect;
+export type InsertAdmin = z.infer<typeof insertAdminSchema>;
+export type Admin = typeof admins.$inferSelect;
+export type InsertPackage = z.infer<typeof insertPackageSchema>;
+export type Package = typeof packages.$inferSelect;
+export type InsertApiKey = z.infer<typeof insertApiKeySchema>;
+export type ApiKey = typeof apiKeys.$inferSelect;
+
+// Product Packages table
+export const packages = sqliteTable("packages", {
+  id: text("id").primaryKey().default(sql`(hex(randomblob(16)))`),
+  name: text("name").notNull(),
+  description: text("description"),
+  dataLimitGB: integer("data_limit_gb").notNull(),
+  timeLimit: integer("time_limit").notNull(), // in days
+  maxConnections: integer("max_connections").default(1),
+  allowedIPs: text("allowed_ips"), // comma-separated
+  price: real("price"),
+  isActive: integer("is_active", { mode: "boolean" }).default(true),
+  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`CURRENT_TIMESTAMP`),
+});
+
+// API Keys table (using admins table structure)
+export const apiKeys = sqliteTable("api_keys", {
+  id: text("id").primaryKey().default(sql`(hex(randomblob(16)))`),
+  name: text("name").notNull(),
+  keyHash: text("key_hash").notNull().unique(),
+  isActive: integer("is_active", { mode: "boolean" }).default(true),
+  usageCount: integer("usage_count").default(0),
+  lastUsed: integer("last_used", { mode: "timestamp" }),
+  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`CURRENT_TIMESTAMP`),
+  createdBy: text("created_by").notNull(),
 });
 
 export const insertApiKeySchema = createInsertSchema(apiKeys).omit({
@@ -143,16 +151,11 @@ export const insertApiKeySchema = createInsertSchema(apiKeys).omit({
   createdAt: true,
 });
 
-// Type exports
-export type User = typeof users.$inferSelect;
-export type InsertUser = z.infer<typeof insertUserSchema>;
-export type Connection = typeof connections.$inferSelect;
-export type InsertConnection = z.infer<typeof insertConnectionSchema>;
-export type IpPool = typeof ipPool.$inferSelect;
-export type InsertIpPool = z.infer<typeof insertIpPoolSchema>;
-export type Admin = typeof admins.$inferSelect;
-export type InsertAdmin = z.infer<typeof insertAdminSchema>;
+export const insertPackageSchema = createInsertSchema(packages).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export type Package = typeof packages.$inferSelect;
 export type InsertPackage = z.infer<typeof insertPackageSchema>;
-export type ApiKey = typeof apiKeys.$inferSelect;
-export type InsertApiKey = z.infer<typeof insertApiKeySchema>;

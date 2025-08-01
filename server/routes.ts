@@ -123,6 +123,114 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Find user in database
       const user = await storage.getUserByUsername(username);
+      
+      if (!user) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+
+      // Verify password
+      const isValidPassword = await bcrypt.compare(password, user.password);
+      if (!isValidPassword) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+
+      // Check if user is active
+      if (!user.isActive) {
+        return res.status(401).json({ message: "Account is suspended" });
+      }
+
+      // Check if user is expired
+      if (new Date(user.expiresAt) < new Date()) {
+        return res.status(401).json({ message: "Account has expired" });
+      }
+
+      // Generate JWT token for user
+      const token = jwt.sign(
+        { userId: user.id, username: user.username, role: "user" },
+        JWT_SECRET,
+        { expiresIn: "24h" }
+      );
+
+      res.json({
+        token,
+        user: {
+          id: user.id,
+          username: user.username,
+          assignedIP: user.ipAddress,
+          port: user.port
+        }
+      });
+    } catch (error) {
+      console.error("User login error:", error);
+      res.status(500).json({ message: "Login failed" });
+    }
+  });
+
+  // User profile route
+  app.get("/api/user/profile", async (req, res) => {
+    try {
+      const authHeader = req.headers['authorization'];
+      const token = authHeader && authHeader.split(' ')[1];
+
+      if (!token) {
+        return res.status(401).json({ message: "Access token required" });
+      }
+
+      jwt.verify(token, JWT_SECRET, async (err: any, decoded: any) => {
+        if (err) {
+          return res.status(403).json({ message: "Invalid or expired token" });
+        }
+
+        if (decoded.role !== "user") {
+          return res.status(403).json({ message: "Access denied" });
+        }
+
+        try {
+          const user = await storage.getUser(decoded.userId);
+          if (!user) {
+            return res.status(404).json({ message: "User not found" });
+          }
+
+          // Calculate data usage percentage
+          const dataUsagePercent = (user.dataUsed / user.dataLimit) * 100;
+          const daysUntilExpiry = Math.ceil((new Date(user.expiresAt).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+
+          res.json({
+            id: user.id,
+            username: user.username,
+            assignedIP: user.ipAddress,
+            port: user.port,
+            dataLimit: user.dataLimit,
+            dataUsed: user.dataUsed,
+            dataUsagePercent: Math.round(dataUsagePercent),
+            expirationDate: user.expiresAt,
+            daysUntilExpiry,
+            isActive: user.isActive,
+            lastConnection: user.lastConnection,
+            createdAt: user.createdAt
+          });
+        } catch (error) {
+          console.error("Profile fetch error:", error);
+          res.status(500).json({ message: "Failed to fetch profile" });
+        }
+      });
+    } catch (error) {
+      console.error("Profile route error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // User Portal Authentication Routes for SOCKS5 users
+  app.post("/api/user/login", async (req, res) => {
+    try {
+      const { username, password } = req.body;
+      
+      if (!username || !password) {
+        return res.status(400).json({ message: "Username and password are required" });
+      }
+
+      // Get SOCKS5 user by username
+      const user = await storage.getUserByUsername(username);
       if (!user) {
         return res.status(401).json({ message: "Invalid credentials" });
       }
@@ -399,11 +507,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Transform to match frontend expectations
       const formattedKeys = apiKeys.map(key => ({
         id: key.id,
-        name: key.username,
-        keyHash: key.password, // This will be shown partially
+        name: key.name,
+        keyHash: key.keyHash, // This will be shown partially
         isActive: key.isActive,
-        createdAt: Math.floor(new Date(key.createdAt || 0).getTime() / 1000),
-        lastUsed: key.lastLogin ? Math.floor(new Date(key.lastLogin).getTime() / 1000) : null,
+        usageCount: key.usageCount || 0,
+        createdAt: key.createdAt ? Math.floor(new Date(key.createdAt).getTime() / 1000) : Math.floor(Date.now() / 1000),
+        lastUsed: key.lastUsed ? Math.floor(new Date(key.lastUsed).getTime() / 1000) : null,
       }));
       res.json(formattedKeys);
     } catch (error) {
@@ -418,7 +527,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "API key name is required" });
       }
 
-      const result = await storage.createApiKey(name);
+      const result = await storage.createApiKey(name, "admin");
       res.status(201).json(result);
     } catch (error: any) {
       res.status(400).json({ message: error.message || "Failed to create API key" });

@@ -63,7 +63,16 @@ export default function UserPortal() {
     queryKey: ["/api/user/profile"],
     enabled: isLoggedIn && !!userToken,
     refetchInterval: 30000, // Refresh every 30 seconds
-  });
+    queryFn: async () => {
+      const response = await fetch("/api/user/profile", {
+        headers: {
+          "Authorization": `Bearer ${userToken}`
+        }
+      });
+      if (!response.ok) throw new Error("Failed to fetch user data");
+      return response.json();
+    }
+  }) as { data: UserData | undefined; isLoading: boolean };
 
   const handleLogin = async (data: UserLoginData) => {
     try {

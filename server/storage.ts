@@ -1,8 +1,8 @@
 import { 
   type User, type InsertUser, type Connection, type InsertConnection, 
   type IpPool, type InsertIpPool, type Admin, type InsertAdmin,
-  type Package, type InsertPackage,
-  users, connections, ipPool, admins, packages 
+  type Package, type InsertPackage, type ApiKey, type InsertApiKey,
+  users, connections, ipPool, admins, packages, apiKeys 
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, isNull } from "drizzle-orm";
@@ -48,10 +48,11 @@ export interface IStorage {
   deleteAdmin(id: string): Promise<boolean>;
   updateAdminLastLogin(id: string): Promise<void>;
   
-  // API Key management (using admins table for now)
-  getAllApiKeys(): Promise<Admin[]>;
-  createApiKey(name: string): Promise<{ id: string; name: string; key: string }>;
+  // API Key management
+  getAllApiKeys(): Promise<ApiKey[]>;
+  createApiKey(name: string, createdBy: string): Promise<{ id: string; name: string; key: string }>;
   deleteApiKey(id: string): Promise<boolean>;
+  updateApiKeyUsage(keyHash: string): Promise<void>;
   
   // Package management
   getAllPackages(): Promise<Package[]>;
@@ -346,38 +347,46 @@ export class DatabaseStorage implements IStorage {
       .where(eq(admins.id, id));
   }
 
-  // API Key management (using admins table with special role)
-  async getAllApiKeys(): Promise<Admin[]> {
-    return await db.select().from(admins).where(eq(admins.role, 'api_key'));
+  // API Key management methods
+  async getAllApiKeys(): Promise<ApiKey[]> {
+    return await db.select().from(apiKeys);
   }
 
-  async createApiKey(name: string): Promise<{ id: string; name: string; key: string }> {
-    const apiKey = `sk-${randomUUID().replace(/-/g, '')}`;
-    const bcrypt = await import('bcryptjs');
-    const hashedKey = await bcrypt.hash(apiKey, 10);
+  async createApiKey(name: string, createdBy: string = "system"): Promise<{ id: string; name: string; key: string }> {
+    const keyId = randomUUID();
+    const apiKey = `sk-${keyId.replace(/-/g, '')}`;
     
-    const [result] = await db.insert(admins).values({
-      id: randomUUID(),
-      username: name,
-      email: null,
-      password: hashedKey,
-      role: 'api_key',
-      permissions: JSON.stringify({ api_access: true }),
+    // Hash the API key for storage
+    const keyHash = await bcrypt.hash(apiKey, 10);
+    
+    const [newKey] = await db.insert(apiKeys).values({
+      id: keyId,
+      name,
+      keyHash,
       isActive: true,
-      createdBy: 'system',
+      usageCount: 0,
+      createdBy
     }).returning();
 
     return {
-      id: result.id,
-      name: result.username,
+      id: newKey.id,
+      name: newKey.name,
       key: apiKey
     };
   }
 
   async deleteApiKey(id: string): Promise<boolean> {
-    const result = await db.delete(admins)
-      .where(and(eq(admins.id, id), eq(admins.role, 'api_key')));
+    const result = await db.delete(apiKeys).where(eq(apiKeys.id, id));
     return result.changes > 0;
+  }
+
+  async updateApiKeyUsage(keyHash: string): Promise<void> {
+    await db.update(apiKeys)
+      .set({ 
+        usageCount: sql`${apiKeys.usageCount} + 1`,
+        lastUsed: new Date()
+      })
+      .where(eq(apiKeys.keyHash, keyHash));
   }
 
   // Package management methods
