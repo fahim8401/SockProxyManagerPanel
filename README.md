@@ -33,8 +33,16 @@ A comprehensive, enterprise-grade SOCKS5 proxy management system with complete a
 - **API Key Generation**: Secure API key creation and management
 - **External API Endpoints**: RESTful API for integration (/api/v1/users)
 - **Complete Documentation**: Built-in API documentation with examples
-- **Rate Limiting**: API usage controls and monitoring
+- **Rate Limiting**: API usage controls and monitoring (100 requests/min)
+- **Usage Analytics**: Real-time API call tracking and statistics
 - **Authentication Security**: Secure API key validation
+
+### 👤 User Portal System
+- **SOCKS5 User Login**: Dedicated login system for proxy users
+- **User Dashboard**: Personal dashboard with account information
+- **Usage Monitoring**: Real-time data usage and connection status
+- **JWT Authentication**: Secure token-based authentication
+- **Profile Management**: Account details and network configuration
 
 ### 🌐 IP Pool Management
 - **IPv4/IPv6 Support**: Complete support for both IP versions
@@ -96,11 +104,18 @@ npm start
 - **URL**: `http://your-server-ip` or `http://localhost:5000`
 - **Default Username**: `admin`
 - **Default Password**: `admin123`
+- **Features**: User management, API keys, analytics, IP pool management
+
+### User Portal
+- **URL**: `http://your-server-ip/user-portal`
+- **Authentication**: SOCKS5 user credentials
+- **Features**: Personal dashboard, usage monitoring, account information
 
 ### SOCKS5 Proxy
 - **Host**: Your server IP address
 - **Port**: `1080`
 - **Authentication**: Username/password from created users
+- **Protocols**: SOCKS5 with authentication
 
 ## 📡 API Documentation
 
@@ -115,11 +130,13 @@ Authorization: Bearer <your-api-key>
 #### Get All Users
 ```bash
 GET /api/v1/users
+Authorization: Bearer <your-api-key>
 ```
 
 #### Create User
 ```bash
 POST /api/v1/users
+Authorization: Bearer <your-api-key>
 Content-Type: application/json
 
 {
@@ -136,6 +153,7 @@ Content-Type: application/json
 #### Update User
 ```bash
 PATCH /api/v1/users/:id
+Authorization: Bearer <your-api-key>
 Content-Type: application/json
 
 {
@@ -147,6 +165,26 @@ Content-Type: application/json
 #### Delete User
 ```bash
 DELETE /api/v1/users/:id
+Authorization: Bearer <your-api-key>
+```
+
+### User Portal API Endpoints
+
+#### User Login
+```bash
+POST /api/user/login
+Content-Type: application/json
+
+{
+  "username": "your-socks-username",
+  "password": "your-socks-password"
+}
+```
+
+#### Get User Profile
+```bash
+GET /api/user/profile
+Authorization: Bearer <user-jwt-token>
 ```
 
 ### Response Format
@@ -385,7 +423,8 @@ sudo systemctl status socks-proxy-admin
 ✅ **Complete SOCKS5 Proxy Server** with multi-user authentication  
 ✅ **Real-time Admin Dashboard** with live monitoring  
 ✅ **Enhanced User Management** with detailed profiles and controls  
-✅ **API Management System** with key generation and documentation  
+✅ **API Management System** with key generation and usage analytics  
+✅ **User Portal System** with SOCKS5 user authentication  
 ✅ **IP Pool Management** with automatic assignment  
 ✅ **Comprehensive Analytics** with historical data  
 ✅ **Enterprise Security** with rate limiting and encryption  
