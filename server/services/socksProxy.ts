@@ -134,20 +134,60 @@ export class SocksProxyServer {
           }
         } else {
           // Handle SOCKS5 connection request
-          if (data.length >= 10 && data[0] === 0x05 && data[1] === 0x01) {
+          if (data.length >= 4 && data[0] === 0x05 && data[1] === 0x01) {
             const addressType = data[3];
             let targetHost: string;
             let targetPort: number;
             
+            console.log(`SOCKS5 connection request - Address type: 0x${addressType.toString(16).padStart(2, '0')}`);
+            
             if (addressType === 0x01) { // IPv4
+              if (data.length < 10) {
+                console.log('❌ SOCKS5 IPv4 request too short');
+                const response = Buffer.from([0x05, 0x01, 0x00, 0x01, 0, 0, 0, 0, 0, 0]);
+                clientSocket.write(response);
+                clientSocket.end();
+                return;
+              }
               targetHost = `${data[4]}.${data[5]}.${data[6]}.${data[7]}`;
               targetPort = data.readUInt16BE(8);
             } else if (addressType === 0x03) { // Domain name
+              if (data.length < 5) {
+                console.log('❌ SOCKS5 domain request too short');
+                const response = Buffer.from([0x05, 0x01, 0x00, 0x01, 0, 0, 0, 0, 0, 0]);
+                clientSocket.write(response);
+                clientSocket.end();
+                return;
+              }
               const domainLen = data[4];
+              if (data.length < 7 + domainLen) {
+                console.log('❌ SOCKS5 domain request incomplete');
+                const response = Buffer.from([0x05, 0x01, 0x00, 0x01, 0, 0, 0, 0, 0, 0]);
+                clientSocket.write(response);
+                clientSocket.end();
+                return;
+              }
               targetHost = data.slice(5, 5 + domainLen).toString();
               targetPort = data.readUInt16BE(5 + domainLen);
+            } else if (addressType === 0x04) { // IPv6
+              if (data.length < 22) {
+                console.log('❌ SOCKS5 IPv6 request too short');
+                const response = Buffer.from([0x05, 0x01, 0x00, 0x01, 0, 0, 0, 0, 0, 0]);
+                clientSocket.write(response);
+                clientSocket.end();
+                return;
+              }
+              // Parse IPv6 address (16 bytes starting at position 4)
+              const ipv6Parts = [];
+              for (let i = 0; i < 16; i += 2) {
+                const part = data.readUInt16BE(4 + i).toString(16);
+                ipv6Parts.push(part);
+              }
+              targetHost = `[${ipv6Parts.join(':')}]`;
+              targetPort = data.readUInt16BE(20);
             } else {
               // Unsupported address type
+              console.log(`❌ SOCKS5 unsupported address type: 0x${addressType.toString(16).padStart(2, '0')}`);
               const response = Buffer.from([0x05, 0x08, 0x00, 0x01, 0, 0, 0, 0, 0, 0]);
               clientSocket.write(response);
               clientSocket.end();
@@ -183,8 +223,19 @@ export class SocksProxyServer {
             });
             
             targetSocket.on('error', (err) => {
-              console.log(`❌ SOCKS5 target connection error:`, err.message);
-              const response = Buffer.from([0x05, 0x01, 0x00, 0x01, 0, 0, 0, 0, 0, 0]);
+              console.log(`❌ SOCKS5 target connection error to ${targetHost}:${targetPort}:`, err.message);
+              
+              // Map Node.js errors to SOCKS5 error codes
+              let errorCode = 0x01; // General SOCKS server failure
+              if (err.message.includes('ENOTFOUND')) {
+                errorCode = 0x04; // Host unreachable
+              } else if (err.message.includes('ECONNREFUSED')) {
+                errorCode = 0x05; // Connection refused
+              } else if (err.message.includes('ETIMEDOUT')) {
+                errorCode = 0x06; // TTL expired
+              }
+              
+              const response = Buffer.from([0x05, errorCode, 0x00, 0x01, 0, 0, 0, 0, 0, 0]);
               clientSocket.write(response);
               clientSocket.end();
             });
