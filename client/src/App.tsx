@@ -31,30 +31,22 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
 }
 
 function AuthenticatedRouter() {
-  const { isAuthenticated } = useAuth();
-
   return (
     <Switch>
       <Route path="/login" component={Login} />
       <Route path="/user-portal" component={UserPortal} />
-      {isAuthenticated ? (
-        <>
-          <Route path="/" component={() => <ProtectedRoute component={Dashboard} />} />
-          <Route path="/users" component={() => <ProtectedRoute component={UserManagement} />} />
-          <Route path="/ip-pool" component={() => <ProtectedRoute component={IpPoolPage} />} />
-          <Route path="/analytics" component={() => <ProtectedRoute component={AnalyticsPage} />} />
-          <Route path="/settings" component={() => <ProtectedRoute component={SettingsPage} />} />
-          <Route path="/logs" component={() => <ProtectedRoute component={LogsPage} />} />
-          <Route path="/admin-management" component={() => <ProtectedRoute component={AdminManagement} />} />
-          <Route path="/api-management" component={() => <ProtectedRoute component={ApiManagement} />} />
-          <Route path="/packages" component={() => <ProtectedRoute component={PackageManagement} />} />
-          <Route path="/create-user" component={() => <ProtectedRoute component={CreateUserWorkingSimple} />} />
-          <Route path="/create-user-full" component={() => <ProtectedRoute component={CreateUser} />} />
-          <Route path="/test" component={TestPage} />
-        </>
-      ) : (
-        <Route component={Login} />
-      )}
+      <Route path="/" component={() => <ProtectedRoute component={Dashboard} />} />
+      <Route path="/users" component={() => <ProtectedRoute component={UserManagement} />} />
+      <Route path="/ip-pool" component={() => <ProtectedRoute component={IpPoolPage} />} />
+      <Route path="/analytics" component={() => <ProtectedRoute component={AnalyticsPage} />} />
+      <Route path="/settings" component={() => <ProtectedRoute component={SettingsPage} />} />
+      <Route path="/logs" component={() => <ProtectedRoute component={LogsPage} />} />
+      <Route path="/admin-management" component={() => <ProtectedRoute component={AdminManagement} />} />
+      <Route path="/api-management" component={() => <ProtectedRoute component={ApiManagement} />} />
+      <Route path="/packages" component={() => <ProtectedRoute component={PackageManagement} />} />
+      <Route path="/create-user" component={() => <ProtectedRoute component={CreateUserWorkingSimple} />} />
+      <Route path="/create-user-full" component={() => <ProtectedRoute component={CreateUser} />} />
+      <Route path="/test" component={TestPage} />
       <Route component={NotFound} />
     </Switch>
   );
