@@ -42,6 +42,11 @@ export interface IStorage {
   updateAdmin(id: string, updates: Partial<Admin>): Promise<Admin | undefined>;
   deleteAdmin(id: string): Promise<boolean>;
   updateAdminLastLogin(id: string): Promise<void>;
+  
+  // API Key management (using admins table for now)
+  getAllApiKeys(): Promise<Admin[]>;
+  createApiKey(name: string): Promise<{ id: string; name: string; key: string }>;
+  deleteApiKey(id: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -311,6 +316,40 @@ export class DatabaseStorage implements IStorage {
     await db.update(admins)
       .set({ lastLogin: new Date() })
       .where(eq(admins.id, id));
+  }
+
+  // API Key management (using admins table with special role)
+  async getAllApiKeys(): Promise<Admin[]> {
+    return await db.select().from(admins).where(eq(admins.role, 'api_key'));
+  }
+
+  async createApiKey(name: string): Promise<{ id: string; name: string; key: string }> {
+    const apiKey = `sk-${randomUUID().replace(/-/g, '')}`;
+    const bcrypt = await import('bcryptjs');
+    const hashedKey = await bcrypt.hash(apiKey, 10);
+    
+    const [result] = await db.insert(admins).values({
+      id: randomUUID(),
+      username: name,
+      email: null,
+      password: hashedKey,
+      role: 'api_key',
+      permissions: JSON.stringify({ api_access: true }),
+      isActive: true,
+      createdBy: 'system',
+    }).returning();
+
+    return {
+      id: result.id,
+      name: result.username,
+      key: apiKey
+    };
+  }
+
+  async deleteApiKey(id: string): Promise<boolean> {
+    const result = await db.delete(admins)
+      .where(and(eq(admins.id, id), eq(admins.role, 'api_key')));
+    return result.changes > 0;
   }
 }
 

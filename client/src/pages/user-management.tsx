@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, Users, Edit } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Trash2, Users, Edit, Eye, Pause, Play, Calendar, Database, Network } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import Sidebar from "@/components/ui/sidebar";
@@ -17,11 +18,16 @@ interface User {
   ipAddress: string;
   port: number;
   dataLimit: number;
+  dataUsed: number;
   expiresAt: string;
   isActive: boolean;
+  createdAt: string;
+  lastConnection?: string;
+  daysValid: number;
 }
 
 export default function UserManagement() {
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -50,12 +56,50 @@ export default function UserManagement() {
     },
   });
 
+  const suspendUserMutation = useMutation({
+    mutationFn: async ({ userId, isActive }: { userId: string; isActive: boolean }) => {
+      return await apiRequest("PATCH", `/api/users/${userId}`, { isActive });
+    },
+    onSuccess: (_, { isActive }) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      toast({
+        title: "Success",
+        description: `User ${isActive ? "activated" : "suspended"} successfully`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update user status",
+        variant: "destructive",
+      });
+    },
+  });
+
   const formatBytes = (bytes: number) => {
     if (bytes === 0) return '0 B';
     const k = 1024;
     const sizes = ['B', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const formatDate = (timestamp: string | number) => {
+    const date = new Date(typeof timestamp === 'string' ? parseInt(timestamp) * 1000 : timestamp * 1000);
+    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+  };
+
+  const isExpired = (expiresAt: string) => {
+    return new Date(parseInt(expiresAt) * 1000) < new Date();
+  };
+
+  const getDaysRemaining = (expiresAt: string) => {
+    const expiry = new Date(parseInt(expiresAt) * 1000);
+    const now = new Date();
+    const diffTime = expiry.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
   };
 
   return (
@@ -171,30 +215,185 @@ export default function UserManagement() {
                           <TableCell>{user.port}</TableCell>
                           <TableCell>{formatBytes(user.dataLimit)}</TableCell>
                           <TableCell>
-                            <Badge 
-                              variant={user.isActive ? "default" : "secondary"}
-                              className={
-                                user.isActive ? 
-                                "bg-green-100 text-green-800 hover:bg-green-100" : 
-                                "bg-red-100 text-red-800 hover:bg-red-100"
-                              }
-                            >
-                              {user.isActive ? "Active" : "Inactive"}
-                            </Badge>
+                            <div className="flex items-center space-x-2">
+                              <Badge 
+                                variant={user.isActive ? "default" : "secondary"}
+                                className={
+                                  user.isActive ? 
+                                  "bg-green-100 text-green-800 hover:bg-green-100" : 
+                                  "bg-red-100 text-red-800 hover:bg-red-100"
+                                }
+                              >
+                                {user.isActive ? "Active" : "Suspended"}
+                              </Badge>
+                              {isExpired(user.expiresAt) && (
+                                <Badge variant="destructive" className="text-xs">
+                                  Expired
+                                </Badge>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell>
-                            {new Date(user.expiresAt).toLocaleDateString()}
+                            <div className="text-sm">
+                              <div className={isExpired(user.expiresAt) ? "text-red-600" : ""}>
+                                {formatDate(user.expiresAt)}
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                {getDaysRemaining(user.expiresAt) > 0 
+                                  ? `${getDaysRemaining(user.expiresAt)} days left`
+                                  : "Expired"
+                                }
+                              </div>
+                            </div>
                           </TableCell>
                           <TableCell>
-                            <div className="flex space-x-2">
-                              <Button 
-                                variant="ghost" 
+                            <div className="flex items-center space-x-2">
+                              <Dialog>
+                                <DialogTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setSelectedUser(user)}
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent className="max-w-2xl">
+                                  <DialogHeader>
+                                    <DialogTitle className="flex items-center">
+                                      <Users className="h-5 w-5 mr-2" />
+                                      User Details: {user.username}
+                                    </DialogTitle>
+                                  </DialogHeader>
+                                  <div className="space-y-6">
+                                    {/* Basic Information */}
+                                    <div className="grid grid-cols-2 gap-4">
+                                      <div className="space-y-4">
+                                        <div>
+                                          <h4 className="font-semibold text-sm text-gray-700 mb-2">Basic Information</h4>
+                                          <div className="space-y-2">
+                                            <div className="flex justify-between">
+                                              <span className="text-sm text-gray-600">Username:</span>
+                                              <span className="text-sm font-mono">{user.username}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                              <span className="text-sm text-gray-600">Email:</span>
+                                              <span className="text-sm">{user.email || "Not provided"}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                              <span className="text-sm text-gray-600">Status:</span>
+                                              <Badge 
+                                                variant={user.isActive ? "default" : "secondary"}
+                                                className={user.isActive ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}
+                                              >
+                                                {user.isActive ? "Active" : "Suspended"}
+                                              </Badge>
+                                            </div>
+                                          </div>
+                                        </div>
+                                        
+                                        <div>
+                                          <h4 className="font-semibold text-sm text-gray-700 mb-2 flex items-center">
+                                            <Network className="h-4 w-4 mr-1" />
+                                            Network Configuration
+                                          </h4>
+                                          <div className="space-y-2">
+                                            <div className="flex justify-between">
+                                              <span className="text-sm text-gray-600">IP Address:</span>
+                                              <span className="text-sm font-mono">{user.ipAddress}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                              <span className="text-sm text-gray-600">Port:</span>
+                                              <span className="text-sm font-mono">{user.port}</span>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </div>
+
+                                      <div className="space-y-4">
+                                        <div>
+                                          <h4 className="font-semibold text-sm text-gray-700 mb-2 flex items-center">
+                                            <Database className="h-4 w-4 mr-1" />
+                                            Data Usage
+                                          </h4>
+                                          <div className="space-y-2">
+                                            <div className="flex justify-between">
+                                              <span className="text-sm text-gray-600">Data Limit:</span>
+                                              <span className="text-sm">{formatBytes(user.dataLimit)}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                              <span className="text-sm text-gray-600">Data Used:</span>
+                                              <span className="text-sm">{formatBytes(user.dataUsed || 0)}</span>
+                                            </div>
+                                            <div className="w-full bg-gray-200 rounded-full h-2">
+                                              <div 
+                                                className="bg-blue-600 h-2 rounded-full" 
+                                                style={{ 
+                                                  width: `${Math.min((user.dataUsed || 0) / user.dataLimit * 100, 100)}%` 
+                                                }}
+                                              ></div>
+                                            </div>
+                                            <div className="text-xs text-gray-500">
+                                              {((user.dataUsed || 0) / user.dataLimit * 100).toFixed(1)}% used
+                                            </div>
+                                          </div>
+                                        </div>
+                                        
+                                        <div>
+                                          <h4 className="font-semibold text-sm text-gray-700 mb-2 flex items-center">
+                                            <Calendar className="h-4 w-4 mr-1" />
+                                            Time Information
+                                          </h4>
+                                          <div className="space-y-2">
+                                            <div className="flex justify-between">
+                                              <span className="text-sm text-gray-600">Created:</span>
+                                              <span className="text-sm">{formatDate(user.createdAt)}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                              <span className="text-sm text-gray-600">Expires:</span>
+                                              <span className={`text-sm ${isExpired(user.expiresAt) ? "text-red-600" : ""}`}>
+                                                {formatDate(user.expiresAt)}
+                                              </span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                              <span className="text-sm text-gray-600">Days Valid:</span>
+                                              <span className="text-sm">{user.daysValid} days</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                              <span className="text-sm text-gray-600">Last Connection:</span>
+                                              <span className="text-sm">
+                                                {user.lastConnection ? formatDate(user.lastConnection) : "Never"}
+                                              </span>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </DialogContent>
+                              </Dialog>
+
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => suspendUserMutation.mutate({ 
+                                  userId: user.id, 
+                                  isActive: !user.isActive 
+                                })}
+                                disabled={suspendUserMutation.isPending}
+                                className={user.isActive ? "text-red-600 hover:text-red-800" : "text-green-600 hover:text-green-800"}
+                              >
+                                {user.isActive ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                              </Button>
+
+                              <Button
+                                variant="ghost"
                                 size="sm"
                                 onClick={() => deleteUserMutation.mutate(user.id)}
                                 disabled={deleteUserMutation.isPending}
                                 className="text-red-600 hover:text-red-800"
                               >
-                                <Trash2 className="w-4 h-4" />
+                                <Trash2 className="h-4 w-4" />
                               </Button>
                             </div>
                           </TableCell>

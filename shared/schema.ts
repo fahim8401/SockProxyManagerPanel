@@ -109,3 +109,24 @@ export type InsertConnection = z.infer<typeof insertConnectionSchema>;
 export type InsertIpPool = z.infer<typeof insertIpPoolSchema>;
 export type Admin = typeof admins.$inferSelect;
 export type InsertAdmin = z.infer<typeof insertAdminSchema>;
+
+// API Keys table for API access management
+export const apiKeys = sqliteTable("api_keys", {
+  id: text("id").primaryKey().default(sql`(hex(randomblob(16)))`),
+  name: text("name").notNull(),
+  keyHash: text("key_hash").notNull().unique(),
+  permissions: text("permissions").default("{}"), // JSON string for permissions
+  isActive: integer("is_active", { mode: "boolean" }).default(true),
+  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`CURRENT_TIMESTAMP`),
+  lastUsed: integer("last_used", { mode: "timestamp" }),
+  expiresAt: integer("expires_at", { mode: "timestamp" }),
+});
+
+export const insertApiKeySchema = createInsertSchema(apiKeys).omit({
+  id: true,
+  createdAt: true,
+  lastUsed: true,
+});
+
+export type ApiKey = typeof apiKeys.$inferSelect;
+export type InsertApiKey = z.infer<typeof insertApiKeySchema>;

@@ -12,7 +12,7 @@ import LogsPage from "@/pages/logs";
 import LoginPage from "@/pages/login";
 import UserPortal from "@/pages/user-portal";
 import AdminManagement from "@/pages/admin-management";
-import UserProvisioning from "@/pages/user-provisioning";
+import ApiManagement from "@/pages/api-management";
 import UserManagement from "@/pages/user-management";
 import NotFound from "@/pages/not-found";
 import CreateUser from "@/pages/create-user";
@@ -44,7 +44,7 @@ function AuthenticatedRouter() {
       <Route path="/settings" component={() => <ProtectedRoute component={SettingsPage} />} />
       <Route path="/logs" component={() => <ProtectedRoute component={LogsPage} />} />
       <Route path="/admin-management" component={() => <ProtectedRoute component={AdminManagement} />} />
-      <Route path="/user-provisioning" component={() => <ProtectedRoute component={UserProvisioning} />} />
+      <Route path="/api-management" component={() => <ProtectedRoute component={ApiManagement} />} />
       <Route path="/create-user" component={() => <ProtectedRoute component={CreateUser} />} />
       <Route path="/user-portal" component={UserPortal} />
       <Route component={NotFound} />

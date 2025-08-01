@@ -35,6 +35,40 @@ const authenticateToken = (req: any, res: any, next: any) => {
   });
 };
 
+// Middleware to verify API key for external API access
+const authenticateApiKey = async (req: any, res: any, next: any) => {
+  const authHeader = req.headers['authorization'];
+  const apiKey = authHeader && authHeader.split(' ')[1]; // Bearer API_KEY
+
+  if (!apiKey) {
+    return res.status(401).json({ success: false, message: "API key required" });
+  }
+
+  try {
+    // Check if API key exists and is active
+    const apiKeys = await storage.getAllApiKeys();
+    const validKey = apiKeys.find(key => key.isActive);
+    
+    if (!validKey) {
+      return res.status(401).json({ success: false, message: "Invalid API key" });
+    }
+
+    // Verify the API key hash
+    const isValid = await bcrypt.compare(apiKey, validKey.password);
+    if (!isValid) {
+      return res.status(401).json({ success: false, message: "Invalid API key" });
+    }
+
+    // Update last used timestamp
+    await storage.updateAdminLastLogin(validKey.id);
+    
+    req.apiKey = validKey;
+    next();
+  } catch (error) {
+    return res.status(500).json({ success: false, message: "Authentication error" });
+  }
+};
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize SOCKS proxy server
   socksProxy = new SocksProxyServer(1080);
@@ -351,6 +385,114 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: "Failed to delete admin" });
+    }
+  });
+
+  // API Keys management routes
+  app.get("/api/api-keys", authenticateToken, async (req, res) => {
+    try {
+      const apiKeys = await storage.getAllApiKeys();
+      // Transform to match frontend expectations
+      const formattedKeys = apiKeys.map(key => ({
+        id: key.id,
+        name: key.username,
+        keyHash: key.password, // This will be shown partially
+        isActive: key.isActive,
+        createdAt: Math.floor(new Date(key.createdAt || 0).getTime() / 1000),
+        lastUsed: key.lastLogin ? Math.floor(new Date(key.lastLogin).getTime() / 1000) : null,
+      }));
+      res.json(formattedKeys);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch API keys" });
+    }
+  });
+
+  app.post("/api/api-keys", authenticateToken, async (req, res) => {
+    try {
+      const { name } = req.body;
+      if (!name || typeof name !== 'string') {
+        return res.status(400).json({ message: "API key name is required" });
+      }
+
+      const result = await storage.createApiKey(name);
+      res.status(201).json(result);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message || "Failed to create API key" });
+    }
+  });
+
+  app.delete("/api/api-keys/:id", authenticateToken, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const success = await storage.deleteApiKey(id);
+      
+      if (!success) {
+        return res.status(404).json({ message: "API key not found" });
+      }
+      
+      res.json({ message: "API key deleted successfully" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete API key" });
+    }
+  });
+
+  // Public API v1 endpoints (for external access)
+  app.get("/api/v1/users", authenticateApiKey, async (req, res) => {
+    try {
+      const users = await storage.getAllUsers();
+      res.json({ success: true, data: users });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Failed to fetch users" });
+    }
+  });
+
+  app.post("/api/v1/users", authenticateApiKey, async (req, res) => {
+    try {
+      const { insertUserSchema } = await import("@shared/schema");
+      const validatedData = insertUserSchema.parse(req.body);
+      const { confirmPassword, ...userData } = validatedData;
+      
+      // Check if username already exists
+      const existingUser = await storage.getUserByUsername(userData.username);
+      if (existingUser) {
+        return res.status(400).json({ success: false, message: "Username already exists" });
+      }
+
+      const user = await storage.createUser(userData);
+      res.status(201).json({ success: true, data: user });
+    } catch (error: any) {
+      res.status(400).json({ success: false, message: error.message || "Failed to create user" });
+    }
+  });
+
+  app.delete("/api/v1/users/:id", authenticateApiKey, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const success = await storage.deleteUser(id);
+      
+      if (!success) {
+        return res.status(404).json({ success: false, message: "User not found" });
+      }
+      
+      res.json({ success: true, message: "User deleted successfully" });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Failed to delete user" });
+    }
+  });
+
+  app.patch("/api/v1/users/:id", authenticateApiKey, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updates = req.body;
+      
+      const user = await storage.updateUser(id, updates);
+      if (!user) {
+        return res.status(404).json({ success: false, message: "User not found" });
+      }
+      
+      res.json({ success: true, data: user });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Failed to update user" });
     }
   });
 

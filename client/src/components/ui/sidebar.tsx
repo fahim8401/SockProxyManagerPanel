@@ -7,7 +7,8 @@ import {
   Network, 
   TrendingUp, 
   Settings, 
-  FileText 
+  FileText,
+  Key
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -15,7 +16,7 @@ const navigation = [
   { name: "Dashboard", href: "/", icon: BarChart3 },
   { name: "Create User", href: "/create-user", icon: UserPlus },
   { name: "User Management", href: "/users", icon: Users },
-  { name: "User Provisioning", href: "/user-provisioning", icon: UserPlus },
+  { name: "API Management", href: "/api-management", icon: Key },
   { name: "IP Pool Management", href: "/ip-pool", icon: Network },
   { name: "Admin Management", href: "/admin-management", icon: Shield },
   { name: "Analytics", href: "/analytics", icon: TrendingUp },
