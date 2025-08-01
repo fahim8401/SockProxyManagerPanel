@@ -21,6 +21,8 @@ import CreateUserSimple from "@/pages/create-user-simple";
 import CreateUserDebug from "@/pages/create-user-debug";
 import CreateUserWorking from "@/pages/create-user-working";
 import CreateUserSimpleWorking from "@/pages/create-user-simple-working";
+import CreateUserEnhanced from "@/pages/create-user-enhanced";
+import CreateUserWorkingSimple from "@/pages/create-user-working-simple";
 import TestPage from "@/pages/test";
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
@@ -41,7 +43,7 @@ function AuthenticatedRouter() {
       <Route path="/admin-management" component={() => <ProtectedRoute component={AdminManagement} />} />
       <Route path="/api-management" component={() => <ProtectedRoute component={ApiManagement} />} />
       <Route path="/packages" component={() => <ProtectedRoute component={PackageManagement} />} />
-      <Route path="/create-user" component={() => <ProtectedRoute component={CreateUserSimpleWorking} />} />
+      <Route path="/create-user" component={() => <ProtectedRoute component={CreateUserWorkingSimple} />} />
       <Route path="/create-user-full" component={() => <ProtectedRoute component={CreateUser} />} />
       <Route path="/test" component={TestPage} />
       <Route path="/user-portal" component={UserPortal} />

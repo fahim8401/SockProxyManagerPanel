@@ -20,7 +20,7 @@ export const users = sqliteTable("users", {
   dataUsed: integer("data_used").default(0),
   daysValid: integer("days_valid").notNull(),
   createdAt: integer("created_at", { mode: "timestamp" }).default(sql`CURRENT_TIMESTAMP`),
-  expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
+  expiresAt: integer("expires_at").notNull(),
   isActive: integer("is_active", { mode: "boolean" }).default(true),
   lastConnection: integer("last_connection", { mode: "timestamp" }),
   packageId: text("package_id").references(() => packages.id),
@@ -98,6 +98,7 @@ export const insertUserSchema = createInsertSchema(users)
   .extend({
     confirmPassword: z.string().optional(),
     packageId: z.string().optional(),
+    expiresAt: z.number(),
   })
   .refine((data) => !data.confirmPassword || data.password === data.confirmPassword, {
     message: "Passwords don't match",
