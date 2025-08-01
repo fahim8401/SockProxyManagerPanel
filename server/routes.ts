@@ -1074,7 +1074,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const user = await storage.createUserFromPackage(id, username, password, ipAddress, port);
       res.status(201).json(user);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating user from package:", error);
       res.status(500).json({ message: error.message || "Failed to create user from package" });
     }

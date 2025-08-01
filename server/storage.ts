@@ -127,11 +127,11 @@ export class DatabaseStorage implements IStorage {
       email: insertUser.email || null,
     }).returning();
     
-    // Update IP usage count (multiple users can share same IP)
+    // Mark IP as assigned (multiple users can share same IP)
     await db.update(ipPool)
       .set({ 
-        userCount: sql`user_count + 1`,
-        isAvailable: false // Keep false for tracking but allow multiple users
+        isAvailable: false,
+        assignedUserId: id
       })
       .where(eq(ipPool.ipAddress, insertUser.ipAddress));
     
@@ -395,7 +395,7 @@ export class DatabaseStorage implements IStorage {
     await db.update(apiKeys)
       .set({ 
         usageCount: sql`${apiKeys.usageCount} + 1`,
-        lastUsed: new Date()
+        lastUsed: Math.floor(Date.now() / 1000)
       })
       .where(eq(apiKeys.keyHash, keyHash));
   }
@@ -431,7 +431,10 @@ export class DatabaseStorage implements IStorage {
   async updatePackage(id: string, updates: Partial<Package>): Promise<Package | undefined> {
     try {
       const [updated] = await db.update(packages)
-        .set({ ...updates, updatedAt: new Date() })
+        .set({
+          ...updates,
+          updatedAt: Math.floor(Date.now() / 1000)
+        })
         .where(eq(packages.id, id))
         .returning();
       return updated;
@@ -458,8 +461,8 @@ export class DatabaseStorage implements IStorage {
     }
 
     // Calculate expiration date based on package time limit
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + pkg.timeLimit);
+    const now = Math.floor(Date.now() / 1000);
+    const expiresAt = now + (pkg.timeLimit * 24 * 60 * 60); // Convert days to seconds
 
     const userData: Omit<InsertUser, 'confirmPassword'> = {
       username,
@@ -468,6 +471,7 @@ export class DatabaseStorage implements IStorage {
       port,
       dataLimit: pkg.dataLimitGB * 1024 * 1024 * 1024, // Convert GB to bytes
       daysValid: pkg.timeLimit,
+      expiresAt,
       packageId: packageId,
     };
 
@@ -518,7 +522,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Enhanced getAllUsers to include online status from memory  
-  async getAllUsers(): Promise<User[]> {
+  async getAllUsersWithOnlineStatus(): Promise<User[]> {
     try {
       const allUsers = await db.select().from(users);
       // Add online status from in-memory tracking
