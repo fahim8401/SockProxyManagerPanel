@@ -69,9 +69,9 @@ export const insertUserSchema = createInsertSchema(users)
     expiresAt: true,
   })
   .extend({
-    confirmPassword: z.string().min(1, "Confirm password is required"),
+    confirmPassword: z.string().optional(),
   })
-  .refine((data) => data.password === data.confirmPassword, {
+  .refine((data) => !data.confirmPassword || data.password === data.confirmPassword, {
     message: "Passwords don't match",
     path: ["confirmPassword"],
   });

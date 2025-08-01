@@ -184,6 +184,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/users", authenticateToken, async (req, res) => {
     try {
+      console.log("Received user data:", req.body);
       const validatedData = insertUserSchema.parse(req.body);
       const { confirmPassword, ...userData } = validatedData;
       
