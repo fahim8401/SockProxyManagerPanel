@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,7 +27,12 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function SettingsPage() {
   const { toast } = useToast();
-  
+
+  // Load existing settings
+  const { data: existingSettings } = useQuery({
+    queryKey: ['/api/settings'],
+  });
+
   // Server Settings
   const [serverPort, setServerPort] = useState("1080");
   const [maxConnections, setMaxConnections] = useState("1000");
@@ -87,8 +93,19 @@ export default function SettingsPage() {
 
   const saveSettingsMutation = useMutation({
     mutationFn: async (settings: any) => {
-      // In a real app, this would save to backend
-      return new Promise(resolve => setTimeout(resolve, 1000));
+      const response = await fetch('/api/settings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(settings),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to save settings');
+      }
+      
+      return response.json();
     },
     onSuccess: () => {
       toast({
@@ -107,8 +124,15 @@ export default function SettingsPage() {
 
   const restartServerMutation = useMutation({
     mutationFn: async () => {
-      // In a real app, this would restart the SOCKS5 server
-      return new Promise(resolve => setTimeout(resolve, 2000));
+      const response = await fetch('/api/server/restart', {
+        method: 'POST',
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to restart server');
+      }
+      
+      return response.json();
     },
     onSuccess: () => {
       toast({

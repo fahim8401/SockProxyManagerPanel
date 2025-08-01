@@ -36,6 +36,23 @@ try {
   insertIP.run('103.7.4.183', 'IPv4', 1, 1);
   
   console.log('✅ Added public IPs to the pool');
+
+  // Create settings table
+  try {
+    db.prepare(`
+      CREATE TABLE IF NOT EXISTS settings (
+        id TEXT PRIMARY KEY DEFAULT (hex(randomblob(16))),
+        category TEXT NOT NULL,
+        key TEXT NOT NULL,
+        value TEXT NOT NULL,
+        updated_at INTEGER DEFAULT (unixepoch()),
+        UNIQUE(category, key)
+      )
+    `).run();
+    console.log('✅ Created settings table');
+  } catch (error) {
+    console.log('ℹ️ Settings table already exists or error:', error.message);
+  }
   
   console.log('✅ Database schema update completed successfully');
   

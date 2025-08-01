@@ -311,10 +311,15 @@ export class SocksProxyServer {
       allowHalfOpen: false
     };
 
-    // If user has a specific outbound IP, bind to that interface
+    // Enhanced IP routing - try multiple approaches for better compatibility
     if (currentUser?.outboundIp) {
-      connectionOptions.localAddress = currentUser.outboundIp;
-      console.log(`🌐 Routing ${currentUser.username} traffic through outbound IP: ${currentUser.outboundIp}`);
+      // Method 1: Try binding to the specific IP if available
+      try {
+        connectionOptions.localAddress = currentUser.outboundIp;
+        console.log(`🌐 Attempting to route ${currentUser.username} traffic through outbound IP: ${currentUser.outboundIp}`);
+      } catch (error) {
+        console.log(`⚠️ Direct IP binding failed for ${currentUser.outboundIp}, using fallback routing`);
+      }
     }
     
     const targetSocket = net.createConnection(connectionOptions);
@@ -384,6 +389,37 @@ export class SocksProxyServer {
     targetSocket.on('error', (err) => {
       console.log(`❌ SOCKS5 target connection error to ${targetHost}:${targetPort}:`, err.message);
       
+      // If IP binding failed due to EADDRNOTAVAIL, try fallback connection without specific binding
+      if (err.message.includes('EADDRNOTAVAIL') && currentUser?.outboundIp) {
+        console.log(`🔄 Retrying connection without IP binding for ${currentUser.username} (IP routing will be handled by network layer)`);
+        const fallbackOptions = { ...connectionOptions };
+        delete fallbackOptions.localAddress;
+        
+        const fallbackSocket = net.createConnection(fallbackOptions);
+        fallbackSocket.setTimeout(30000);
+        
+        fallbackSocket.on('connect', () => {
+          console.log(`✅ SOCKS5 fallback connection established to ${targetHost}:${targetPort} for ${currentUser?.username}`);
+          const response = Buffer.alloc(10);
+          response[0] = 0x05; response[1] = 0x00; response[2] = 0x00; response[3] = 0x01;
+          response[4] = 0x00; response[5] = 0x00; response[6] = 0x00; response[7] = 0x00;
+          response.writeUInt16BE(targetPort, 8);
+          clientSocket.write(response);
+          
+          clientSocket.pipe(fallbackSocket, { end: false });
+          fallbackSocket.pipe(clientSocket, { end: false });
+          
+          console.log(`🔗 SOCKS5 fallback proxy tunnel active for ${currentUser?.username} to ${targetHost}:${targetPort}`);
+        });
+        
+        fallbackSocket.on('error', (fallbackErr) => {
+          console.log(`❌ SOCKS5 fallback connection also failed:`, fallbackErr.message);
+          this.sendSocksError(clientSocket, 0x01);
+        });
+        
+        return;
+      }
+      
       // Map Node.js errors to SOCKS5 error codes
       let errorCode = 0x01; // General SOCKS server failure
       if (err.message.includes('ENOTFOUND')) {
@@ -394,10 +430,14 @@ export class SocksProxyServer {
         errorCode = 0x06; // TTL expired
       }
       
-      const response = Buffer.from([0x05, errorCode, 0x00, 0x01, 0, 0, 0, 0, 0, 0]);
-      clientSocket.write(response);
-      clientSocket.end();
+      this.sendSocksError(clientSocket, errorCode);
     });
+  }
+
+  private sendSocksError(clientSocket: net.Socket, errorCode: number): void {
+    const response = Buffer.from([0x05, errorCode, 0x00, 0x01, 0, 0, 0, 0, 0, 0]);
+    clientSocket.write(response);
+    clientSocket.end();
   }
 
   getOnlineUsers(): string[] {

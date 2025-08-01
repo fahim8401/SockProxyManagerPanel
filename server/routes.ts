@@ -1102,6 +1102,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Settings Management APIs
+  app.post("/api/settings", async (req, res) => {
+    try {
+      const settings = req.body;
+      await storage.saveSettings(settings);
+      res.json({ success: true, message: "Settings saved successfully" });
+    } catch (error: any) {
+      console.error("Error saving settings:", error);
+      res.status(500).json({ message: error.message || "Failed to save settings" });
+    }
+  });
+
+  app.get("/api/settings", async (req, res) => {
+    try {
+      const settings = await storage.getSettings();
+      res.json(settings);
+    } catch (error) {
+      console.error("Error fetching settings:", error);
+      res.status(500).json({ message: "Failed to fetch settings" });
+    }
+  });
+
+  app.post("/api/server/restart", async (req, res) => {
+    try {
+      // Restart SOCKS5 proxy server
+      if (global.socksProxyServer) {
+        await global.socksProxyServer.stop();
+        await global.socksProxyServer.start();
+      }
+      res.json({ success: true, message: "Server restarted successfully" });
+    } catch (error: any) {
+      console.error("Error restarting server:", error);
+      res.status(500).json({ message: error.message || "Failed to restart server" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   // WebSocket server for real-time updates

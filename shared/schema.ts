@@ -76,6 +76,15 @@ export const packages = sqliteTable("packages", {
   updatedAt: integer("updated_at").default(sql`CURRENT_TIMESTAMP`),
 });
 
+// Settings table for persisting system configuration
+export const settings = sqliteTable("settings", {
+  id: text("id").primaryKey().default(sql`(hex(randomblob(16)))`),
+  category: text("category").notNull(), // server, security, firewall, etc.
+  key: text("key").notNull(),
+  value: text("value").notNull(), // JSON string
+  updatedAt: integer("updated_at").default(sql`CURRENT_TIMESTAMP`),
+});
+
 // API Keys table
 export const apiKeys = sqliteTable("api_keys", {
   id: text("id").primaryKey().default(sql`(hex(randomblob(16)))`),

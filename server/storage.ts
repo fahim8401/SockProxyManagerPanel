@@ -2,7 +2,7 @@ import {
   type User, type InsertUser, type Connection, type InsertConnection, 
   type IpPool, type InsertIpPool, type Admin, type InsertAdmin,
   type Package, type InsertPackage, type ApiKey, type InsertApiKey,
-  users, connections, ipPool, admins, packages, apiKeys 
+  users, connections, ipPool, admins, packages, apiKeys, settings 
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, isNull, sql } from "drizzle-orm";
@@ -545,6 +545,57 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error('Error fetching public IPs:', error);
       return [];
+    }
+  }
+
+  // Settings management
+  async saveSettings(settingsData: any): Promise<void> {
+    try {
+      // Save each category of settings
+      for (const [category, data] of Object.entries(settingsData)) {
+        for (const [key, value] of Object.entries(data as any)) {
+          await db.insert(settings)
+            .values({
+              category,
+              key,
+              value: JSON.stringify(value)
+            })
+            .onConflictDoUpdate({
+              target: [settings.category, settings.key],
+              set: {
+                value: JSON.stringify(value),
+                updatedAt: Math.floor(Date.now() / 1000)
+              }
+            });
+        }
+      }
+      console.log('Settings saved successfully');
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      throw error;
+    }
+  }
+
+  async getSettings(): Promise<any> {
+    try {
+      const allSettings = await db.select().from(settings);
+      const organized: any = {};
+      
+      allSettings.forEach(setting => {
+        if (!organized[setting.category]) {
+          organized[setting.category] = {};
+        }
+        try {
+          organized[setting.category][setting.key] = JSON.parse(setting.value);
+        } catch {
+          organized[setting.category][setting.key] = setting.value;
+        }
+      });
+      
+      return organized;
+    } catch (error) {
+      console.error('Error fetching settings:', error);
+      return {};
     }
   }
 }
