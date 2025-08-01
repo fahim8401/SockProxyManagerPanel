@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { insertUserSchema } from "@shared/schema";
 import Sidebar from "@/components/ui/sidebar";
+import { CardSkeleton } from "@/components/ui/skeleton";
 import { useLocation } from "wouter";
 
 type CreateUserFormData = z.infer<typeof insertUserSchema>;
@@ -148,19 +149,19 @@ export default function CreateUser() {
       
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <header className="bg-white shadow-sm border-b border-gray-200">
+        <header className="bg-white shadow-sm border-b border-gray-200 animate-slideInRight">
           <div className="flex items-center justify-between px-6 py-4">
             <div className="flex items-center space-x-4">
               <Button 
                 variant="ghost" 
                 size="sm" 
                 onClick={() => setLocation("/users")}
-                className="flex items-center"
+                className="flex items-center animate-fadeInUp transition-all duration-300 hover:scale-105"
               >
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back
               </Button>
-              <div>
+              <div className="animate-fadeInUp delay-200">
                 <h1 className="text-2xl font-semibold text-gray-800">Create SOCKS5 User</h1>
                 <p className="text-sm text-gray-600">Add a new user to the proxy server</p>
               </div>
@@ -171,14 +172,17 @@ export default function CreateUser() {
         {/* Main Content */}
         <main className="flex-1 overflow-y-auto p-6">
           <div className="max-w-2xl mx-auto">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <UserPlus className="h-5 w-5 mr-2" />
-                  User Details
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
+            {ipsLoading || packagesLoading ? (
+              <CardSkeleton />
+            ) : (
+              <Card className="animate-fadeInUp delay-300 card-hover">
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <UserPlus className="h-5 w-5 mr-2" />
+                    User Details
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                     {/* Package Selection (Optional) */}
@@ -467,8 +471,9 @@ export default function CreateUser() {
                     )}
                   </form>
                 </Form>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </main>
       </div>

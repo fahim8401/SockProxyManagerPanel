@@ -9,6 +9,7 @@ import { Trash2, Users, Edit, Eye, Pause, Play, Calendar, Database, Network, Cop
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import Sidebar from "@/components/ui/sidebar";
+import { TableSkeleton } from "@/components/ui/skeleton";
 import { Link } from "wouter";
 
 interface User {
@@ -146,18 +147,20 @@ export default function UserManagement() {
       <Sidebar />
       
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="bg-white shadow-sm border-b border-gray-200">
+        <header className="bg-white shadow-sm border-b border-gray-200 animate-slideInRight">
           <div className="flex items-center justify-between px-6 py-4">
-            <div>
+            <div className="animate-fadeInUp">
               <h1 className="text-2xl font-semibold text-gray-800">User Management</h1>
               <p className="text-sm text-gray-600">Manage SOCKS5 proxy users</p>
             </div>
-            <Link href="/create-user">
-              <Button className="bg-blue-600 hover:bg-blue-700">
-                <Users className="w-4 h-4 mr-2" />
-                Create User
-              </Button>
-            </Link>
+            <div className="animate-fadeInUp delay-200">
+              <Link href="/create-user">
+                <Button className="bg-blue-600 hover:bg-blue-700 transition-all duration-300 hover:scale-105">
+                  <Users className="w-4 h-4 mr-2" />
+                  Create User
+                </Button>
+              </Link>
+            </div>
           </div>
         </header>
 
@@ -165,60 +168,79 @@ export default function UserManagement() {
           <div className="max-w-7xl mx-auto space-y-6">
             
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">Total Users</p>
-                      <p className="text-2xl font-bold text-gray-900">{users.length}</p>
-                    </div>
-                    <div className="p-3 bg-blue-50 rounded-full">
-                      <Users className="text-blue-600 w-5 h-5" />
+            {isLoading ? (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className={`bg-white rounded-lg shadow-sm border p-6 animate-fadeInUp delay-${(i + 1) * 100}`}>
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-2 flex-1">
+                        <div className="skeleton h-4 w-20"></div>
+                        <div className="skeleton h-8 w-16"></div>
+                      </div>
+                      <div className="skeleton h-12 w-12 rounded-full"></div>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <Card className="animate-fadeInUp delay-100 card-hover">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">Total Users</p>
+                        <p className="text-2xl font-bold text-gray-900">{users.length}</p>
+                      </div>
+                      <div className="p-3 bg-blue-50 rounded-full transition-transform hover:scale-110">
+                        <Users className="text-blue-600 w-5 h-5" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
 
-              <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">Active Users</p>
-                      <p className="text-2xl font-bold text-green-600">
-                        {users.filter((user: User) => user.isActive).length}
-                      </p>
+                <Card className="animate-fadeInUp delay-200 card-hover">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">Active Users</p>
+                        <p className="text-2xl font-bold text-green-600">
+                          {users.filter((user: User) => user.isActive).length}
+                        </p>
+                      </div>
+                      <div className="p-3 bg-green-50 rounded-full transition-transform hover:scale-110">
+                        <Users className="text-green-600 w-5 h-5" />
+                      </div>
                     </div>
-                    <div className="p-3 bg-green-50 rounded-full">
-                      <Users className="text-green-600 w-5 h-5" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
 
-              <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">Expired Users</p>
-                      <p className="text-2xl font-bold text-red-600">
-                        {users.filter((user: User) => new Date(user.expiresAt) < new Date()).length}
-                      </p>
+                <Card className="animate-fadeInUp delay-300 card-hover">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">Expired Users</p>
+                        <p className="text-2xl font-bold text-red-600">
+                          {users.filter((user: User) => new Date(user.expiresAt) < new Date()).length}
+                        </p>
+                      </div>
+                      <div className="p-3 bg-red-50 rounded-full transition-transform hover:scale-110">
+                        <Users className="text-red-600 w-5 h-5" />
+                      </div>
                     </div>
-                    <div className="p-3 bg-red-50 rounded-full">
-                      <Users className="text-red-600 w-5 h-5" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
 
             {/* Users Table */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Users ({users.length})</CardTitle>
-              </CardHeader>
-              <CardContent className="p-0">
+            {isLoading ? (
+              <TableSkeleton />
+            ) : (
+              <Card className="animate-fadeInUp delay-400 card-hover">
+                <CardHeader>
+                  <CardTitle>Users ({users.length})</CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-gray-50">
@@ -474,8 +496,9 @@ export default function UserManagement() {
                     )}
                   </TableBody>
                 </Table>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </main>
       </div>

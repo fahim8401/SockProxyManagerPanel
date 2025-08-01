@@ -57,15 +57,18 @@ export default function StatsCards({ stats }: StatsCardsProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
       {cards.map((card, index) => (
-        <Card key={index} className="bg-white shadow">
+        <Card 
+          key={index} 
+          className={`bg-white shadow card-hover animate-fadeInUp delay-${(index + 1) * 100} cursor-pointer`}
+        >
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">{card.title}</p>
-                <p className="text-2xl font-bold text-gray-900">{card.value}</p>
+                <p className="text-sm font-medium text-gray-600 transition-colors group-hover:text-gray-800">{card.title}</p>
+                <p className="text-2xl font-bold text-gray-900 transition-all">{card.value}</p>
               </div>
-              <div className={`p-3 ${card.bgColor} rounded-full`}>
-                <card.icon className={`${card.iconColor} w-5 h-5`} />
+              <div className={`p-3 ${card.bgColor} rounded-full transition-transform group-hover:scale-110`}>
+                <card.icon className={`${card.iconColor} w-5 h-5 transition-colors`} />
               </div>
             </div>
             <div className="mt-4 flex items-center">

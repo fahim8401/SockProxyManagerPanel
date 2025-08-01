@@ -7,6 +7,7 @@ import CreateUserModal from "../components/dashboard/create-user-modal";
 import RealtimeChart from "../components/dashboard/real-time-chart";
 import SystemStatus from "../components/dashboard/system-status";
 import ConnectionHealth from "../components/dashboard/connection-health";
+import { StatsCardSkeleton, TableSkeleton, ChartSkeleton } from "@/components/ui/skeleton";
 import { User } from "@shared/schema";
 import { Bell, UserCircle, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -23,16 +24,25 @@ export default function Dashboard() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [realtimeStats, setRealtimeStats] = useState<Stats | null>(null);
   const [connectionData, setConnectionData] = useState<Array<{ time: string; connections: number }>>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const { logout } = useAuth();
 
-  const { data: users = [], refetch: refetchUsers } = useQuery<User[]>({
+  const { data: users = [], refetch: refetchUsers, isLoading: usersLoading } = useQuery<User[]>({
     queryKey: ["/api/users"],
   });
 
-  const { data: stats } = useQuery<Stats>({
+  const { data: stats, isLoading: statsLoading } = useQuery<Stats>({
     queryKey: ["/api/stats"],
     refetchInterval: 30000, // Refetch every 30 seconds
   });
+
+  // Simulate initial loading state
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, []);
 
   // WebSocket connection for real-time updates
   useEffect(() => {
@@ -106,13 +116,13 @@ export default function Dashboard() {
       
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <header className="bg-white shadow-sm border-b border-gray-200">
+        <header className="bg-white shadow-sm border-b border-gray-200 animate-slideInRight">
           <div className="flex items-center justify-between px-6 py-4">
-            <div>
+            <div className="animate-fadeInUp">
               <h1 className="text-2xl font-semibold text-gray-800">Dashboard</h1>
               <p className="text-sm text-gray-600">Manage your SOCKS5 proxy server and users</p>
             </div>
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-4 animate-fadeInUp delay-200">
               <button className="relative p-2 text-gray-600 hover:text-gray-800">
                 <Bell className="w-5 h-5" />
                 <span className="absolute top-0 right-0 h-2 w-2 bg-red-500 rounded-full"></span>
@@ -136,24 +146,64 @@ export default function Dashboard() {
 
         {/* Main Content */}
         <main className="flex-1 overflow-y-auto p-6">
-          <StatsCards 
-            stats={{
-              ...displayStats,
-              dataTransferred: formatDataTransfer(displayStats.dataTransferred)
-            }}
-          />
-          
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-            <RealtimeChart data={connectionData} />
-            <SystemStatus />
-            <ConnectionHealth />
-          </div>
+          <div className="max-w-7xl mx-auto">
+            {/* Dashboard Stats */}
+            {isLoading || statsLoading ? (
+              <StatsCardSkeleton />
+            ) : (
+              <div className="animate-fadeInUp">
+                <StatsCards 
+                  stats={{
+                    ...displayStats,
+                    dataTransferred: formatDataTransfer(displayStats.dataTransferred)
+                  }}
+                />
+              </div>
+            )}
+            
+            {/* Charts and Components Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+              {/* Real-time Chart */}
+              {isLoading ? (
+                <ChartSkeleton />
+              ) : (
+                <div className="animate-fadeInUp delay-200 card-hover">
+                  <RealtimeChart data={connectionData} />
+                </div>
+              )}
+              
+              {/* System Status */}
+              {isLoading ? (
+                <ChartSkeleton />
+              ) : (
+                <div className="animate-fadeInUp delay-300 card-hover">
+                  <SystemStatus />
+                </div>
+              )}
 
-          <UserTable 
-            users={users} 
-            onCreateUser={() => setIsCreateModalOpen(true)}
-            onRefresh={refetchUsers}
-          />
+              {/* Connection Health */}
+              {isLoading ? (
+                <ChartSkeleton />
+              ) : (
+                <div className="animate-fadeInUp delay-400 card-hover">
+                  <ConnectionHealth />
+                </div>
+              )}
+            </div>
+            
+            {/* Recent Users Table */}
+            {isLoading || usersLoading ? (
+              <TableSkeleton />
+            ) : (
+              <div className="animate-fadeInUp delay-500">
+                <UserTable 
+                  users={users} 
+                  onCreateUser={() => setIsCreateModalOpen(true)}
+                  onRefresh={refetchUsers}
+                />
+              </div>
+            )}
+          </div>
         </main>
       </div>
 
