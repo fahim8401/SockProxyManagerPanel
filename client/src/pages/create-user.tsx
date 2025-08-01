@@ -26,10 +26,24 @@ interface IpAddress {
   isAvailable: boolean;
 }
 
+interface Package {
+  id: string;
+  name: string;
+  description: string;
+  dataLimitGB: number;
+  timeLimit: number;
+  maxConnections: number;
+  allowedIPs: string;
+  price: number;
+  isActive: boolean;
+}
+
 export default function CreateUser() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  const [selectedPackageId, setSelectedPackageId] = useState<string>("");
 
   const form = useForm<CreateUserFormData>({
     resolver: zodResolver(insertUserSchema),
@@ -43,6 +57,7 @@ export default function CreateUser() {
       dataLimit: 10737418240, // 10GB in bytes
       daysValid: 30,
       isActive: true,
+      packageId: undefined,
     },
   });
 
@@ -50,6 +65,11 @@ export default function CreateUser() {
   const { data: availableIPs = [], isLoading: ipsLoading } = useQuery({
     queryKey: ["/api/ip-pool?available=true"],
   }) as { data: IpAddress[]; isLoading: boolean };
+
+  // Fetch available packages
+  const { data: packages = [], isLoading: packagesLoading } = useQuery({
+    queryKey: ["/api/packages"],
+  }) as { data: Package[]; isLoading: boolean };
 
   const createUserMutation = useMutation({
     mutationFn: async (data: CreateUserFormData) => {
@@ -96,6 +116,32 @@ export default function CreateUser() {
     form.setValue("confirmPassword", password);
   };
 
+  const handlePackageSelection = (packageId: string) => {
+    setSelectedPackageId(packageId);
+    
+    if (packageId === "") {
+      // Reset to default values if no package selected
+      form.setValue("dataLimit", 10737418240); // 10GB in bytes
+      form.setValue("daysValid", 30);
+      form.setValue("packageId", undefined);
+      return;
+    }
+
+    const selectedPackage = packages.find(p => p.id === packageId);
+    if (selectedPackage) {
+      // Convert GB to bytes
+      const dataLimitBytes = selectedPackage.dataLimitGB * 1024 * 1024 * 1024;
+      form.setValue("dataLimit", dataLimitBytes);
+      form.setValue("daysValid", selectedPackage.timeLimit);
+      form.setValue("packageId", packageId);
+      
+      toast({
+        title: "Package Selected",
+        description: `Applied settings from ${selectedPackage.name}`,
+      });
+    }
+  };
+
   return (
     <div className="flex h-screen bg-gray-50">
       <Sidebar />
@@ -135,6 +181,41 @@ export default function CreateUser() {
               <CardContent>
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                    {/* Package Selection (Optional) */}
+                    <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                      <div className="flex items-center justify-between mb-3">
+                        <Label className="text-sm font-semibold text-blue-900">Choose Package (Optional)</Label>
+                        <span className="text-xs text-blue-600">Auto-fills data limit and validity</span>
+                      </div>
+                      <Select 
+                        value={selectedPackageId} 
+                        onValueChange={handlePackageSelection}
+                        disabled={packagesLoading}
+                      >
+                        <SelectTrigger className="bg-white">
+                          <SelectValue placeholder={
+                            packagesLoading ? "Loading packages..." : 
+                            packages.length === 0 ? "No packages available" :
+                            "Select a package or create manually"
+                          } />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">Create user manually (no package)</SelectItem>
+                          {packages.filter(pkg => pkg.isActive).map((pkg) => (
+                            <SelectItem key={pkg.id} value={pkg.id}>
+                              {pkg.name} - {pkg.dataLimitGB}GB, {pkg.timeLimit} days
+                              {pkg.price && ` ($${pkg.price})`}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {selectedPackageId && (
+                        <div className="mt-2 p-2 bg-blue-100 rounded text-xs text-blue-800">
+                          <strong>Package applied:</strong> {packages.find(p => p.id === selectedPackageId)?.description}
+                        </div>
+                      )}
+                    </div>
+
                     {/* Basic Information */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <FormField
