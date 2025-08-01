@@ -3,6 +3,31 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
+
+// Trust proxy for reverse proxy/load balancer setup
+app.set('trust proxy', true);
+
+// CORS configuration for custom domains
+app.use((req, res, next) => {
+  // Allow requests from any origin for your custom domain setup
+  const origin = req.headers.origin;
+  if (origin) {
+    res.header('Access-Control-Allow-Origin', origin);
+  } else {
+    res.header('Access-Control-Allow-Origin', '*');
+  }
+  
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  
+  if (req.method === 'OPTIONS') {
+    res.sendStatus(200);
+  } else {
+    next();
+  }
+});
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
@@ -67,5 +92,8 @@ app.use((req, res, next) => {
     reusePort: true,
   }, () => {
     log(`serving on port ${port}`);
+    log(`SOCKS5 proxy available on port 1080`);
+    log(`Replit domain: ${process.env.REPLIT_DOMAINS}`);
+    log(`Custom domain access: http://103.7.4.183 (via reverse proxy)`);
   });
 })();
