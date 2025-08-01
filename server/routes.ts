@@ -225,25 +225,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { username, password } = req.body;
       
+      console.log(`User portal login attempt - Username: '${username}', Password: '${password}'`);
+      
       if (!username || !password) {
         return res.status(400).json({ message: "Username and password are required" });
       }
 
       // Get SOCKS5 user by username
       const user = await storage.getUserByUsername(username);
+      console.log(`User found in database:`, !!user);
       if (!user) {
         return res.status(401).json({ message: "Invalid credentials" });
       }
 
-      // For SOCKS users, we'll use bcrypt to verify password
-      const isValidPassword = await bcrypt.compare(password, user.password);
+      console.log(`Stored password: '${user.password}', Input password: '${password}'`);
+      
+      // For SOCKS users, check if password is hashed or plain text
+      let isValidPassword = false;
+      try {
+        // Try bcrypt first (for hashed passwords)
+        if (user.password.startsWith('$2')) { // bcrypt hash starts with $2
+          isValidPassword = await bcrypt.compare(password, user.password);
+          console.log('Used bcrypt comparison:', isValidPassword);
+        } else {
+          // Plain text comparison
+          isValidPassword = user.password === password;
+          console.log('Used plain text comparison:', isValidPassword);
+        }
+      } catch (error) {
+        console.log('Password comparison error:', error);
+        // If bcrypt fails, try plain text comparison
+        isValidPassword = user.password === password;
+        console.log('Fallback plain text comparison:', isValidPassword);
+      }
+      
       if (!isValidPassword) {
+        console.log('Authentication failed - invalid password');
         return res.status(401).json({ message: "Invalid credentials" });
       }
 
       // Generate JWT token for user
       const token = jwt.sign(
-        { id: user.id, username: user.username, role: "user" },
+        { userId: user.id, username: user.username, role: "user" },
         JWT_SECRET,
         { expiresIn: "24h" }
       );

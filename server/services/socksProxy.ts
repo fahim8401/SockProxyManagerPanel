@@ -294,26 +294,62 @@ export class SocksProxyServer {
     const targetSocket = net.createConnection(targetPort, targetHost);
     
     targetSocket.on('connect', () => {
-      // Send success response
-      const response = Buffer.from([0x05, 0x00, 0x00, 0x01, 0, 0, 0, 0, 0, 0]);
+      console.log(`✅ SOCKS5 target connection established to ${targetHost}:${targetPort}`);
+      
+      // Send proper SOCKS5 success response with bound address and port
+      const response = Buffer.alloc(10);
+      response[0] = 0x05; // SOCKS version
+      response[1] = 0x00; // Success
+      response[2] = 0x00; // Reserved
+      response[3] = 0x01; // IPv4 address type
+      // Bound IP address (0.0.0.0)
+      response[4] = 0x00;
+      response[5] = 0x00;
+      response[6] = 0x00;
+      response[7] = 0x00;
+      // Bound port (use target port in network byte order)
+      response.writeUInt16BE(targetPort, 8);
+      
       clientSocket.write(response);
+      console.log(`📤 Sent SOCKS5 success response for ${currentUser?.username}`);
       
-      // Start proxying data
-      clientSocket.pipe(targetSocket);
-      targetSocket.pipe(clientSocket);
+      // Start proxying data between client and target
+      clientSocket.pipe(targetSocket, { end: false });
+      targetSocket.pipe(clientSocket, { end: false });
       
-      // Track data transfer
+      // Track data transfer for billing/quota
       if (connectionId) {
+        let clientToTargetBytes = 0;
+        let targetToClientBytes = 0;
+        
         clientSocket.on('data', (chunk) => {
+          clientToTargetBytes += chunk.length;
           this.updateDataTransfer(connectionId!, chunk.length);
         });
         
         targetSocket.on('data', (chunk) => {
+          targetToClientBytes += chunk.length;
           this.updateDataTransfer(connectionId!, chunk.length);
         });
+        
+        // Log data transfer periodically
+        const logInterval = setInterval(() => {
+          if (clientToTargetBytes > 0 || targetToClientBytes > 0) {
+            console.log(`📊 Data transfer for ${currentUser?.username}: ${clientToTargetBytes} up, ${targetToClientBytes} down`);
+            clientToTargetBytes = 0;
+            targetToClientBytes = 0;
+          }
+        }, 30000);
+        
+        // Clean up interval when connection closes
+        const cleanup = () => {
+          clearInterval(logInterval);
+        };
+        clientSocket.once('close', cleanup);
+        targetSocket.once('close', cleanup);
       }
       
-      console.log(`✅ SOCKS5 proxy connection established for ${currentUser?.username} to ${targetHost}:${targetPort}`);
+      console.log(`🔗 SOCKS5 proxy tunnel active for ${currentUser?.username} to ${targetHost}:${targetPort}`);
     });
     
     targetSocket.on('error', (err) => {
