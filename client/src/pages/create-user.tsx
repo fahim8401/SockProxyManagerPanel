@@ -49,7 +49,6 @@ export default function CreateUser() {
   // Fetch available IP addresses
   const { data: availableIPs = [], isLoading: ipsLoading } = useQuery({
     queryKey: ["/api/ip-pool", { available: true }],
-    queryFn: () => apiRequest("GET", "/api/ip-pool?available=true"),
   }) as { data: IpAddress[]; isLoading: boolean };
 
   const createUserMutation = useMutation({
@@ -107,7 +106,7 @@ export default function CreateUser() {
               <Button 
                 variant="ghost" 
                 size="sm" 
-                onClick={() => setLocation("/dashboard")}
+                onClick={() => setLocation("/users")}
                 className="flex items-center"
               >
                 <ArrowLeft className="h-4 w-4 mr-2" />

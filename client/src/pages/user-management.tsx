@@ -27,7 +27,7 @@ export default function UserManagement() {
 
   const { data: users = [], isLoading } = useQuery({
     queryKey: ["/api/users"],
-  });
+  }) as { data: User[]; isLoading: boolean };
 
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: string) => {

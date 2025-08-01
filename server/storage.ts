@@ -1,6 +1,6 @@
 import { type User, type InsertUser, type Connection, type InsertConnection, type IpPool, type InsertIpPool, type Admin, type InsertAdmin, users, connections, ipPool, admins } from "@shared/schema";
 import { db } from "./db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, isNull } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
@@ -157,7 +157,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getActiveConnections(): Promise<Connection[]> {
-    return await db.select().from(connections).where(eq(connections.endTime, null));
+    return await db.select().from(connections).where(isNull(connections.endTime));
   }
 
   async getUserConnections(userId: string): Promise<Connection[]> {
@@ -235,7 +235,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getActiveConnectionsCount(): Promise<number> {
-    const result = await db.select().from(connections).where(eq(connections.endTime, null));
+    const result = await db.select().from(connections).where(isNull(connections.endTime));
     return result.length;
   }
 
@@ -293,6 +293,11 @@ export class DatabaseStorage implements IStorage {
   async deleteAdmin(id: string): Promise<boolean> {
     const result = await db.delete(admins).where(eq(admins.id, id));
     return result.rowCount > 0;
+  }
+
+  async deleteIP(id: string): Promise<boolean> {
+    const result = await db.delete(ipPool).where(eq(ipPool.id, id));
+    return result.rowCount! > 0;
   }
 
   async updateAdminLastLogin(id: string): Promise<void> {
