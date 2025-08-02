@@ -49,6 +49,8 @@ This is a comprehensive full-stack SOCKS5 proxy management system with complete 
 - **✅ Demonstrated with test users: shareduser1 & shareduser2 both using IP 103.7.4.182**
 - **✅ Settings page functionality completely fixed - all features work and data saves properly**
 - **✅ Complete install.sh v4.0.0 with all latest fixes and enterprise features**
+- **✅ User portal access issue RESOLVED - authentication working perfectly**
+- **✅ Complete uninstall.sh v4.0.0 - Safe system removal with backup creation**
 
 ## Complete Feature Set
 
