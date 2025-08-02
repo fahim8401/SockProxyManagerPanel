@@ -49,7 +49,7 @@ export class IPRoutingManager {
   }
 
   /**
-   * Ensure the IP address is available on the network interface
+   * Ensure the IP address is available on the network interface and setup NAT rules
    */
   private async ensureIPOnInterface(ipAddress: string): Promise<void> {
     try {
@@ -57,6 +57,8 @@ export class IPRoutingManager {
       const { stdout } = await execAsync(`ip addr show | grep "${ipAddress}"`);
       if (stdout.trim()) {
         console.log(`✅ IP ${ipAddress} already configured on interface`);
+        // Still setup NAT rules even if IP exists
+        await this.setupNATRules(ipAddress);
         return;
       }
     } catch (error) {
@@ -72,6 +74,9 @@ export class IPRoutingManager {
         // Add the IP as an alias
         await execAsync(`sudo ip addr add ${ipAddress}/32 dev ${primaryInterface}`);
         console.log(`✅ Added IP ${ipAddress} to interface ${primaryInterface}`);
+        
+        // Setup NAT rules for this IP
+        await this.setupNATRules(ipAddress);
       }
     } catch (error) {
       console.error(`Failed to add IP ${ipAddress} to interface:`, error);
