@@ -273,6 +273,49 @@ export class SocksProxyServer {
   ): Promise<void> {
     console.log(`🔍 Resolving domain: ${domain} for port ${port}`);
     
+    try {
+      // Enhanced DNS resolution with IPv4/IPv6 fallback
+      const addresses = await new Promise<string[]>((resolve, reject) => {
+        dns.resolve4(domain, (err, addresses) => {
+          if (err) {
+            // Fallback to IPv6 if IPv4 fails
+            dns.resolve6(domain, (err6, addresses6) => {
+              if (err6) {
+                console.log(`❌ DNS resolution failed for ${domain}: IPv4=${err.message}, IPv6=${err6.message}`);
+                reject(new Error(`DNS resolution failed: ${err.message}`));
+              } else {
+                console.log(`✅ IPv6 resolved ${domain} to:`, addresses6);
+                resolve(addresses6.map(addr => `[${addr}]`));
+              }
+            });
+          } else {
+            console.log(`✅ IPv4 resolved ${domain} to:`, addresses);
+            resolve(addresses);
+          }
+        });
+      });
+
+      // Try each resolved address
+      for (const address of addresses) {
+        try {
+          await this.connectToTarget(address, port, clientSocket, connectionId, currentUser);
+          return; // Success - exit on first successful connection
+        } catch (error) {
+          console.log(`❌ Connection failed to ${address}:${port} - ${error}`);
+          continue; // Try next address
+        }
+      }
+      
+      // All addresses failed
+      throw new Error(`All resolved addresses failed for ${domain}`);
+      
+    } catch (error) {
+      console.log(`❌ Domain resolution/connection failed for ${domain}:${port} - ${error}`);
+      const response = Buffer.from([0x05, 0x04, 0x00, 0x01, 0, 0, 0, 0, 0, 0]); // Host unreachable
+      clientSocket.write(response);
+      clientSocket.end();
+    }
+    
     // Enhanced DNS resolution with better error handling
     const resolvePromise = new Promise<string>((resolve, reject) => {
       // Try IPv4 first (most common)
@@ -315,67 +358,72 @@ export class SocksProxyServer {
     }
   }
 
-  private connectToTarget(
+  private async connectToTarget(
     targetHost: string, 
     targetPort: number, 
     clientSocket: net.Socket, 
     connectionId: string | null, 
     currentUser: ProxyUser | null
-  ): void {
-    // Start with clean connection options - no IP binding in Replit environment
-    const connectionOptions: net.NetConnectOpts = {
-      port: targetPort,
-      host: targetHost,
-      // For HTTPS connections, ensure proper socket handling
-      allowHalfOpen: false,
-      timeout: 15000 // 15 second connection timeout
-    };
+  ): Promise<void> {
+    return new Promise((resolve, reject) => {
+      // Enhanced connection options for reliable connectivity
+      const connectionOptions: net.NetConnectOpts = {
+        port: targetPort,
+        host: targetHost,
+        family: 0, // Allow both IPv4 and IPv6
+        timeout: 10000, // 10 second connection timeout
+        keepAlive: true,
+        keepAliveInitialDelay: 0
+      };
 
-    // In Replit environment, we can't bind to specific IPs directly
-    // Instead, log the user's assigned IP for monitoring purposes
-    if (currentUser?.outboundIp) {
-      console.log(`🌐 User ${currentUser.username} assigned IP: ${currentUser.outboundIp} (routing via network layer)`);
+      // Log outbound IP routing (for monitoring)
+      if (currentUser?.outboundIp) {
+        console.log(`🌐 User ${currentUser.username} traffic routed through: ${currentUser.outboundIp}`);
+      }
       
-      // Apply NAT routing asynchronously - don't block the connection
-      import('./ipRouting.js').then(ipRoutingModule => {
-        const ipRouting = ipRoutingModule.IPRoutingManager.getInstance();
-        ipRouting.setupNATRules(currentUser.outboundIp || '').catch(natError => {
-          console.log(`⚠️ NAT routing setup failed (non-blocking): ${natError.message}`);
+      console.log(`🔌 Connecting to ${targetHost}:${targetPort} for ${currentUser?.username || 'anonymous'}`);
+      
+      const targetSocket = net.createConnection(connectionOptions);
+      
+      // Set socket options for better performance
+      targetSocket.setTimeout(30000); // 30 second data timeout
+      targetSocket.setNoDelay(true); // Disable Nagle's algorithm for lower latency
+      targetSocket.setKeepAlive(true, 60000); // Keep alive every 60 seconds
+      
+      targetSocket.on('connect', () => {
+        console.log(`✅ SOCKS5 connection established to ${targetHost}:${targetPort} (${targetPort === 443 ? 'HTTPS' : targetPort === 80 ? 'HTTP' : 'Other'})`);
+        
+        // Send SOCKS5 success response
+        const response = Buffer.alloc(10);
+        response[0] = 0x05; // SOCKS version
+        response[1] = 0x00; // Success
+        response[2] = 0x00; // Reserved
+        response[3] = 0x01; // IPv4 address type
+        // Bound IP (0.0.0.0 for simplicity)
+        response[4] = 0x00;
+        response[5] = 0x00;
+        response[6] = 0x00;
+        response[7] = 0x00;
+        // Bound port
+        response.writeUInt16BE(targetPort, 8);
+        
+        clientSocket.write(response);
+        console.log(`📤 SOCKS5 request granted for ${currentUser?.username} to ${targetHost}:${targetPort}`);
+        
+        // Set up bidirectional data piping
+        const clientToTarget = clientSocket.pipe(targetSocket, { end: false });
+        const targetToClient = targetSocket.pipe(clientSocket, { end: false });
+        
+        // Handle pipe errors
+        clientToTarget.on('error', (err) => {
+          console.log(`❌ Client to target pipe error: ${err.message}`);
         });
-      }).catch(() => {
-        // NAT routing module unavailable - this is non-critical
-      });
-    }
-    
-    console.log(`🔌 Creating connection to ${targetHost}:${targetPort}${currentUser ? ` for ${currentUser.username}` : ''}`);
-    const targetSocket = net.createConnection(connectionOptions);
-    
-    // Set proper timeouts for HTTPS connections
-    targetSocket.setTimeout(30000); // 30 second timeout
-    
-    targetSocket.on('connect', () => {
-      console.log(`✅ SOCKS5 target connection established to ${targetHost}:${targetPort} (${targetPort === 443 ? 'HTTPS' : 'HTTP'})`);
-      
-      // Send proper SOCKS5 success response with bound address and port
-      const response = Buffer.alloc(10);
-      response[0] = 0x05; // SOCKS version
-      response[1] = 0x00; // Success
-      response[2] = 0x00; // Reserved
-      response[3] = 0x01; // IPv4 address type
-      // Bound IP address (0.0.0.0)
-      response[4] = 0x00;
-      response[5] = 0x00;
-      response[6] = 0x00;
-      response[7] = 0x00;
-      // Bound port (use target port in network byte order)
-      response.writeUInt16BE(targetPort, 8);
-      
-      clientSocket.write(response);
-      console.log(`📤 Sent SOCKS5 success response for ${currentUser?.username} (port ${targetPort})`);
-      
-      // Start proxying data between client and target
-      clientSocket.pipe(targetSocket, { end: false });
-      targetSocket.pipe(clientSocket, { end: false });
+        
+        targetToClient.on('error', (err) => {
+          console.log(`❌ Target to client pipe error: ${err.message}`);
+        });
+        
+        resolve(); // Connection successful
       
       // Track data transfer for billing/quota
       if (connectionId) {
@@ -438,14 +486,17 @@ export class SocksProxyServer {
         console.log(`🌐 Network unreachable to ${targetHost}:${targetPort}`);
       }
       
-      console.log(`📤 Sending SOCKS5 error code 0x${errorCode.toString(16).padStart(2, '0')} to client`);
-      this.sendSocksError(clientSocket, errorCode);
-    });
+        console.log(`📤 Sending SOCKS5 error code 0x${errorCode.toString(16).padStart(2, '0')} to client`);
+        this.sendSocksError(clientSocket, errorCode);
+        reject(err);
+      });
 
-    targetSocket.on('timeout', () => {
-      console.log(`⏰ SOCKS5 connection timeout to ${targetHost}:${targetPort}`);
-      targetSocket.destroy();
-      this.sendSocksError(clientSocket, 0x06); // TTL expired
+      targetSocket.on('timeout', () => {
+        console.log(`⏰ SOCKS5 connection timeout to ${targetHost}:${targetPort}`);
+        targetSocket.destroy();
+        this.sendSocksError(clientSocket, 0x06); // TTL expired
+        reject(new Error('Connection timeout'));
+      });
     });
   }
 
