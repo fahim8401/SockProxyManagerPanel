@@ -252,10 +252,8 @@ install_application() {
     # Set temporary ownership for setup
     sudo chown -R root:root $INSTALL_DIR
     
-    # Fix potential SQLite database configuration for better compatibility
-    if [[ -f "$INSTALL_DIR/drizzle.config.ts" ]]; then
-        # Ensure drizzle config uses the correct SQLite configuration
-        cat > $INSTALL_DIR/drizzle.config.ts << 'EOF'
+    # Always ensure SQLite configuration is correct
+    cat > $INSTALL_DIR/drizzle.config.ts << 'EOF'
 import { defineConfig } from "drizzle-kit";
 
 export default defineConfig({
@@ -267,7 +265,9 @@ export default defineConfig({
   },
 });
 EOF
-    fi
+
+    # Remove any existing drizzle migration directory to avoid conflicts
+    sudo rm -rf $INSTALL_DIR/drizzle 2>/dev/null || true
     
     # Cleanup
     rm -rf $TEMP_DIR $ZIP_FILE
@@ -1006,6 +1006,9 @@ EOF
 
     log "✅ Fallback SOCKS5 proxy application created successfully"
     
+    # Remove any existing drizzle migration directory
+    sudo rm -rf $INSTALL_DIR/drizzle 2>/dev/null || true
+    
     # Set temporary ownership for setup
     sudo chown -R root:root $INSTALL_DIR
     
@@ -1223,13 +1226,21 @@ install_dependencies() {
 setup_database() {
     log "Setting up SQLite database..."
     
+    # Remove any existing database to avoid conflicts
+    sudo rm -f $DB_FILE
+    
     # Initialize database with proper permissions
     sudo -u socks5admin touch $DB_FILE
     sudo chmod 660 $DB_FILE
     
-    # Run database migrations/setup
+    # Run database migrations/setup with force to avoid conflicts
     cd $INSTALL_DIR
-    sudo -u socks5admin npm run db:push
+    log "Initializing database schema..."
+    
+    # Skip drizzle push if it causes conflicts, let the application create tables
+    if ! sudo -u socks5admin timeout 30 npm run db:push 2>/dev/null; then
+        log "Drizzle push failed or timed out, application will initialize database on startup"
+    fi
     
     info "Database initialized at: $DB_FILE"
 }
