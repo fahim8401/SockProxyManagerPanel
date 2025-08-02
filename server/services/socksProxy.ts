@@ -322,7 +322,7 @@ export class SocksProxyServer {
         import('./ipRouting.js').then(ipRoutingModule => {
           const ipRouting = ipRoutingModule.IPRoutingManager.getInstance();
           // Setup comprehensive NAT routing so ALL traffic uses assigned IP
-          ipRouting.setupNATRules(currentUser.outboundIp).then(() => {
+          ipRouting.setupNATRules(currentUser?.outboundIp || '').then(() => {
             console.log(`🌐 Applied comprehensive NAT routing: ALL traffic for ${currentUser.username} -> ${currentUser.outboundIp}`);
           }).catch(natError => {
             console.log(`⚠️ Could not apply comprehensive NAT routing: ${natError.message}`);

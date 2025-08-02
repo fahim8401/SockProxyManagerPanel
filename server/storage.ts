@@ -541,7 +541,12 @@ export class DatabaseStorage implements IStorage {
   async getPublicIPs(): Promise<Array<{ id: string; ipAddress: string; isAvailable: boolean; assignedUserId?: string }>> {
     try {
       const publicIPs = await db.select().from(ipPool).where(eq(ipPool.isPublic, true));
-      return publicIPs;
+      return publicIPs.map(ip => ({
+        id: ip.id,
+        ipAddress: ip.ipAddress,
+        isAvailable: ip.isAvailable || true,
+        assignedUserId: ip.assignedUserId || undefined
+      }));
     } catch (error) {
       console.error('Error fetching public IPs:', error);
       return [];
