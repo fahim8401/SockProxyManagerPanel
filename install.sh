@@ -173,9 +173,13 @@ setup_directories() {
         sudo useradd -r -s /bin/false -d $INSTALL_DIR socks5admin
     fi
     
-    # Set ownership
+    # Set initial ownership for setup
     sudo chown -R $USER:$USER $INSTALL_DIR
     sudo chown -R socks5admin:socks5admin /var/log/socks5-admin
+    
+    # Ensure socks5admin user has a home directory
+    sudo mkdir -p /home/socks5admin
+    sudo chown -R socks5admin:socks5admin /home/socks5admin
 }
 
 # Download and install application files
@@ -244,6 +248,9 @@ install_application() {
         create_fallback_application
         return
     }
+    
+    # Set proper ownership immediately after copying files
+    sudo chown -R socks5admin:socks5admin $INSTALL_DIR
     
     # Fix potential SQLite database configuration for better compatibility
     if [[ -f "$INSTALL_DIR/drizzle.config.ts" ]]; then
@@ -999,6 +1006,9 @@ EOF
 
     log "✅ Fallback SOCKS5 proxy application created successfully"
     
+    # Set proper ownership for fallback files
+    sudo chown -R socks5admin:socks5admin $INSTALL_DIR
+    
     # Create .env file
     cat > $INSTALL_DIR/.env << EOF
 NODE_ENV=production
@@ -1010,9 +1020,11 @@ ADMIN_USERNAME=admin
 ADMIN_PASSWORD=admin123
 EOF
     
-    # Set permissions
+    # Set final permissions
     sudo chown -R socks5admin:socks5admin $INSTALL_DIR
     sudo chmod 600 $INSTALL_DIR/.env
+    sudo chmod -R 755 $INSTALL_DIR
+    sudo chmod +x $INSTALL_DIR/server/index.js 2>/dev/null || true
 }
 
 # Create essential application files if not downloaded
@@ -1180,15 +1192,29 @@ install_dependencies() {
     # Update npm to latest version
     sudo npm install -g npm@latest
     
-    # Install dependencies
-    sudo -u socks5admin npm ci --production
+    # Ensure proper ownership before npm operations
+    sudo chown -R socks5admin:socks5admin $INSTALL_DIR
+    sudo chmod -R 755 $INSTALL_DIR
+    
+    # Create npm cache directory with proper permissions
+    sudo -u socks5admin mkdir -p /home/socks5admin/.npm
+    sudo chown -R socks5admin:socks5admin /home/socks5admin/.npm || true
+    
+    # Install dependencies with proper flags
+    log "Installing Node.js packages..."
+    sudo -u socks5admin npm ci --omit=dev --cache=/tmp/.npm-cache
     
     # Update browserslist database
     log "Updating browserslist database..."
     sudo -u socks5admin npx update-browserslist-db@latest --yes 2>/dev/null || true
     
-    log "Building application..."
-    sudo -u socks5admin npm run build
+    # Build application if build script exists
+    if sudo -u socks5admin npm run --silent 2>/dev/null | grep -q "build"; then
+        log "Building application..."
+        sudo -u socks5admin npm run build
+    else
+        log "No build script found, skipping build step"
+    fi
 }
 
 # Setup database
