@@ -191,10 +191,10 @@ install_application() {
     case $PKG_MANAGER in
         "apt")
             sudo apt update
-            sudo apt install -y curl wget unzip
+            sudo apt install -y curl wget unzip build-essential python3
             ;;
         "yum"|"dnf")
-            sudo $PKG_MANAGER install -y curl wget unzip
+            sudo $PKG_MANAGER install -y curl wget unzip gcc-c++ make python3
             ;;
     esac
     
@@ -244,6 +244,23 @@ install_application() {
         create_fallback_application
         return
     }
+    
+    # Fix potential SQLite database configuration for better compatibility
+    if [[ -f "$INSTALL_DIR/drizzle.config.ts" ]]; then
+        # Ensure drizzle config uses the correct SQLite configuration
+        cat > $INSTALL_DIR/drizzle.config.ts << 'EOF'
+import { defineConfig } from "drizzle-kit";
+
+export default defineConfig({
+  schema: "./shared/schema.ts",
+  out: "./drizzle",
+  dialect: "sqlite",
+  dbCredentials: {
+    url: "./database.sqlite",
+  },
+});
+EOF
+    fi
     
     # Cleanup
     rm -rf $TEMP_DIR $ZIP_FILE
@@ -1159,7 +1176,16 @@ install_dependencies() {
     log "Installing Node.js dependencies..."
     
     cd $INSTALL_DIR
+    
+    # Update npm to latest version
+    sudo npm install -g npm@latest
+    
+    # Install dependencies
     sudo -u socks5admin npm ci --production
+    
+    # Update browserslist database
+    log "Updating browserslist database..."
+    sudo -u socks5admin npx update-browserslist-db@latest --yes 2>/dev/null || true
     
     log "Building application..."
     sudo -u socks5admin npm run build

@@ -54,6 +54,7 @@ This is a comprehensive full-stack SOCKS5 proxy management system with complete 
 - **✅ Installation error FIXED - missing drizzle.config.ts issue resolved**
 - **✅ Complete self-contained install.sh v4.0.0 - Creates entire application from scratch**
 - **✅ Install.sh now uses GitHub zip download (https://github.com/fahim8401/SockProxyManagerPanel/archive/refs/heads/MAIN.zip)**
+- **✅ Install.sh updated with browserslist fix and build tools for better compatibility**
 
 ## Complete Feature Set
 
