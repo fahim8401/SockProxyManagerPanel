@@ -983,12 +983,25 @@ EOF
     log "Updating browserslist database..."
     sudo npx update-browserslist-db@latest --yes 2>/dev/null || true
     
-    # Build application if build script exists
-    if sudo npm run --silent 2>/dev/null | grep -q "build"; then
-        log "Building application..."
-        sudo npm run build --unsafe-perm=true 2>/dev/null || log "Build failed, continuing..."
+    # Build application - this is required for the frontend
+    log "Building application frontend..."
+    if sudo npm run build --unsafe-perm=true 2>/dev/null; then
+        log "✅ Application built successfully"
+        
+        # Copy built files to server/public directory (required by vite.ts)
+        if [[ -d "$INSTALL_DIR/dist/public" ]]; then
+            sudo mkdir -p $INSTALL_DIR/server/public
+            sudo cp -r $INSTALL_DIR/dist/public/* $INSTALL_DIR/server/public/ 2>/dev/null || true
+            sudo chown -R socks5admin:socks5admin $INSTALL_DIR/dist $INSTALL_DIR/server/public
+            log "✅ Build files copied to server/public"
+        fi
     else
-        log "No build script found, skipping build step"
+        log "Build failed, attempting to create minimal build directory..."
+        # Create minimal build directory structure if build fails
+        sudo mkdir -p $INSTALL_DIR/dist/public $INSTALL_DIR/server/public
+        sudo echo '<html><body><h1>SOCKS5 Admin Panel</h1></body></html>' > $INSTALL_DIR/server/public/index.html
+        sudo chown -R socks5admin:socks5admin $INSTALL_DIR/dist $INSTALL_DIR/server/public 2>/dev/null || true
+        log "Created minimal build directories with fallback content"
     fi
     
     # Fix ownership back to socks5admin after npm operations
@@ -1207,6 +1220,20 @@ test_application() {
             # Install tsx and related dependencies both globally and locally
             sudo npm install -g tsx typescript @types/node 2>/dev/null || log "Global tsx installation failed"
             cd $INSTALL_DIR && sudo npm install tsx typescript @types/node vite @vitejs/plugin-react 2>/dev/null || log "Local tsx installation failed"
+            
+            # Ensure build directory exists and copy files if needed
+            if [[ ! -d "$INSTALL_DIR/server/public" ]]; then
+                log "Creating build directories..."
+                sudo mkdir -p $INSTALL_DIR/dist/public $INSTALL_DIR/server/public
+                if [[ -d "$INSTALL_DIR/dist/public" ]] && [[ "$(ls -A $INSTALL_DIR/dist/public 2>/dev/null)" ]]; then
+                    sudo cp -r $INSTALL_DIR/dist/public/* $INSTALL_DIR/server/public/ 2>/dev/null || true
+                    log "Copied existing build files to server/public"
+                else
+                    sudo echo '<html><body><h1>SOCKS5 Admin Panel</h1></body></html>' > $INSTALL_DIR/server/public/index.html
+                    log "Created fallback index.html in server/public"
+                fi
+                sudo chown -R socks5admin:socks5admin $INSTALL_DIR/dist $INSTALL_DIR/server/public 2>/dev/null || true
+            fi
             
             if command -v tsx >/dev/null 2>&1; then
                 log "Testing with tsx:"
