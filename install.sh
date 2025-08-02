@@ -178,9 +178,82 @@ setup_directories() {
     sudo chown -R socks5admin:socks5admin /var/log/socks5-admin
 }
 
-# Create complete application files
+# Download and install application files
 install_application() {
-    log "Creating complete SOCKS5 proxy management application..."
+    log "Downloading SOCKS5 proxy management application..."
+    
+    # Repository information
+    REPO_ZIP_URL="https://github.com/fahim8401/SockProxyManagerPanel/archive/refs/heads/MAIN.zip"
+    TEMP_DIR="/tmp/socks5-admin-download"
+    ZIP_FILE="/tmp/socks5-admin.zip"
+    
+    # Install required tools
+    case $PKG_MANAGER in
+        "apt")
+            sudo apt update
+            sudo apt install -y curl wget unzip
+            ;;
+        "yum"|"dnf")
+            sudo $PKG_MANAGER install -y curl wget unzip
+            ;;
+    esac
+    
+    # Clean up any existing temp files
+    rm -rf $TEMP_DIR $ZIP_FILE
+    
+    # Download the repository
+    log "Downloading from GitHub repository..."
+    if wget -O $ZIP_FILE $REPO_ZIP_URL; then
+        log "✅ Successfully downloaded repository archive"
+    else
+        error "Failed to download repository from GitHub"
+        log "Falling back to creating basic application structure..."
+        create_fallback_application
+        return
+    fi
+    
+    # Extract the archive
+    log "Extracting application files..."
+    mkdir -p $TEMP_DIR
+    if unzip -q $ZIP_FILE -d $TEMP_DIR; then
+        log "✅ Successfully extracted application files"
+    else
+        error "Failed to extract repository archive"
+        log "Falling back to creating basic application structure..."
+        create_fallback_application
+        return
+    fi
+    
+    # Find the extracted directory (GitHub creates a directory with branch name)
+    EXTRACTED_DIR=$(find $TEMP_DIR -maxdepth 1 -type d -name "*SockProxyManagerPanel*" | head -1)
+    
+    if [[ -z "$EXTRACTED_DIR" ]]; then
+        error "Could not find extracted application directory"
+        log "Falling back to creating basic application structure..."
+        create_fallback_application
+        return
+    fi
+    
+    log "Found extracted directory: $EXTRACTED_DIR"
+    
+    # Copy application files to install directory
+    log "Installing application files..."
+    cp -r "$EXTRACTED_DIR"/* $INSTALL_DIR/ 2>/dev/null || {
+        error "Failed to copy application files"
+        log "Falling back to creating basic application structure..."
+        create_fallback_application
+        return
+    }
+    
+    # Cleanup
+    rm -rf $TEMP_DIR $ZIP_FILE
+    
+    log "✅ Successfully installed application from GitHub repository"
+}
+
+# Fallback function to create basic application if download fails
+create_fallback_application() {
+    log "Creating fallback SOCKS5 proxy management application..."
     
     # Create directory structure
     mkdir -p $INSTALL_DIR/{client/src/{components/ui,pages,lib,hooks},server/{services},shared}
@@ -907,7 +980,7 @@ export default defineConfig({
 });
 EOF
 
-    log "✅ Complete SOCKS5 proxy application created successfully"
+    log "✅ Fallback SOCKS5 proxy application created successfully"
     
     # Create .env file
     cat > $INSTALL_DIR/.env << EOF
