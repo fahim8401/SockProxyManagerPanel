@@ -68,7 +68,9 @@ export default function CreateUserWorkingSimple() {
       return;
     }
 
-    // Remove IP address requirement - auto-assigned by system
+    // Calculate expiration date and auto-assign IP
+    const expiresAt = Math.floor(Date.now() / 1000) + (formData.daysValid * 24 * 60 * 60);
+    const dataLimitBytes = formData.dataLimit * 1024 * 1024 * 1024; // Convert GB to bytes
 
     try {
       const response = await fetch("/api/users", {
@@ -79,11 +81,9 @@ export default function CreateUserWorkingSimple() {
           password: formData.password,
           email: formData.email || undefined,
           port: formData.port,
-          dataLimit: formData.dataLimit * 1024 * 1024 * 1024, // Convert GB to bytes
-          daysValid: formData.daysValid,
-          packageId: formData.packageId || undefined,
-          isActive: true,
-          expiresAt: Math.floor((Date.now() + formData.daysValid * 24 * 60 * 60 * 1000) / 1000)
+          dataLimit: dataLimitBytes,
+          expiresAt: expiresAt,
+          // IP will be auto-assigned by the system from the pool
         }),
       });
 

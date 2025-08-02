@@ -14,12 +14,12 @@ export const users = sqliteTable("users", {
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
   email: text("email"),
-  ipAddress: text("ip_address").notNull(),
+  ipAddress: text("ip_address"), // Optional - can be auto-assigned from pool
   outboundIp: text("outbound_ip"), // The public IP this user's traffic will be routed through
   port: integer("port").notNull(),
   dataLimit: integer("data_limit").notNull(), // in bytes
   dataUsed: integer("data_used").default(0),
-  daysValid: integer("days_valid").notNull(),
+  daysValid: integer("days_valid"), // Optional - can calculate from expiresAt
   createdAt: integer("created_at").default(sql`CURRENT_TIMESTAMP`),
   expiresAt: integer("expires_at").notNull(),
   isActive: integer("is_active", { mode: "boolean" }).default(true),
@@ -43,7 +43,7 @@ export const ipPool = sqliteTable("ip_pool", {
   ipType: text("ip_type").notNull(), // 'IPv4' or 'IPv6'
   isPublic: integer("is_public", { mode: "boolean" }).default(false), // Is this a public outbound IP?
   isAvailable: integer("is_available", { mode: "boolean" }).default(true),
-  assignedUserId: text("assigned_user_id").references(() => users.id),
+  // Removed assignedUserId - multiple users can share the same IP
 });
 
 // Admin management table
@@ -109,6 +109,11 @@ export const insertUserSchema = createInsertSchema(users)
     confirmPassword: z.string().optional(),
     packageId: z.string().optional(),
     expiresAt: z.number(),
+    // Make all network fields optional for auto-assignment
+    ipAddress: z.string().optional(),
+    outboundIp: z.string().optional(),
+    daysValid: z.number().optional(), // Optional since we calculate expiresAt
+    port: z.number().default(1080),
   })
   .refine((data) => !data.confirmPassword || data.password === data.confirmPassword, {
     message: "Passwords don't match",

@@ -24,12 +24,11 @@ export interface IStorage {
   getUserConnections(userId: string): Promise<Connection[]>;
   endConnection(id: string, bytesTransferred: number): Promise<void>;
   
-  // IP Pool management
+  // IP Pool management (shared IPs, no restrictions)
   getAvailableIPs(): Promise<IpPool[]>;
   getAllIPs(): Promise<IpPool[]>;
   addIP(ip: InsertIpPool): Promise<IpPool>;
-  assignIP(ipId: string, userId: string): Promise<void>;
-  releaseIP(ipId: string): Promise<void>;
+  // Removed assignIP and releaseIP - IPs can be shared by multiple users
   
   // Statistics
   getTotalUsers(): Promise<number>;
@@ -79,12 +78,12 @@ export class DatabaseStorage implements IStorage {
       const existingIPs = await db.select().from(ipPool).limit(1);
       if (existingIPs.length === 0) {
         const defaultIPs = [
-          { ipAddress: "192.168.1.15", ipType: "IPv4" as const, isAvailable: true, assignedUserId: null },
-          { ipAddress: "192.168.1.16", ipType: "IPv4" as const, isAvailable: true, assignedUserId: null },
-          { ipAddress: "192.168.1.17", ipType: "IPv4" as const, isAvailable: true, assignedUserId: null },
-          { ipAddress: "10.0.0.45", ipType: "IPv4" as const, isAvailable: true, assignedUserId: null },
-          { ipAddress: "2001:db8::1", ipType: "IPv6" as const, isAvailable: true, assignedUserId: null },
-          { ipAddress: "2001:db8::2", ipType: "IPv6" as const, isAvailable: true, assignedUserId: null },
+          { ipAddress: "103.7.4.182", ipType: "IPv4" as const, isAvailable: true, isPublic: true },
+          { ipAddress: "103.7.4.183", ipType: "IPv4" as const, isAvailable: true, isPublic: true },
+          { ipAddress: "103.7.4.184", ipType: "IPv4" as const, isAvailable: true, isPublic: true },
+          { ipAddress: "103.7.4.185", ipType: "IPv4" as const, isAvailable: true, isPublic: true },
+          { ipAddress: "2001:db8::1", ipType: "IPv6" as const, isAvailable: true, isPublic: false },
+          { ipAddress: "2001:db8::2", ipType: "IPv6" as const, isAvailable: true, isPublic: false },
         ];
 
         for (const ip of defaultIPs) {
@@ -117,9 +116,26 @@ export class DatabaseStorage implements IStorage {
     const id = randomUUID();
     const now = Math.floor(Date.now() / 1000);
     
+    // Auto-assign IP from pool if not provided
+    let assignedIP = insertUser.ipAddress;
+    let outboundIP = insertUser.outboundIp;
+    
+    if (!assignedIP) {
+      const availableIPs = await this.getAllIPs();
+      if (availableIPs.length > 0) {
+        // Use round-robin or random assignment - IPs can be shared
+        const randomIP = availableIPs[Math.floor(Math.random() * availableIPs.length)];
+        assignedIP = randomIP.ipAddress;
+        outboundIP = randomIP.ipAddress;
+      }
+    }
+    
     const [user] = await db.insert(users).values({
       ...insertUser,
       id,
+      ipAddress: assignedIP,
+      outboundIp: outboundIP || assignedIP,
+      daysValid: insertUser.daysValid || 30, // Default to 30 days if not provided
       createdAt: now,
       dataUsed: 0,
       isActive: true,
@@ -127,13 +143,7 @@ export class DatabaseStorage implements IStorage {
       email: insertUser.email || null,
     }).returning();
     
-    // Mark IP as assigned (multiple users can share same IP)
-    await db.update(ipPool)
-      .set({ 
-        isAvailable: false,
-        assignedUserId: id
-      })
-      .where(eq(ipPool.ipAddress, insertUser.ipAddress));
+    console.log(`✅ Created user ${user.username} with shared IP: ${user.ipAddress}`);
     
     return user;
   }
@@ -152,13 +162,7 @@ export class DatabaseStorage implements IStorage {
       // Get user's IP address to update count
       const user = await this.getUser(id);
       if (user) {
-        // Release IP assignment (multiple users can share IPs)
-        const [ipRecord] = await db.select().from(ipPool).where(eq(ipPool.ipAddress, user.ipAddress));
-        if (ipRecord) {
-          await db.update(ipPool)
-            .set({ isAvailable: true, assignedUserId: null })
-            .where(eq(ipPool.ipAddress, user.ipAddress));
-        }
+        // IPs can be shared by multiple users - no need to release
       }
       
       // Delete user connections
@@ -237,33 +241,13 @@ export class DatabaseStorage implements IStorage {
     const [newIP] = await db.insert(ipPool).values({
       ...ip,
       id: randomUUID(),
-      isAvailable: ip.isAvailable ?? true,
-      assignedUserId: ip.assignedUserId || null
+      isAvailable: ip.isAvailable ?? true
     }).returning();
     
     return newIP;
   }
 
-  async assignIP(ipId: string, userId: string): Promise<void> {
-    // Multiple users can share the same IP - no restrictions
-    // IPs remain available for other users to use as well
-    const [ip] = await db.select().from(ipPool).where(eq(ipPool.id, ipId));
-    if (ip) {
-      // Update user with the assigned IP address
-      await db.update(users)
-        .set({ 
-          ipAddress: ip.ipAddress,
-          outboundIp: ip.ipAddress // Set outbound IP for routing
-        })
-        .where(eq(users.id, userId));
-    }
-  }
-
-  async releaseIP(ipId: string): Promise<void> {
-    // IPs are never truly "released" since multiple users can share them
-    // This is a no-op function to maintain compatibility
-    console.log(`IP ${ipId} remains available for sharing among multiple users`);
-  }
+  // IP sharing methods removed - multiple users can use the same IP automatically
 
   async getIPUsageCount(ipAddress: string): Promise<number> {
     const result = await db.select().from(users).where(eq(users.ipAddress, ipAddress));
@@ -272,12 +256,10 @@ export class DatabaseStorage implements IStorage {
 
 
 
-  async updateIPAvailability(ipId: string, isAvailable: boolean, assignedUserId?: string): Promise<void> {
-    // IPs are always available for sharing - just update the assigned user if needed
+  async updateIPAvailability(ipId: string, isAvailable: boolean): Promise<void> {
+    // IPs are always available for sharing between multiple users
     await db.update(ipPool)
-      .set({ 
-        assignedUserId: assignedUserId || null 
-      })
+      .set({ isAvailable })
       .where(eq(ipPool.id, ipId));
   }
 
@@ -302,8 +284,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserAssignedIP(userId: string): Promise<string | null> {
-    const [assignedIP] = await db.select().from(ipPool).where(eq(ipPool.assignedUserId, userId));
-    return assignedIP ? assignedIP.ipAddress : null;
+    const [user] = await db.select().from(users).where(eq(users.id, userId));
+    return user ? user.ipAddress : null;
   }
 
   // Admin management methods
@@ -549,8 +531,8 @@ export class DatabaseStorage implements IStorage {
       return publicIPs.map(ip => ({
         id: ip.id,
         ipAddress: ip.ipAddress,
-        isAvailable: ip.isAvailable || true,
-        assignedUserId: ip.assignedUserId || undefined
+        isAvailable: ip.isAvailable || true
+        // Removed assignedUserId - IPs can be shared
       }));
     } catch (error) {
       console.error('Error fetching public IPs:', error);
