@@ -220,8 +220,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAvailableIPs(): Promise<IpPool[]> {
-    // Return all IPs since multiple users can share the same IP
-    return await db.select().from(ipPool);
+    // All IPs are always available since multiple users can share them
+    return await db.select().from(ipPool).where(eq(ipPool.isAvailable, true));
   }
 
   async getAllIPs(): Promise<IpPool[]> {
@@ -240,24 +240,24 @@ export class DatabaseStorage implements IStorage {
   }
 
   async assignIP(ipId: string, userId: string): Promise<void> {
-    // No longer marks IP as unavailable - multiple users can share same IP
-    // Just track that this user is using this IP in the users table
-    await db.update(ipPool)
-      .set({ assignedUserId: userId })
-      .where(eq(ipPool.id, ipId));
+    // Multiple users can share the same IP - no restrictions
+    // IPs remain available for other users to use as well
+    const [ip] = await db.select().from(ipPool).where(eq(ipPool.id, ipId));
+    if (ip) {
+      // Update user with the assigned IP address
+      await db.update(users)
+        .set({ 
+          ipAddress: ip.ipAddress,
+          outboundIp: ip.ipAddress // Set outbound IP for routing
+        })
+        .where(eq(users.id, userId));
+    }
   }
 
   async releaseIP(ipId: string): Promise<void> {
-    // Only release if no other users are using this IP
-    const usersUsingIP = await db.select().from(users).where(eq(users.ipAddress, 
-      (await db.select({ ip: ipPool.ipAddress }).from(ipPool).where(eq(ipPool.id, ipId)))[0]?.ip || ''
-    ));
-    
-    if (usersUsingIP.length === 0) {
-      await db.update(ipPool)
-        .set({ assignedUserId: null })
-        .where(eq(ipPool.id, ipId));
-    }
+    // IPs are never truly "released" since multiple users can share them
+    // This is a no-op function to maintain compatibility
+    console.log(`IP ${ipId} remains available for sharing among multiple users`);
   }
 
   async getIPUsageCount(ipAddress: string): Promise<number> {
