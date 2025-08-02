@@ -1192,8 +1192,8 @@ install_dependencies() {
     
     cd $INSTALL_DIR
     
-    # Update npm to latest version
-    sudo npm install -g npm@latest
+    # Update npm to latest version and install tsx globally
+    sudo npm install -g npm@latest tsx
     
     # Set temporary root ownership for npm installation
     sudo chown -R root:root $INSTALL_DIR
@@ -1422,10 +1422,21 @@ EOF
 create_service() {
     log "Creating systemd service..."
     
-    # Get the correct node path
-    NODE_PATH=$(which node)
-    if [[ -z "$NODE_PATH" ]]; then
-        NODE_PATH="/usr/bin/node"
+    # Get the correct execution path
+    if [[ -f "server/index.ts" ]]; then
+        # Use tsx for TypeScript files
+        EXEC_PATH="/usr/local/bin/tsx"
+        if [[ ! -f "$EXEC_PATH" ]]; then
+            EXEC_PATH="$(which tsx 2>/dev/null || echo '/usr/bin/tsx')"
+        fi
+        ENTRY_FILE="server/index.ts"
+    else
+        # Use node for JavaScript files
+        EXEC_PATH="$(which node)"
+        if [[ -z "$EXEC_PATH" ]]; then
+            EXEC_PATH="/usr/bin/node"
+        fi
+        ENTRY_FILE="server/index.js"
     fi
     
     cat > /tmp/socks5-admin.service << EOF
@@ -1444,7 +1455,7 @@ Environment=PORT=5000
 Environment=SOCKS_PORT=1080
 Environment=DATABASE_URL=sqlite:$DB_FILE
 Environment=JWT_SECRET=socks5-admin-jwt-secret-key
-ExecStart=$NODE_PATH $INSTALL_DIR/server/index.ts
+ExecStart=$EXEC_PATH $INSTALL_DIR/$ENTRY_FILE
 Restart=always
 RestartSec=10
 StandardOutput=journal
@@ -1674,7 +1685,7 @@ start_services() {
     
     # Validate service configuration before starting
     log "Validating service configuration..."
-    if ! sudo systemctl show $SERVICE_NAME --property=ExecStart | grep -q "server/index.js"; then
+    if ! sudo systemctl show $SERVICE_NAME --property=ExecStart | grep -q -E "(server/index\.(js|ts)|tsx)"; then
         error "Service ExecStart path is incorrect"
         sudo systemctl show $SERVICE_NAME --property=ExecStart,User,WorkingDirectory,Environment
         return 1
@@ -1699,6 +1710,17 @@ start_services() {
         # Show actual error for debugging
         log "Attempting to run with error output:"
         sudo -u socks5admin timeout 5s bash -c "export NODE_ENV=production; export DATABASE_URL=sqlite:$DB_FILE; node $ENTRY_POINT" 2>&1 | head -10 || true
+        
+        # If TypeScript, try with tsx
+        if [[ "$ENTRY_POINT" == "server/index.ts" ]]; then
+            log "TypeScript detected, installing tsx globally for proper execution..."
+            sudo npm install -g tsx 2>/dev/null || log "tsx installation failed"
+            
+            if command -v tsx >/dev/null 2>&1; then
+                log "Testing with tsx:"
+                sudo -u socks5admin timeout 5s bash -c "export NODE_ENV=production; export DATABASE_URL=sqlite:$DB_FILE; tsx $ENTRY_POINT" 2>&1 | head -10 || true
+            fi
+        fi
         
         log "Continuing with service start despite test failure..."
     else
