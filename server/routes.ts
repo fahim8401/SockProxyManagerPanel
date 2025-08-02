@@ -1145,8 +1145,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Settings Management APIs
   app.post("/api/settings", async (req, res) => {
     try {
+      console.log('Received settings save request:', req.body);
       const settings = req.body;
       await storage.saveSettings(settings);
+      console.log('Settings saved successfully');
       res.json({ success: true, message: "Settings saved successfully" });
     } catch (error: any) {
       console.error("Error saving settings:", error);
@@ -1156,11 +1158,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/settings", async (req, res) => {
     try {
+      console.log('Fetching settings...');
       const settings = await storage.getSettings();
+      console.log('Retrieved settings:', settings);
       res.json(settings);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching settings:", error);
-      res.status(500).json({ message: "Failed to fetch settings" });
+      res.status(500).json({ message: error.message || "Failed to fetch settings" });
     }
   });
 

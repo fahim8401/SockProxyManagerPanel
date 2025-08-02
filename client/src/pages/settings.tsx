@@ -29,8 +29,74 @@ export default function SettingsPage() {
   const { toast } = useToast();
 
   // Load existing settings
-  const { data: existingSettings } = useQuery({
+  const { data: existingSettings, isLoading: settingsLoading } = useQuery({
     queryKey: ['/api/settings'],
+    onSuccess: (data) => {
+      console.log('Loaded existing settings:', data);
+      if (data) {
+        // Update state with existing settings
+        if (data.server) {
+          setServerPort(data.server.port || "1080");
+          setMaxConnections(data.server.maxConnections || "1000");
+          setConnectionTimeout(data.server.connectionTimeout || "300");
+          setEnableLogging(data.server.enableLogging || true);
+        }
+        if (data.security) {
+          setEnableRateLimit(data.security.enableRateLimit || true);
+          setRateLimitRequests(data.security.rateLimitRequests || "100");
+          setRateLimitWindow(data.security.rateLimitWindow || "60");
+          setEnableGeoBlocking(data.security.enableGeoBlocking || false);
+          setBlockedCountries(Array.isArray(data.security.blockedCountries) ? data.security.blockedCountries.join(', ') : "");
+          setEnableFailBan(data.security.enableFailBan || true);
+          setMaxFailedAttempts(data.security.maxFailedAttempts || "5");
+        }
+        if (data.notifications) {
+          setEnableEmailNotifications(data.notifications.enableEmailNotifications || true);
+          setEnableSmsAlerts(data.notifications.enableSmsAlerts || false);
+          if (data.notifications.alertThresholds) {
+            setAlertThresholds({
+              highCpuUsage: data.notifications.alertThresholds.highCpuUsage || "80",
+              lowDiskSpace: data.notifications.alertThresholds.lowDiskSpace || "10",
+              maxConnections: data.notifications.alertThresholds.maxConnections || "900"
+            });
+          }
+        }
+        if (data.database) {
+          setBackupFrequency(data.database.backupFrequency || "daily");
+          setRetentionDays(data.database.retentionDays || "30");
+        }
+        if (data.firewall) {
+          setEnableFirewall(data.firewall.enableFirewall || true);
+          setAllowedPorts(Array.isArray(data.firewall.allowedPorts) ? data.firewall.allowedPorts.join(', ') : "22,80,443,1080,5000");
+          setBlockedIPs(Array.isArray(data.firewall.blockedIPs) ? data.firewall.blockedIPs.join(', ') : "");
+          setFirewallRules(data.firewall.firewallRules || "");
+          setEnableDDoSProtection(data.firewall.enableDDoSProtection || true);
+        }
+        if (data.routing) {
+          setEnableCustomRouting(data.routing.enableCustomRouting || false);
+          setRoutingTable(data.routing.routingTable || "");
+          setEnableTrafficShaping(data.routing.enableTrafficShaping || false);
+          setBandwidthLimit(data.routing.bandwidthLimit || "1000");
+          setRoutingProtocol(data.routing.routingProtocol || "static");
+        }
+        if (data.dns) {
+          setPrimaryDNS(data.dns.primaryDNS || "8.8.8.8");
+          setSecondaryDNS(data.dns.secondaryDNS || "8.8.4.4");
+          setEnableDNSFiltering(data.dns.enableDNSFiltering || false);
+          setBlockedDomains(Array.isArray(data.dns.blockedDomains) ? data.dns.blockedDomains.join(', ') : "");
+          setEnableDNSCache(data.dns.enableDNSCache || true);
+          setDnsCacheTTL(data.dns.dnsCacheTTL || "3600");
+        }
+        if (data.regional) {
+          setTimezone(data.regional.timezone || "America/New_York");
+          setDateFormat(data.regional.dateFormat || "MM/DD/YYYY");
+          setTimeFormat(data.regional.timeFormat || "12");
+          setLanguage(data.regional.language || "en");
+          setCurrency(data.regional.currency || "USD");
+          setRegion(data.regional.region || "US");
+        }
+      }
+    }
   });
 
   // Server Settings
@@ -93,6 +159,7 @@ export default function SettingsPage() {
 
   const saveSettingsMutation = useMutation({
     mutationFn: async (settings: any) => {
+      console.log('Saving settings:', settings);
       const response = await fetch('/api/settings', {
         method: 'POST',
         headers: {
@@ -102,21 +169,25 @@ export default function SettingsPage() {
       });
       
       if (!response.ok) {
-        throw new Error('Failed to save settings');
+        const errorText = await response.text();
+        console.error('Settings save failed:', errorText);
+        throw new Error(`Failed to save settings: ${response.status}`);
       }
       
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log('Settings saved successfully:', data);
       toast({
         title: "Success",
         description: "Settings saved successfully",
       });
     },
-    onError: () => {
+    onError: (error: any) => {
+      console.error('Settings save error:', error);
       toast({
-        title: "Error",
-        description: "Failed to save settings",
+        title: "Error", 
+        description: `Failed to save settings: ${error.message}`,
         variant: "destructive",
       });
     },

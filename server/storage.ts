@@ -65,6 +65,10 @@ export interface IStorage {
   // Online status management
   updateUserOnlineStatus?(userId: string, isOnline: boolean): Promise<void>;
   getOnlineUsers?(): Promise<User[]>;
+  
+  // Settings management
+  saveSettings(settingsData: any): Promise<void>;
+  getSettings(category?: string): Promise<any>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -543,6 +547,8 @@ export class DatabaseStorage implements IStorage {
   // Settings management
   async saveSettings(settingsData: any): Promise<void> {
     try {
+      console.log('Saving settings data:', settingsData);
+      
       // Save each category of settings
       for (const [category, data] of Object.entries(settingsData)) {
         for (const [key, value] of Object.entries(data as any)) {
@@ -568,28 +574,35 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getSettings(): Promise<any> {
+  async getSettings(category?: string): Promise<any> {
     try {
-      const allSettings = await db.select().from(settings);
-      const organized: any = {};
+      let query = db.select().from(settings);
+      if (category) {
+        query = query.where(eq(settings.category, category));
+      }
       
-      allSettings.forEach(setting => {
-        if (!organized[setting.category]) {
-          organized[setting.category] = {};
+      const results = await query;
+      const settingsObject: any = {};
+      
+      for (const setting of results) {
+        if (!settingsObject[setting.category]) {
+          settingsObject[setting.category] = {};
         }
         try {
-          organized[setting.category][setting.key] = JSON.parse(setting.value);
+          settingsObject[setting.category][setting.key] = JSON.parse(setting.value);
         } catch {
-          organized[setting.category][setting.key] = setting.value;
+          settingsObject[setting.category][setting.key] = setting.value;
         }
-      });
+      }
       
-      return organized;
+      return settingsObject;
     } catch (error) {
-      console.error('Error fetching settings:', error);
+      console.error('Error getting settings:', error);
       return {};
     }
   }
+
+
 }
 
 export const storage = new DatabaseStorage();
