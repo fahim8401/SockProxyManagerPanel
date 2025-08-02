@@ -56,7 +56,7 @@ This is a comprehensive full-stack SOCKS5 proxy management system with complete 
 - **✅ Install.sh now uses GitHub zip download (https://github.com/fahim8401/SockProxyManagerPanel/archive/refs/heads/MAIN.zip)**
 - **✅ Install.sh updated with browserslist fix and build tools for better compatibility**
 - **✅ Fixed npm permission issues - runs npm as root then fixes ownership**
-- **✅ Fixed database schema conflicts - clean database initialization with conflict prevention**
+- **✅ Fixed database schema conflicts - bypassed drizzle migrations, uses direct SQLite initialization**
 
 ## Complete Feature Set
 

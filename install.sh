@@ -1226,21 +1226,76 @@ install_dependencies() {
 setup_database() {
     log "Setting up SQLite database..."
     
-    # Remove any existing database to avoid conflicts
-    sudo rm -f $DB_FILE
+    # Remove any existing database and related files to avoid conflicts
+    sudo rm -f $DB_FILE*
+    sudo rm -rf $INSTALL_DIR/drizzle
+    sudo rm -f $INSTALL_DIR/meta/_journal.json 2>/dev/null || true
     
     # Initialize database with proper permissions
     sudo -u socks5admin touch $DB_FILE
     sudo chmod 660 $DB_FILE
     
-    # Run database migrations/setup with force to avoid conflicts
+    # Initialize database directly with SQL instead of drizzle push
     cd $INSTALL_DIR
-    log "Initializing database schema..."
+    log "Creating database tables directly..."
     
-    # Skip drizzle push if it causes conflicts, let the application create tables
-    if ! sudo -u socks5admin timeout 30 npm run db:push 2>/dev/null; then
-        log "Drizzle push failed or timed out, application will initialize database on startup"
-    fi
+    # Create database schema directly using SQLite commands
+    sudo -u socks5admin sqlite3 $DB_FILE << 'EOF'
+CREATE TABLE IF NOT EXISTS users (
+    id TEXT PRIMARY KEY,
+    username TEXT NOT NULL UNIQUE,
+    password TEXT NOT NULL,
+    email TEXT,
+    ip_address TEXT,
+    outbound_ip TEXT,
+    port INTEGER DEFAULT 1080,
+    data_limit INTEGER DEFAULT 0,
+    data_used INTEGER DEFAULT 0,
+    days_valid INTEGER DEFAULT 30,
+    is_active INTEGER DEFAULT 1,
+    created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+    expires_at INTEGER DEFAULT 0,
+    last_connection INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS connections (
+    id TEXT PRIMARY KEY,
+    user_id TEXT,
+    client_ip TEXT,
+    target_host TEXT,
+    target_port INTEGER,
+    bytes_transferred INTEGER DEFAULT 0,
+    start_time INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+    end_time INTEGER,
+    is_active INTEGER DEFAULT 1,
+    FOREIGN KEY (user_id) REFERENCES users (id)
+);
+
+CREATE TABLE IF NOT EXISTS ip_pool (
+    id TEXT PRIMARY KEY,
+    ip_address TEXT NOT NULL UNIQUE,
+    ip_type TEXT DEFAULT 'IPv4',
+    is_available INTEGER DEFAULT 1,
+    assigned_users INTEGER DEFAULT 0,
+    location TEXT,
+    created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+);
+
+-- Insert sample IP addresses
+INSERT OR IGNORE INTO ip_pool (id, ip_address, ip_type, is_available, assigned_users, location) VALUES 
+('ip1', '103.7.4.182', 'IPv4', 1, 0, 'Singapore'),
+('ip2', '103.7.4.183', 'IPv4', 1, 0, 'Singapore'),
+('ip3', '103.7.4.184', 'IPv4', 1, 0, 'Singapore'),
+('ip4', '103.7.4.185', 'IPv4', 1, 0, 'Singapore'),
+('ip5', '103.7.4.186', 'IPv4', 1, 0, 'Singapore'),
+('ip6', '103.7.4.187', 'IPv4', 1, 0, 'Singapore');
+
+-- Insert sample test user
+INSERT OR IGNORE INTO users (id, username, password, email, ip_address, outbound_ip, port, data_limit, data_used, days_valid, is_active, expires_at) VALUES 
+('testuser1', 'testuser', 'pass123', 'test@example.com', '103.7.4.182', '103.7.4.182', 1080, 5368709120, 0, 30, 1, strftime('%s', 'now') + 2592000);
+EOF
+
+    log "✅ Database initialized successfully with sample data"
     
     info "Database initialized at: $DB_FILE"
 }
