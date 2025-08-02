@@ -193,7 +193,20 @@ install_application() {
     cp -r ./vite.config.ts $INSTALL_DIR/
     cp -r ./tailwind.config.ts $INSTALL_DIR/
     cp -r ./postcss.config.js $INSTALL_DIR/
-    cp -r ./drizzle.config.ts $INSTALL_DIR/
+    
+    # Create SQLite-compatible drizzle.config.ts
+    cat > $INSTALL_DIR/drizzle.config.ts << 'EOF'
+import { defineConfig } from "drizzle-kit";
+
+export default defineConfig({
+  schema: "./shared/schema.ts",
+  out: "./drizzle",
+  dialect: "sqlite",
+  dbCredentials: {
+    url: "./database.sqlite",
+  },
+});
+EOF
     
     # Create .env file
     cat > $INSTALL_DIR/.env << EOF
