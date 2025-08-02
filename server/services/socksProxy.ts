@@ -271,29 +271,48 @@ export class SocksProxyServer {
     connectionId: string | null, 
     currentUser: ProxyUser | null
   ): Promise<void> {
-    console.log(`🔍 Resolving domain: ${domain}`);
+    console.log(`🔍 Resolving domain: ${domain} for port ${port}`);
     
-    // Try IPv4 first, then IPv6 if that fails
-    dns.resolve4(domain, (err4, addresses4) => {
-      if (!err4 && addresses4.length > 0) {
-        console.log(`✅ Resolved ${domain} to IPv4: ${addresses4[0]}`);
-        this.connectToTarget(addresses4[0], port, clientSocket, connectionId, currentUser);
-        return;
-      }
-      
-      // Try IPv6 if IPv4 fails
-      dns.resolve6(domain, (err6, addresses6) => {
-        if (!err6 && addresses6.length > 0) {
-          console.log(`✅ Resolved ${domain} to IPv6: ${addresses6[0]}`);
-          this.connectToTarget(`[${addresses6[0]}]`, port, clientSocket, connectionId, currentUser);
+    // Enhanced DNS resolution with better error handling
+    const resolvePromise = new Promise<string>((resolve, reject) => {
+      // Try IPv4 first (most common)
+      dns.resolve4(domain, { ttl: true }, (err4, addresses4) => {
+        if (!err4 && addresses4.length > 0) {
+          const ip = typeof addresses4[0] === 'string' ? addresses4[0] : addresses4[0].address;
+          console.log(`✅ Resolved ${domain} to IPv4: ${ip} (TTL: ${typeof addresses4[0] === 'object' ? addresses4[0].ttl : 'N/A'})`);
+          resolve(ip);
           return;
         }
         
-        // Both failed, try direct connection (might be IP address)
-        console.log(`⚠️ DNS resolution failed for ${domain}, trying direct connection`);
-        this.connectToTarget(domain, port, clientSocket, connectionId, currentUser);
+        console.log(`⚠️ IPv4 resolution failed for ${domain}: ${err4?.message || 'Unknown error'}`);
+        
+        // Try IPv6 if IPv4 fails
+        dns.resolve6(domain, { ttl: true }, (err6, addresses6) => {
+          if (!err6 && addresses6.length > 0) {
+            const ip = typeof addresses6[0] === 'string' ? addresses6[0] : addresses6[0].address;
+            console.log(`✅ Resolved ${domain} to IPv6: ${ip} (TTL: ${typeof addresses6[0] === 'object' ? addresses6[0].ttl : 'N/A'})`);
+            resolve(`[${ip}]`);
+            return;
+          }
+          
+          console.log(`⚠️ IPv6 resolution failed for ${domain}: ${err6?.message || 'Unknown error'}`);
+          
+          // Both failed - reject with the IPv4 error (more common issue)
+          reject(err4 || new Error('DNS resolution failed for both IPv4 and IPv6'));
+        });
       });
     });
+    
+    try {
+      const resolvedIP = await resolvePromise;
+      this.connectToTarget(resolvedIP, port, clientSocket, connectionId, currentUser);
+    } catch (dnsError: any) {
+      console.log(`❌ Complete DNS resolution failure for ${domain}: ${dnsError.message}`);
+      
+      // Try direct connection as last resort (in case it's already an IP)
+      console.log(`🔄 Attempting direct connection to ${domain} as fallback`);
+      this.connectToTarget(domain, port, clientSocket, connectionId, currentUser);
+    }
   }
 
   private connectToTarget(
@@ -303,38 +322,32 @@ export class SocksProxyServer {
     connectionId: string | null, 
     currentUser: ProxyUser | null
   ): void {
-    // Enhanced connection options with IP routing support
+    // Start with clean connection options - no IP binding in Replit environment
     const connectionOptions: net.NetConnectOpts = {
       port: targetPort,
       host: targetHost,
       // For HTTPS connections, ensure proper socket handling
-      allowHalfOpen: false
+      allowHalfOpen: false,
+      timeout: 15000 // 15 second connection timeout
     };
 
-    // Enhanced IP routing - try multiple approaches for better compatibility
+    // In Replit environment, we can't bind to specific IPs directly
+    // Instead, log the user's assigned IP for monitoring purposes
     if (currentUser?.outboundIp) {
-      // Method 1: Try binding to the specific IP if available
-      try {
-        connectionOptions.localAddress = currentUser.outboundIp;
-        console.log(`🌐 Attempting to route ${currentUser.username} traffic through outbound IP: ${currentUser.outboundIp}`);
-        
-        // Apply comprehensive NAT routing for ALL user traffic
-        import('./ipRouting.js').then(ipRoutingModule => {
-          const ipRouting = ipRoutingModule.IPRoutingManager.getInstance();
-          // Setup comprehensive NAT routing so ALL traffic uses assigned IP
-          ipRouting.setupNATRules(currentUser?.outboundIp || '').then(() => {
-            console.log(`🌐 Applied comprehensive NAT routing: ALL traffic for ${currentUser.username} -> ${currentUser.outboundIp}`);
-          }).catch(natError => {
-            console.log(`⚠️ Could not apply comprehensive NAT routing: ${natError.message}`);
-          });
-        }).catch(natError => {
-          console.log(`⚠️ Could not load NAT routing module: ${natError.message}`);
+      console.log(`🌐 User ${currentUser.username} assigned IP: ${currentUser.outboundIp} (routing via network layer)`);
+      
+      // Apply NAT routing asynchronously - don't block the connection
+      import('./ipRouting.js').then(ipRoutingModule => {
+        const ipRouting = ipRoutingModule.IPRoutingManager.getInstance();
+        ipRouting.setupNATRules(currentUser.outboundIp || '').catch(natError => {
+          console.log(`⚠️ NAT routing setup failed (non-blocking): ${natError.message}`);
         });
-      } catch (error) {
-        console.log(`⚠️ Direct IP binding failed for ${currentUser.outboundIp}, using fallback routing`);
-      }
+      }).catch(() => {
+        // NAT routing module unavailable - this is non-critical
+      });
     }
     
+    console.log(`🔌 Creating connection to ${targetHost}:${targetPort}${currentUser ? ` for ${currentUser.username}` : ''}`);
     const targetSocket = net.createConnection(connectionOptions);
     
     // Set proper timeouts for HTTPS connections
@@ -401,49 +414,38 @@ export class SocksProxyServer {
     
     targetSocket.on('error', (err) => {
       console.log(`❌ SOCKS5 target connection error to ${targetHost}:${targetPort}:`, err.message);
-      
-      // If IP binding failed due to EADDRNOTAVAIL, try fallback connection without specific binding
-      if (err.message.includes('EADDRNOTAVAIL') && currentUser?.outboundIp) {
-        console.log(`🔄 Retrying connection without IP binding for ${currentUser.username} (IP routing will be handled by network layer)`);
-        const fallbackOptions = { ...connectionOptions };
-        delete fallbackOptions.localAddress;
-        
-        const fallbackSocket = net.createConnection(fallbackOptions);
-        fallbackSocket.setTimeout(30000);
-        
-        fallbackSocket.on('connect', () => {
-          console.log(`✅ SOCKS5 fallback connection established to ${targetHost}:${targetPort} for ${currentUser?.username}`);
-          const response = Buffer.alloc(10);
-          response[0] = 0x05; response[1] = 0x00; response[2] = 0x00; response[3] = 0x01;
-          response[4] = 0x00; response[5] = 0x00; response[6] = 0x00; response[7] = 0x00;
-          response.writeUInt16BE(targetPort, 8);
-          clientSocket.write(response);
-          
-          clientSocket.pipe(fallbackSocket, { end: false });
-          fallbackSocket.pipe(clientSocket, { end: false });
-          
-          console.log(`🔗 SOCKS5 fallback proxy tunnel active for ${currentUser?.username} to ${targetHost}:${targetPort}`);
-        });
-        
-        fallbackSocket.on('error', (fallbackErr) => {
-          console.log(`❌ SOCKS5 fallback connection also failed:`, fallbackErr.message);
-          this.sendSocksError(clientSocket, 0x01);
-        });
-        
-        return;
-      }
+      console.log(`❌ Error details: ${err.name}, Code: ${(err as any).code}, Errno: ${(err as any).errno}`);
       
       // Map Node.js errors to SOCKS5 error codes
       let errorCode = 0x01; // General SOCKS server failure
-      if (err.message.includes('ENOTFOUND')) {
-        errorCode = 0x04; // Host unreachable
-      } else if (err.message.includes('ECONNREFUSED')) {
-        errorCode = 0x05; // Connection refused
-      } else if (err.message.includes('ETIMEDOUT')) {
-        errorCode = 0x06; // TTL expired
+      const errorMessage = err.message.toLowerCase();
+      const errorCode_lookup = (err as any).code;
+      
+      if (errorMessage.includes('enotfound') || errorCode_lookup === 'ENOTFOUND') {
+        errorCode = 0x04; // Host unreachable (DNS resolution failed)
+        console.log(`🔍 DNS resolution failed for ${targetHost}`);
+      } else if (errorMessage.includes('econnrefused') || errorCode_lookup === 'ECONNREFUSED') {
+        errorCode = 0x05; // Connection refused by target server
+        console.log(`🚫 Connection refused by ${targetHost}:${targetPort}`);
+      } else if (errorMessage.includes('etimedout') || errorCode_lookup === 'ETIMEDOUT') {
+        errorCode = 0x06; // TTL expired / Connection timeout
+        console.log(`⏰ Connection timeout to ${targetHost}:${targetPort}`);
+      } else if (errorMessage.includes('ehostunreach') || errorCode_lookup === 'EHOSTUNREACH') {
+        errorCode = 0x04; // Host unreachable (network unreachable)
+        console.log(`🌐 Network unreachable to ${targetHost}:${targetPort}`);
+      } else if (errorMessage.includes('enetunreach') || errorCode_lookup === 'ENETUNREACH') {
+        errorCode = 0x04; // Host unreachable (network unreachable)
+        console.log(`🌐 Network unreachable to ${targetHost}:${targetPort}`);
       }
       
+      console.log(`📤 Sending SOCKS5 error code 0x${errorCode.toString(16).padStart(2, '0')} to client`);
       this.sendSocksError(clientSocket, errorCode);
+    });
+
+    targetSocket.on('timeout', () => {
+      console.log(`⏰ SOCKS5 connection timeout to ${targetHost}:${targetPort}`);
+      targetSocket.destroy();
+      this.sendSocksError(clientSocket, 0x06); // TTL expired
     });
   }
 
