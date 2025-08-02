@@ -899,8 +899,8 @@ install_dependencies() {
     
     cd $INSTALL_DIR
     
-    # Update npm to latest version and install tsx globally
-    sudo npm install -g npm@latest tsx
+    # Update npm to latest version and install essential global packages
+    sudo npm install -g npm@latest tsx typescript @types/node
     
     # Set temporary root ownership for npm installation
     sudo chown -R root:root $INSTALL_DIR
@@ -967,12 +967,12 @@ EOF
     # Note: npm may show version compatibility warnings, but this is normal and doesn't affect functionality
     log "Note: npm version warnings are normal and don't affect functionality"
     
-    # First try with --legacy-peer-deps and ignore engine warnings
-    sudo npm install --legacy-peer-deps --omit=dev --unsafe-perm=true --allow-root --no-audit --no-fund --loglevel=error 2>/dev/null || {
+    # Install ALL dependencies (including dev dependencies for proper TypeScript and Vite support)
+    sudo npm install --legacy-peer-deps --unsafe-perm=true --allow-root --no-audit --no-fund --loglevel=error 2>/dev/null || {
         log "npm install with --legacy-peer-deps failed, trying without..."
-        sudo npm install --omit=dev --unsafe-perm=true --allow-root --no-audit --no-fund --loglevel=error 2>/dev/null || {
+        sudo npm install --unsafe-perm=true --allow-root --no-audit --no-fund --loglevel=error 2>/dev/null || {
             log "Standard npm install failed, trying with --force..."
-            sudo npm install --force --omit=dev --unsafe-perm=true --allow-root --no-audit --no-fund --loglevel=error 2>/dev/null || {
+            sudo npm install --force --unsafe-perm=true --allow-root --no-audit --no-fund --loglevel=error 2>/dev/null || {
                 warn "npm install showed warnings but dependencies may still be installed"
                 # Don't fail here as the application might still work
             }
@@ -1083,9 +1083,12 @@ create_service() {
     # Get the correct execution path
     if [[ -f "$INSTALL_DIR/server/index.ts" ]]; then
         # Use tsx for TypeScript files
-        EXEC_PATH="/usr/local/bin/tsx"
-        if [[ ! -f "$EXEC_PATH" ]]; then
-            EXEC_PATH="$(which tsx 2>/dev/null || echo '/usr/bin/tsx')"
+        EXEC_PATH="$(which tsx 2>/dev/null)"
+        if [[ -z "$EXEC_PATH" || ! -f "$EXEC_PATH" ]]; then
+            EXEC_PATH="/usr/local/bin/tsx"
+            if [[ ! -f "$EXEC_PATH" ]]; then
+                EXEC_PATH="/usr/bin/tsx"
+            fi
         fi
         ENTRY_FILE="server/index.ts"
     else
@@ -1199,8 +1202,11 @@ test_application() {
         
         # If TypeScript, try with tsx
         if [[ "$ENTRY_POINT" == "server/index.ts" ]]; then
-            log "TypeScript detected, installing tsx globally for proper execution..."
-            sudo npm install -g tsx 2>/dev/null || log "tsx installation failed"
+            log "TypeScript detected, ensuring tsx and dependencies are available..."
+            
+            # Install tsx and related dependencies both globally and locally
+            sudo npm install -g tsx typescript @types/node 2>/dev/null || log "Global tsx installation failed"
+            cd $INSTALL_DIR && sudo npm install tsx typescript @types/node vite @vitejs/plugin-react 2>/dev/null || log "Local tsx installation failed"
             
             if command -v tsx >/dev/null 2>&1; then
                 log "Testing with tsx:"
