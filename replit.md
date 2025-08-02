@@ -55,7 +55,7 @@ This is a comprehensive full-stack SOCKS5 proxy management system with complete 
 - **✅ Complete self-contained install.sh v4.0.0 - Creates entire application from scratch**
 - **✅ Install.sh now uses GitHub zip download (https://github.com/fahim8401/SockProxyManagerPanel/archive/refs/heads/MAIN.zip)**
 - **✅ Install.sh updated with browserslist fix and build tools for better compatibility**
-- **✅ Fixed npm permission issues - proper user ownership and directory permissions**
+- **✅ Fixed npm permission issues - runs npm as root then fixes ownership**
 
 ## Complete Feature Set
 
