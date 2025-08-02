@@ -996,10 +996,30 @@ EOF
             log "✅ Build files copied to server/public"
         fi
     else
-        log "Build failed, attempting to create minimal build directory..."
+        log "Build failed, creating minimal build directories..."
         # Create minimal build directory structure if build fails
         sudo mkdir -p $INSTALL_DIR/dist/public $INSTALL_DIR/server/public
-        sudo echo '<html><body><h1>SOCKS5 Admin Panel</h1></body></html>' > $INSTALL_DIR/server/public/index.html
+        
+        # Create a minimal index.html for the frontend
+        sudo tee $INSTALL_DIR/server/public/index.html > /dev/null << 'EOF'
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SOCKS5 Admin Panel</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+    <h1>SOCKS5 Proxy Management System</h1>
+    <p>Admin panel loading...</p>
+    <script>
+        setTimeout(() => {
+            window.location.reload();
+        }, 3000);
+    </script>
+</body>
+</html>
+EOF
         sudo chown -R socks5admin:socks5admin $INSTALL_DIR/dist $INSTALL_DIR/server/public 2>/dev/null || true
         log "Created minimal build directories with fallback content"
     fi
@@ -1093,9 +1113,29 @@ EOF
 create_service() {
     log "Creating systemd service..."
     
-    # Get the correct execution path
-    if [[ -f "$INSTALL_DIR/server/index.ts" ]]; then
-        # Use tsx for TypeScript files
+    # Always build the application first to create JS files
+    log "Building application for production service..."
+    cd $INSTALL_DIR
+    sudo npm run build --unsafe-perm=true 2>/dev/null || log "Build failed, will use TypeScript with tsx"
+    
+    # Copy built files to server/public if needed
+    if [[ -d "$INSTALL_DIR/dist/public" ]]; then
+        sudo mkdir -p $INSTALL_DIR/server/public
+        sudo cp -r $INSTALL_DIR/dist/public/* $INSTALL_DIR/server/public/ 2>/dev/null || true
+        sudo chown -R socks5admin:socks5admin $INSTALL_DIR/server/public
+    fi
+    
+    # Get the correct execution path - prefer built JS over TS
+    if [[ -f "$INSTALL_DIR/dist/index.js" ]]; then
+        # Use built JavaScript file for better performance and reliability
+        EXEC_PATH="$(which node)"
+        if [[ -z "$EXEC_PATH" ]]; then
+            EXEC_PATH="/usr/bin/node"
+        fi
+        ENTRY_FILE="dist/index.js"
+        log "Using built JavaScript file: $ENTRY_FILE"
+    elif [[ -f "$INSTALL_DIR/server/index.ts" ]]; then
+        # Fallback to TypeScript with tsx
         EXEC_PATH="$(which tsx 2>/dev/null)"
         if [[ -z "$EXEC_PATH" || ! -f "$EXEC_PATH" ]]; then
             EXEC_PATH="/usr/local/bin/tsx"
@@ -1104,13 +1144,10 @@ create_service() {
             fi
         fi
         ENTRY_FILE="server/index.ts"
+        log "Using TypeScript file with tsx: $ENTRY_FILE"
     else
-        # Use node for JavaScript files
-        EXEC_PATH="$(which node)"
-        if [[ -z "$EXEC_PATH" ]]; then
-            EXEC_PATH="/usr/bin/node"
-        fi
-        ENTRY_FILE="server/index.js"
+        error "No valid entry point found"
+        return 1
     fi
     
     cat > /tmp/socks5-admin.service << EOF
@@ -1206,38 +1243,42 @@ test_application() {
     
     # Test with production environment
     log "Testing with production environment..."
-    if ! sudo -u socks5admin timeout 15s bash -c "export NODE_ENV=production; export DATABASE_URL=sqlite:$DB_FILE; node $ENTRY_POINT" >/dev/null 2>&1; then
+    # Use the same executable that will be used in the service
+    TEST_EXEC_PATH="$EXEC_PATH"
+    if ! sudo -u socks5admin timeout 15s bash -c "export NODE_ENV=production; export DATABASE_URL=sqlite:$DB_FILE; cd $INSTALL_DIR; $TEST_EXEC_PATH $ENTRY_FILE" >/dev/null 2>&1; then
         log "Manual execution test shows errors, checking details..."
         
         # Show actual error for debugging
         log "Attempting to run with error output:"
-        sudo -u socks5admin timeout 5s bash -c "export NODE_ENV=production; export DATABASE_URL=sqlite:$DB_FILE; node $ENTRY_POINT" 2>&1 | head -10 || true
+        sudo -u socks5admin timeout 5s bash -c "export NODE_ENV=production; export DATABASE_URL=sqlite:$DB_FILE; cd $INSTALL_DIR; $TEST_EXEC_PATH $ENTRY_FILE" 2>&1 | head -10 || true
         
-        # If TypeScript, try with tsx
-        if [[ "$ENTRY_POINT" == "server/index.ts" ]]; then
+        # If using TypeScript and tsx failed, ensure dependencies are installed
+        if [[ "$ENTRY_FILE" == "server/index.ts" ]]; then
             log "TypeScript detected, ensuring tsx and dependencies are available..."
             
-            # Install tsx and related dependencies both globally and locally
+            # Install tsx and related dependencies
             sudo npm install -g tsx typescript @types/node 2>/dev/null || log "Global tsx installation failed"
             cd $INSTALL_DIR && sudo npm install tsx typescript @types/node vite @vitejs/plugin-react 2>/dev/null || log "Local tsx installation failed"
             
-            # Ensure build directory exists and copy files if needed
+            # Ensure build directory exists 
             if [[ ! -d "$INSTALL_DIR/server/public" ]]; then
-                log "Creating build directories..."
+                log "Creating required build directories..."
                 sudo mkdir -p $INSTALL_DIR/dist/public $INSTALL_DIR/server/public
                 if [[ -d "$INSTALL_DIR/dist/public" ]] && [[ "$(ls -A $INSTALL_DIR/dist/public 2>/dev/null)" ]]; then
                     sudo cp -r $INSTALL_DIR/dist/public/* $INSTALL_DIR/server/public/ 2>/dev/null || true
                     log "Copied existing build files to server/public"
                 else
-                    sudo echo '<html><body><h1>SOCKS5 Admin Panel</h1></body></html>' > $INSTALL_DIR/server/public/index.html
+                    # Create fallback frontend files
+                    sudo tee $INSTALL_DIR/server/public/index.html > /dev/null << 'HTMLEOF'
+<!DOCTYPE html>
+<html>
+<head><title>SOCKS5 Admin Panel</title></head>
+<body><h1>SOCKS5 Admin Panel</h1><p>Loading...</p></body>
+</html>
+HTMLEOF
                     log "Created fallback index.html in server/public"
                 fi
                 sudo chown -R socks5admin:socks5admin $INSTALL_DIR/dist $INSTALL_DIR/server/public 2>/dev/null || true
-            fi
-            
-            if command -v tsx >/dev/null 2>&1; then
-                log "Testing with tsx:"
-                sudo -u socks5admin timeout 5s bash -c "export NODE_ENV=production; export DATABASE_URL=sqlite:$DB_FILE; tsx $ENTRY_POINT" 2>&1 | head -10 || true
             fi
         fi
         
