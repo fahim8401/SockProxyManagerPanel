@@ -417,14 +417,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
       
-      // Release IP if assigned
-      if (user.ipAddress) {
-        const allIPs = await storage.getAllIPs();
-        const assignedIP = allIPs.find(ip => ip.ipAddress === user.ipAddress);
-        if (assignedIP) {
-          await storage.releaseIP(assignedIP.id);
-        }
-      }
+      // IPs can be shared by multiple users - no need to release
       
       // Reload SOCKS proxy users to remove deleted user
       await socksProxy.loadUsers();
@@ -693,7 +686,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ipAddress,
         ipType,
         isAvailable: true,
-        assignedUserId: null
+        isPublic: true
       });
       
       res.status(201).json(newIP);
@@ -838,7 +831,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         const user = await storage.createUser(userData);
         // Assign IP to user (multiple users can share same IP)
-        await storage.updateIPAvailability(assignedIP.id, true, user.id.toString());
+        // IPs can be shared by multiple users - no need to update availability
         
         results.push({
           id: user.id,
