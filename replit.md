@@ -61,6 +61,7 @@ This is a comprehensive full-stack SOCKS5 proxy management system with complete 
 - **✅ Added complete dependency list - all required packages for full functionality**
 - **✅ Fixed database schema conflicts - consistent IP pool table structure across all functions**
 - **✅ Complete install.sh v4.0.0 with all fixes and comprehensive error handling**
+- **✅ Fixed Node.js/npm version compatibility issues - uses Node.js 20 and handles package.json engine restrictions**
 
 ## Complete Feature Set
 
