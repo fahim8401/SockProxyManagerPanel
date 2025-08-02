@@ -1422,6 +1422,12 @@ EOF
 create_service() {
     log "Creating systemd service..."
     
+    # Get the correct node path
+    NODE_PATH=$(which node)
+    if [[ -z "$NODE_PATH" ]]; then
+        NODE_PATH="/usr/bin/node"
+    fi
+    
     cat > /tmp/socks5-admin.service << EOF
 [Unit]
 Description=SOCKS5 Proxy Management System
@@ -1436,21 +1442,18 @@ WorkingDirectory=$INSTALL_DIR
 Environment=NODE_ENV=production
 Environment=PORT=5000
 Environment=SOCKS_PORT=1080
-EnvironmentFile=$INSTALL_DIR/.env
-ExecStart=/usr/bin/node $INSTALL_DIR/dist/index.js
-ExecReload=/bin/kill -HUP \$MAINPID
+Environment=DATABASE_URL=sqlite:$DB_FILE
+Environment=JWT_SECRET=socks5-admin-jwt-secret-key
+ExecStart=$NODE_PATH $INSTALL_DIR/server/index.js
 Restart=always
-RestartSec=5
-StandardOutput=journal
-StandardError=journal
+RestartSec=10
+StandardOutput=append:/var/log/socks5-admin/socks5-admin.log
+StandardError=append:/var/log/socks5-admin/socks5-admin-error.log
 SyslogIdentifier=socks5-admin
 
 # Security settings
-NoNewPrivileges=yes
-PrivateTmp=yes
-ProtectSystem=strict
-ProtectHome=yes
-ReadWritePaths=$INSTALL_DIR /var/log/socks5-admin
+NoNewPrivileges=true
+PrivateTmp=true
 
 # Resource limits
 LimitNOFILE=65536
@@ -1574,15 +1577,58 @@ EOF
 start_services() {
     log "Starting SOCKS5 Admin service..."
     
-    sudo systemctl start $SERVICE_NAME
+    # Ensure proper ownership and permissions before starting
+    sudo chown -R socks5admin:socks5admin $INSTALL_DIR
+    sudo chmod -R 755 $INSTALL_DIR
+    sudo chmod 644 $DB_FILE
     
-    # Wait for service to start
-    sleep 5
+    # Ensure log directory exists
+    sudo mkdir -p /var/log/socks5-admin
+    sudo chown socks5admin:socks5admin /var/log/socks5-admin
+    sudo chmod 755 /var/log/socks5-admin
     
-    if sudo systemctl is-active --quiet $SERVICE_NAME; then
-        log "Service started successfully"
+    # Test if Node.js can run the application
+    cd $INSTALL_DIR
+    log "Testing application startup..."
+    if ! sudo -u socks5admin timeout 5s node server/index.js --version 2>/dev/null; then
+        log "Node.js test failed, checking dependencies..."
+        
+        # Ensure node_modules exists
+        if [[ ! -d "node_modules" ]]; then
+            error "Node modules missing! Reinstalling..."
+            sudo chown -R root:root $INSTALL_DIR
+            sudo npm install --omit=dev --unsafe-perm=true --allow-root
+            sudo chown -R socks5admin:socks5admin $INSTALL_DIR
+        fi
+    fi
+    
+    # Start the systemd service with better error handling
+    log "Starting systemd service..."
+    if sudo systemctl start $SERVICE_NAME; then
+        # Wait longer for service to fully start
+        sleep 10
+        
+        if sudo systemctl is-active --quiet $SERVICE_NAME; then
+            success "✅ SOCKS5 Admin service started successfully"
+            
+            # Show service status for confirmation
+            log "Service Status:"
+            sudo systemctl status $SERVICE_NAME --no-pager --lines=5 2>/dev/null || true
+        else
+            error "Service failed to start properly"
+            log "Checking service logs for errors..."
+            sudo journalctl -u $SERVICE_NAME --no-pager -l --since "5 minutes ago" --lines=20 2>/dev/null || true
+            
+            log "Service configuration:"
+            sudo systemctl show $SERVICE_NAME --property=ExecStart,User,WorkingDirectory 2>/dev/null || true
+            
+            return 1
+        fi
     else
-        error "Failed to start service. Check logs: journalctl -u $SERVICE_NAME"
+        error "Failed to start systemd service"
+        log "Detailed systemd error:"
+        sudo journalctl -u $SERVICE_NAME --no-pager -l --since "5 minutes ago" 2>/dev/null || true
+        return 1
     fi
 }
 
