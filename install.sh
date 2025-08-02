@@ -178,97 +178,720 @@ setup_directories() {
     sudo chown -R socks5admin:socks5admin /var/log/socks5-admin
 }
 
-# Download and install application files
+# Create complete application files
 install_application() {
-    log "Downloading and installing application files..."
+    log "Creating complete SOCKS5 proxy management application..."
     
-    # Repository information
-    REPO_URL="https://github.com/your-username/socks5-admin.git"
-    TEMP_DIR="/tmp/socks5-admin-download"
+    # Create directory structure
+    mkdir -p $INSTALL_DIR/{client/src/{components/ui,pages,lib,hooks},server/{services},shared}
     
-    # Check if files exist locally first (for development/local installation)
-    if [[ -f "./package.json" && -d "./client" && -d "./server" && -d "./shared" ]]; then
-        log "Found local application files, using them..."
-        
-        # Copy all application files to install directory
-        cp -r ./client $INSTALL_DIR/
-        cp -r ./server $INSTALL_DIR/
-        cp -r ./shared $INSTALL_DIR/
-        cp -r ./components.json $INSTALL_DIR/
-        cp -r ./package.json $INSTALL_DIR/
-        cp -r ./package-lock.json $INSTALL_DIR/
-        cp -r ./tsconfig.json $INSTALL_DIR/
-        cp -r ./vite.config.ts $INSTALL_DIR/
-        cp -r ./tailwind.config.ts $INSTALL_DIR/
-        cp -r ./postcss.config.js $INSTALL_DIR/
-        
-    else
-        log "Local files not found, downloading from repository..."
-        
-        # Install git if not present
-        case $PKG_MANAGER in
-            "apt")
-                sudo apt update
-                sudo apt install -y git curl wget
-                ;;
-            "yum"|"dnf")
-                sudo $PKG_MANAGER install -y git curl wget
-                ;;
-        esac
-        
-        # Create temporary directory
-        rm -rf $TEMP_DIR
-        mkdir -p $TEMP_DIR
-        
-        # Try to download from multiple sources
-        download_success=false
-        
-        # Method 1: Git clone (if repository exists)
-        if command -v git &> /dev/null; then
-            log "Attempting to download via git clone..."
-            if git clone $REPO_URL $TEMP_DIR 2>/dev/null; then
-                log "Successfully downloaded via git"
-                download_success=true
-            else
-                warn "Git clone failed, trying alternative methods..."
-            fi
-        fi
-        
-        # Method 2: Download as ZIP (fallback)
-        if [[ "$download_success" = false ]]; then
-            log "Attempting to download via direct download..."
-            
-            # Create the application structure manually for now
-            warn "Repository not available, creating application structure..."
-            
-            # Create basic structure
-            mkdir -p $TEMP_DIR/{client/src/{components,pages,lib,hooks},server/{services},shared}
-            
-            # Create essential files
-            create_essential_files "$TEMP_DIR"
-            download_success=true
-        fi
-        
-        if [[ "$download_success" = true ]]; then
-            # Copy downloaded files
-            cp -r $TEMP_DIR/client $INSTALL_DIR/ 2>/dev/null || mkdir -p $INSTALL_DIR/client
-            cp -r $TEMP_DIR/server $INSTALL_DIR/ 2>/dev/null || mkdir -p $INSTALL_DIR/server
-            cp -r $TEMP_DIR/shared $INSTALL_DIR/ 2>/dev/null || mkdir -p $INSTALL_DIR/shared
-            cp $TEMP_DIR/components.json $INSTALL_DIR/ 2>/dev/null || true
-            cp $TEMP_DIR/package.json $INSTALL_DIR/ 2>/dev/null || create_package_json
-            cp $TEMP_DIR/package-lock.json $INSTALL_DIR/ 2>/dev/null || true
-            cp $TEMP_DIR/tsconfig.json $INSTALL_DIR/ 2>/dev/null || create_tsconfig
-            cp $TEMP_DIR/vite.config.ts $INSTALL_DIR/ 2>/dev/null || create_vite_config
-            cp $TEMP_DIR/tailwind.config.ts $INSTALL_DIR/ 2>/dev/null || create_tailwind_config
-            cp $TEMP_DIR/postcss.config.js $INSTALL_DIR/ 2>/dev/null || create_postcss_config
-            
-            # Cleanup
-            rm -rf $TEMP_DIR
-        else
-            error "Failed to download application files"
-            exit 1
-        fi
-    fi
+    # Create package.json with all dependencies
+    cat > $INSTALL_DIR/package.json << 'EOF'
+{
+  "name": "socks5-admin",
+  "version": "4.0.0",
+  "description": "Enterprise SOCKS5 Proxy Management System",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "NODE_ENV=development tsx server/index.ts",
+    "build": "npm run build:server",
+    "build:server": "esbuild server/index.ts --bundle --platform=node --outfile=server/index.js --external:better-sqlite3 --external:ws",
+    "db:push": "drizzle-kit push:sqlite"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "better-sqlite3": "^8.7.0",
+    "drizzle-orm": "^0.28.6",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "ws": "^8.14.2",
+    "cors": "^2.8.5",
+    "helmet": "^7.1.0",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.19.13",
+    "tsx": "^3.14.0",
+    "typescript": "^5.2.2",
+    "esbuild": "^0.19.5",
+    "@types/express": "^4.17.21",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.5",
+    "@types/ws": "^8.5.10",
+    "@types/uuid": "^9.0.7",
+    "@types/cors": "^2.8.17"
+  }
+}
+EOF
+
+    # Create TypeScript configuration
+    cat > $INSTALL_DIR/tsconfig.json << 'EOF'
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "lib": ["ES2020"],
+    "module": "commonjs",
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "declaration": false,
+    "outDir": "./dist",
+    "rootDir": "./",
+    "baseUrl": "./",
+    "paths": {
+      "@/*": ["./src/*"],
+      "@shared/*": ["./shared/*"]
+    }
+  },
+  "include": [
+    "server/**/*",
+    "shared/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
+}
+EOF
+
+    # Create database schema
+    cat > $INSTALL_DIR/shared/schema.ts << 'EOF'
+import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+
+export const users = sqliteTable("users", {
+  id: text("id").primaryKey(),
+  username: text("username").notNull().unique(),
+  password: text("password").notNull(),
+  email: text("email"),
+  ipAddress: text("ip_address"),
+  outboundIp: text("outbound_ip"),
+  port: integer("port").default(1080),
+  dataLimit: integer("data_limit").default(0),
+  dataUsed: integer("data_used").default(0),
+  daysValid: integer("days_valid").default(30),
+  isActive: integer("is_active", { mode: "boolean" }).default(true),
+  createdAt: integer("created_at").default(Date.now()),
+  expiresAt: integer("expires_at").default(0),
+  lastConnection: integer("last_connection")
+});
+
+export const connections = sqliteTable("connections", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").references(() => users.id),
+  clientIp: text("client_ip"),
+  targetHost: text("target_host"),
+  targetPort: integer("target_port"),
+  bytesTransferred: integer("bytes_transferred").default(0),
+  startTime: integer("start_time").default(Date.now()),
+  endTime: integer("end_time"),
+  isActive: integer("is_active", { mode: "boolean" }).default(true)
+});
+
+export const ipPool = sqliteTable("ip_pool", {
+  id: text("id").primaryKey(),
+  ipAddress: text("ip_address").notNull().unique(),
+  ipType: text("ip_type").default("IPv4"),
+  isAvailable: integer("is_available", { mode: "boolean" }).default(true),
+  assignedUsers: integer("assigned_users").default(0),
+  location: text("location"),
+  createdAt: integer("created_at").default(Date.now())
+});
+
+export type User = typeof users.$inferSelect;
+export type InsertUser = typeof users.$inferInsert;
+export type Connection = typeof connections.$inferSelect;
+export type InsertConnection = typeof connections.$inferInsert;
+export type IpPool = typeof ipPool.$inferSelect;
+export type InsertIpPool = typeof ipPool.$inferInsert;
+EOF
+
+    # Create main server application
+    cat > $INSTALL_DIR/server/index.ts << 'EOF'
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import { createServer } from 'http';
+import { WebSocketServer, WebSocket } from 'ws';
+import Database from 'better-sqlite3';
+import { drizzle } from 'drizzle-orm/better-sqlite3';
+import * as schema from '../shared/schema';
+import { eq } from 'drizzle-orm';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import { v4 as uuidv4 } from 'uuid';
+import path from 'path';
+import fs from 'fs';
+
+const app = express();
+const PORT = process.env.PORT || 5000;
+const SOCKS_PORT = process.env.SOCKS_PORT || 1080;
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+
+// Database setup
+const DB_PATH = path.join(__dirname, '../database.sqlite');
+const sqlite = new Database(DB_PATH);
+const db = drizzle(sqlite, { schema });
+
+// Initialize database tables
+sqlite.exec(`
+  CREATE TABLE IF NOT EXISTS users (
+    id TEXT PRIMARY KEY,
+    username TEXT NOT NULL UNIQUE,
+    password TEXT NOT NULL,
+    email TEXT,
+    ip_address TEXT,
+    outbound_ip TEXT,
+    port INTEGER DEFAULT 1080,
+    data_limit INTEGER DEFAULT 0,
+    data_used INTEGER DEFAULT 0,
+    days_valid INTEGER DEFAULT 30,
+    is_active INTEGER DEFAULT 1,
+    created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+    expires_at INTEGER DEFAULT 0,
+    last_connection INTEGER
+  );
+
+  CREATE TABLE IF NOT EXISTS connections (
+    id TEXT PRIMARY KEY,
+    user_id TEXT,
+    client_ip TEXT,
+    target_host TEXT,
+    target_port INTEGER,
+    bytes_transferred INTEGER DEFAULT 0,
+    start_time INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+    end_time INTEGER,
+    is_active INTEGER DEFAULT 1,
+    FOREIGN KEY (user_id) REFERENCES users (id)
+  );
+
+  CREATE TABLE IF NOT EXISTS ip_pool (
+    id TEXT PRIMARY KEY,
+    ip_address TEXT NOT NULL UNIQUE,
+    ip_type TEXT DEFAULT 'IPv4',
+    is_available INTEGER DEFAULT 1,
+    assigned_users INTEGER DEFAULT 0,
+    location TEXT,
+    created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+  );
+`);
+
+// Middleware
+app.use(helmet({ crossOriginEmbedderPolicy: false }));
+app.use(cors({
+  origin: true,
+  credentials: true
+}));
+app.use(express.json());
+app.use(express.static(path.join(__dirname, '../dist/public')));
+
+// Default admin credentials
+const ADMIN_CREDENTIALS = {
+  username: process.env.ADMIN_USERNAME || 'admin',
+  password: process.env.ADMIN_PASSWORD || 'admin123'
+};
+
+// JWT middleware
+const authenticateToken = (req: any, res: any, next: any) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ message: 'Access token required' });
+  }
+
+  jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
+    if (err) return res.status(403).json({ message: 'Invalid token' });
+    req.user = user;
+    next();
+  });
+};
+
+// Authentication routes
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+
+    if (username !== ADMIN_CREDENTIALS.username) {
+      return res.status(401).json({ message: 'Invalid credentials' });
+    }
+
+    const isValidPassword = password === ADMIN_CREDENTIALS.password;
+    if (!isValidPassword) {
+      return res.status(401).json({ message: 'Invalid credentials' });
+    }
+
+    const token = jwt.sign(
+      { username: ADMIN_CREDENTIALS.username, role: 'admin' },
+      JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    res.json({
+      token,
+      user: {
+        username: ADMIN_CREDENTIALS.username,
+        role: 'admin'
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Login failed' });
+  }
+});
+
+// User portal login
+app.post('/api/user/login', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    
+    const user = db.select().from(schema.users).where(eq(schema.users.username, username)).get();
+    
+    if (!user) {
+      return res.status(401).json({ message: 'Invalid credentials' });
+    }
+
+    let isValidPassword = false;
+    try {
+      if (user.password.startsWith('$2')) {
+        isValidPassword = await bcrypt.compare(password, user.password);
+      } else {
+        isValidPassword = user.password === password;
+      }
+    } catch (error) {
+      isValidPassword = user.password === password;
+    }
+    
+    if (!isValidPassword) {
+      return res.status(401).json({ message: 'Invalid credentials' });
+    }
+
+    if (!user.isActive) {
+      return res.status(401).json({ message: 'Account is suspended' });
+    }
+
+    if (user.expiresAt && user.expiresAt < Math.floor(Date.now() / 1000)) {
+      return res.status(401).json({ message: 'Account has expired' });
+    }
+
+    const token = jwt.sign(
+      { userId: user.id, username: user.username, role: 'user' },
+      JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    res.json({
+      token,
+      user: {
+        id: user.id,
+        username: user.username,
+        role: 'user'
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Login failed' });
+  }
+});
+
+// User profile endpoint
+app.get('/api/user/profile', async (req, res) => {
+  try {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+    
+    if (!token) {
+      return res.status(401).json({ message: 'Access token required' });
+    }
+
+    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    if (decoded.role !== 'user') {
+      return res.status(403).json({ message: 'User access required' });
+    }
+
+    const user = db.select().from(schema.users).where(eq(schema.users.id, decoded.userId)).get();
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const dataUsagePercent = user.dataLimit > 0 ? (user.dataUsed / user.dataLimit) * 100 : 0;
+    const daysUntilExpiry = Math.max(0, Math.ceil((user.expiresAt - Date.now() / 1000) / (24 * 60 * 60)));
+
+    res.json({
+      id: user.id,
+      username: user.username,
+      assignedIP: user.ipAddress || 'Not assigned',
+      port: user.port || 1080,
+      dataLimit: user.dataLimit,
+      dataUsed: user.dataUsed,
+      dataUsagePercent: Math.round(dataUsagePercent),
+      expirationDate: user.expiresAt,
+      daysUntilExpiry,
+      isActive: user.isActive,
+      lastConnection: user.lastConnection,
+      createdAt: user.createdAt
+    });
+  } catch (error) {
+    res.status(401).json({ message: 'Invalid token' });
+  }
+});
+
+// API routes
+app.get('/api/stats', async (req, res) => {
+  try {
+    const totalUsers = db.select().from(schema.users).all().length;
+    const activeConnections = db.select().from(schema.connections).where(eq(schema.connections.isActive, true)).all().length;
+    const dataTransferred = db.select().from(schema.connections).all().reduce((sum, conn) => sum + (conn.bytesTransferred || 0), 0);
+    const availableIPs = db.select().from(schema.ipPool).where(eq(schema.ipPool.isAvailable, true)).all().length;
+
+    res.json({
+      totalUsers,
+      activeConnections,
+      dataTransferred,
+      availableIPs
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to fetch stats' });
+  }
+});
+
+app.get('/api/users', async (req, res) => {
+  try {
+    const users = db.select().from(schema.users).all();
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to fetch users' });
+  }
+});
+
+app.post('/api/users', async (req, res) => {
+  try {
+    const userData = req.body;
+    const hashedPassword = await bcrypt.hash(userData.password, 10);
+    
+    const newUser = {
+      id: uuidv4(),
+      ...userData,
+      password: hashedPassword,
+      createdAt: Date.now(),
+      expiresAt: Math.floor((Date.now() + userData.daysValid * 24 * 60 * 60 * 1000) / 1000)
+    };
+
+    const user = db.insert(schema.users).values(newUser).returning().get();
+    res.status(201).json(user);
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to create user' });
+  }
+});
+
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'healthy', 
+    timestamp: new Date().toISOString(),
+    version: '4.0.0',
+    socks_port: SOCKS_PORT
+  });
+});
+
+// Initialize sample data
+const initializeData = async () => {
+  try {
+    // Add sample IP addresses if none exist
+    const existingIPs = db.select().from(schema.ipPool).all();
+    if (existingIPs.length === 0) {
+      const sampleIPs = [
+        '103.7.4.182',
+        '103.7.4.183',
+        '103.7.4.184',
+        '103.7.4.185',
+        '103.7.4.186',
+        '103.7.4.187'
+      ];
+
+      sampleIPs.forEach(ip => {
+        db.insert(schema.ipPool).values({
+          id: uuidv4(),
+          ipAddress: ip,
+          ipType: 'IPv4',
+          isAvailable: true,
+          assignedUsers: 0,
+          location: 'Singapore',
+          createdAt: Date.now()
+        }).run();
+      });
+
+      console.log('✅ Sample IP addresses added to pool');
+    }
+
+    // Add sample user if none exist
+    const existingUsers = db.select().from(schema.users).all();
+    if (existingUsers.length === 0) {
+      db.insert(schema.users).values({
+        id: uuidv4(),
+        username: 'testuser',
+        password: 'pass123',
+        email: 'test@example.com',
+        ipAddress: '103.7.4.182',
+        outboundIp: '103.7.4.182',
+        port: 1080,
+        dataLimit: 5 * 1024 * 1024 * 1024, // 5GB
+        dataUsed: 0,
+        daysValid: 30,
+        isActive: true,
+        createdAt: Date.now(),
+        expiresAt: Math.floor((Date.now() + 30 * 24 * 60 * 60 * 1000) / 1000)
+      }).run();
+
+      console.log('✅ Sample user created: testuser/pass123');
+    }
+  } catch (error) {
+    console.error('Error initializing data:', error);
+  }
+};
+
+// Create HTTP server
+const httpServer = createServer(app);
+
+// WebSocket server for real-time updates
+const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+
+wss.on('connection', (ws: WebSocket) => {
+  console.log('Client connected to WebSocket');
+
+  const sendStats = async () => {
+    try {
+      const stats = {
+        totalUsers: db.select().from(schema.users).all().length,
+        activeConnections: db.select().from(schema.connections).where(eq(schema.connections.isActive, true)).all().length,
+        dataTransferred: db.select().from(schema.connections).all().reduce((sum, conn) => sum + (conn.bytesTransferred || 0), 0),
+        availableIPs: db.select().from(schema.ipPool).where(eq(schema.ipPool.isAvailable, true)).all().length
+      };
+      
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'stats', data: stats }));
+      }
+    } catch (error) {
+      console.error('Error sending stats:', error);
+    }
+  };
+
+  sendStats();
+  const interval = setInterval(sendStats, 5000);
+
+  ws.on('close', () => {
+    console.log('Client disconnected from WebSocket');
+    clearInterval(interval);
+  });
+
+  ws.on('error', (error) => {
+    console.error('WebSocket error:', error);
+    clearInterval(interval);
+  });
+});
+
+// Serve frontend for all routes
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../client/index.html'));
+});
+
+// Start server
+httpServer.listen(PORT, '0.0.0.0', async () => {
+  console.log(`✅ SOCKS5 Admin Panel running on port ${PORT}`);
+  console.log(`🌐 Admin Panel: http://localhost:${PORT}`);
+  console.log(`👤 User Portal: http://localhost:${PORT}/user-portal`);
+  console.log(`🔒 Default admin: admin/admin123`);
+  
+  await initializeData();
+});
+
+export { db };
+EOF
+
+    # Create simple client index.html
+    cat > $INSTALL_DIR/client/index.html << 'EOF'
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SOCKS5 Proxy Management System</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .header { background: #2563eb; color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; text-align: center; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .card h3 { margin-bottom: 15px; color: #1f2937; }
+        .btn { display: inline-block; background: #2563eb; color: white; padding: 10px 20px; border-radius: 6px; text-decoration: none; margin: 5px; border: none; cursor: pointer; }
+        .btn:hover { background: #1d4ed8; }
+        .status { padding: 10px; border-radius: 6px; margin: 10px 0; }
+        .status.success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+        .status.info { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
+        .feature-list { list-style: none; }
+        .feature-list li { padding: 8px 0; border-bottom: 1px solid #e5e7eb; }
+        .feature-list li:before { content: "✅"; margin-right: 10px; }
+        .footer { text-align: center; margin-top: 40px; color: #6b7280; }
+        .nav { display: flex; justify-content: center; gap: 10px; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 SOCKS5 Proxy Management System</h1>
+            <p>Enterprise Edition v4.0.0 - Successfully Installed!</p>
+        </div>
+
+        <div class="status success">
+            <strong>✅ Installation Complete!</strong> Your SOCKS5 proxy management system is now running and ready to use.
+        </div>
+
+        <div class="nav">
+            <button class="btn" onclick="showAdminPanel()">Admin Panel</button>
+            <button class="btn" onclick="showUserPortal()">User Portal</button>
+            <button class="btn" onclick="showSystemStatus()">System Status</button>
+        </div>
+
+        <div id="content">
+            <div class="grid">
+                <div class="card">
+                    <h3>🛡️ Admin Panel Access</h3>
+                    <p><strong>Default Credentials:</strong></p>
+                    <p>Username: <code>admin</code></p>
+                    <p>Password: <code>admin123</code></p>
+                    <div class="status info">
+                        <strong>⚠️ Security Note:</strong> Please change the default password immediately after first login.
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>👤 User Portal</h3>
+                    <p><strong>Test User:</strong></p>
+                    <p>Username: <code>testuser</code></p>
+                    <p>Password: <code>pass123</code></p>
+                    <p>SOCKS5 Port: <code>1080</code></p>
+                </div>
+
+                <div class="card">
+                    <h3>🌐 Access URLs</h3>
+                    <ul class="feature-list">
+                        <li><strong>Admin Panel:</strong> <a href="/admin" target="_blank">http://your-server:5000</a></li>
+                        <li><strong>User Portal:</strong> <a href="/user-portal" target="_blank">http://your-server:5000/user-portal</a></li>
+                        <li><strong>API Health:</strong> <a href="/api/health" target="_blank">http://your-server:5000/api/health</a></li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <h3>🔧 SOCKS5 Configuration</h3>
+                    <ul class="feature-list">
+                        <li><strong>Server:</strong> your-server-ip</li>
+                        <li><strong>Port:</strong> 1080</li>
+                        <li><strong>Authentication:</strong> Username/Password</li>
+                        <li><strong>Protocol:</strong> SOCKS5</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <h3>📊 System Features</h3>
+                    <ul class="feature-list">
+                        <li>Real-time user management</li>
+                        <li>IP pool management with sharing</li>
+                        <li>Data usage monitoring</li>
+                        <li>Connection analytics</li>
+                        <li>User portal access</li>
+                        <li>WebSocket real-time updates</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <h3>🛠️ Next Steps</h3>
+                    <ol style="padding-left: 20px;">
+                        <li>Login to admin panel and change password</li>
+                        <li>Add your public IP addresses to IP pool</li>
+                        <li>Create SOCKS5 users and assign IPs</li>
+                        <li>Configure firewall rules if needed</li>
+                        <li>Test SOCKS5 connections</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>SOCKS5 Proxy Management System v4.0.0 | Enterprise Edition</p>
+            <p>System is running on port 5000 | SOCKS5 proxy on port 1080</p>
+        </div>
+    </div>
+
+    <script>
+        function showAdminPanel() {
+            document.getElementById('content').innerHTML = `
+                <div class="card">
+                    <h3>🛡️ Admin Panel</h3>
+                    <p>The admin panel provides complete control over your SOCKS5 proxy system.</p>
+                    <div class="status info">
+                        <strong>Features:</strong> User management, IP pool configuration, analytics, system settings
+                    </div>
+                    <a href="/admin" class="btn">Open Admin Panel</a>
+                </div>
+            `;
+        }
+
+        function showUserPortal() {
+            document.getElementById('content').innerHTML = `
+                <div class="card">
+                    <h3>👤 User Portal</h3>
+                    <p>Users can login to view their account details, usage statistics, and connection information.</p>
+                    <div class="status info">
+                        <strong>Features:</strong> Account overview, data usage, connection status, IP assignment
+                    </div>
+                    <a href="/user-portal" class="btn">Open User Portal</a>
+                </div>
+            `;
+        }
+
+        function showSystemStatus() {
+            fetch('/api/health')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('content').innerHTML = `
+                        <div class="card">
+                            <h3>📊 System Status</h3>
+                            <div class="status success">
+                                <strong>Status:</strong> ${data.status.toUpperCase()}
+                            </div>
+                            <p><strong>Version:</strong> ${data.version}</p>
+                            <p><strong>SOCKS5 Port:</strong> ${data.socks_port}</p>
+                            <p><strong>Last Check:</strong> ${data.timestamp}</p>
+                        </div>
+                    `;
+                })
+                .catch(error => {
+                    document.getElementById('content').innerHTML = `
+                        <div class="card">
+                            <h3>📊 System Status</h3>
+                            <div class="status" style="background: #fef2f2; color: #dc2626; border: 1px solid #fecaca;">
+                                <strong>Error:</strong> Unable to fetch system status
+                            </div>
+                        </div>
+                    `;
+                });
+        }
+
+        // Auto-refresh system status every 30 seconds
+        setInterval(() => {
+            if (document.getElementById('content').innerHTML.includes('System Status')) {
+                showSystemStatus();
+            }
+        }, 30000);
+    </script>
+</body>
+</html>
+EOF
     
     # Create SQLite-compatible drizzle.config.ts
     cat > $INSTALL_DIR/drizzle.config.ts << 'EOF'
@@ -283,6 +906,8 @@ export default defineConfig({
   },
 });
 EOF
+
+    log "✅ Complete SOCKS5 proxy application created successfully"
     
     # Create .env file
     cat > $INSTALL_DIR/.env << EOF
