@@ -120,6 +120,15 @@ export class DatabaseStorage implements IStorage {
     const id = randomUUID();
     const now = Math.floor(Date.now() / 1000);
     
+    // Calculate expiration date from daysValid if expiresAt not provided
+    let expiresAt = insertUser.expiresAt;
+    if (!expiresAt && insertUser.daysValid) {
+      expiresAt = now + (insertUser.daysValid * 24 * 60 * 60); // Convert days to seconds
+    } else if (!expiresAt) {
+      // Default to 30 days if neither provided
+      expiresAt = now + (30 * 24 * 60 * 60);
+    }
+    
     // Auto-assign IP from pool if not provided
     let assignedIP = insertUser.ipAddress;
     let outboundIP = insertUser.outboundIp;
@@ -134,12 +143,26 @@ export class DatabaseStorage implements IStorage {
       }
     }
     
+    // Auto-assign port if not provided
+    let port = insertUser.port;
+    if (!port) {
+      // Find an available port starting from 1081
+      const existingUsers = await this.getAllUsers();
+      const usedPorts = new Set(existingUsers.map(u => u.port));
+      port = 1081;
+      while (usedPorts.has(port)) {
+        port++;
+      }
+    }
+    
     const [user] = await db.insert(users).values({
       ...insertUser,
       id,
       ipAddress: assignedIP,
       outboundIp: outboundIP || assignedIP,
-      daysValid: insertUser.daysValid || 30, // Default to 30 days if not provided
+      port,
+      expiresAt,
+      daysValid: insertUser.daysValid || 30,
       createdAt: now,
       dataUsed: 0,
       isActive: true,
@@ -163,17 +186,23 @@ export class DatabaseStorage implements IStorage {
 
   async deleteUser(id: string): Promise<boolean> {
     try {
-      // Get user's IP address to update count
+      // Get user first to verify existence
       const user = await this.getUser(id);
-      if (user) {
-        // IPs can be shared by multiple users - no need to release
+      if (!user) {
+        return false;
       }
       
-      // Delete user connections
+      // Delete user connections first (foreign key constraint)
       await db.delete(connections).where(eq(connections.userId, id));
       
+      // Delete the user
       const result = await db.delete(users).where(eq(users.id, id));
-      return result.changes > 0;
+      
+      if (result.changes > 0) {
+        console.log(`✅ Deleted user ${user.username}`);
+        return true;
+      }
+      return false;
     } catch (error) {
       console.error("Error deleting user:", error);
       return false;
@@ -576,12 +605,9 @@ export class DatabaseStorage implements IStorage {
 
   async getSettings(category?: string): Promise<any> {
     try {
-      let query = db.select().from(settings);
-      if (category) {
-        query = query.where(eq(settings.category, category));
-      }
-      
-      const results = await query;
+      const results = category 
+        ? await db.select().from(settings).where(eq(settings.category, category))
+        : await db.select().from(settings);
       const settingsObject: any = {};
       
       for (const setting of results) {

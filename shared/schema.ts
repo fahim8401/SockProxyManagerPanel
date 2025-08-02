@@ -104,16 +104,17 @@ export const insertUserSchema = createInsertSchema(users)
     createdAt: true,
     dataUsed: true,
     lastConnection: true,
+    expiresAt: true, // Omit this so we can make it optional
   })
   .extend({
     confirmPassword: z.string().optional(),
     packageId: z.string().optional(),
-    expiresAt: z.number(),
+    expiresAt: z.number().optional(), // Optional - calculated from daysValid if not provided
     // Make all network fields optional for auto-assignment
     ipAddress: z.string().optional(),
     outboundIp: z.string().optional(),
     daysValid: z.number().optional(), // Optional since we calculate expiresAt
-    port: z.number().default(1080),
+    port: z.number().optional(), // Optional - auto-assigned if not provided
   })
   .refine((data) => !data.confirmPassword || data.password === data.confirmPassword, {
     message: "Passwords don't match",
