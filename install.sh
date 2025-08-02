@@ -1447,13 +1447,9 @@ Environment=JWT_SECRET=socks5-admin-jwt-secret-key
 ExecStart=$NODE_PATH $INSTALL_DIR/server/index.js
 Restart=always
 RestartSec=10
-StandardOutput=append:/var/log/socks5-admin/socks5-admin.log
-StandardError=append:/var/log/socks5-admin/socks5-admin-error.log
+StandardOutput=journal
+StandardError=journal
 SyslogIdentifier=socks5-admin
-
-# Security settings
-NoNewPrivileges=true
-PrivateTmp=true
 
 # Resource limits
 LimitNOFILE=65536
@@ -1464,8 +1460,39 @@ WantedBy=multi-user.target
 EOF
     
     sudo mv /tmp/socks5-admin.service /etc/systemd/system/
+    
+    # Verify service file was created correctly
+    if [[ ! -f "/etc/systemd/system/socks5-admin.service" ]]; then
+        error "Failed to create systemd service file"
+        return 1
+    fi
+    
+    # Check for any existing problematic service file and remove it
+    sudo systemctl stop $SERVICE_NAME 2>/dev/null || true
+    sudo systemctl disable $SERVICE_NAME 2>/dev/null || true
+    sudo rm -f /etc/systemd/system/socks5-admin.service.backup 2>/dev/null || true
+    
+    # Clean up any existing service files with EnvironmentFile references
+    if [[ -f "/etc/systemd/system/socks5-admin.service" ]]; then
+        if grep -q "EnvironmentFile" /etc/systemd/system/socks5-admin.service; then
+            log "Removing old service file with EnvironmentFile reference..."
+            sudo mv /etc/systemd/system/socks5-admin.service /etc/systemd/system/socks5-admin.service.backup
+        fi
+    fi
+    
+    # Reload systemd and enable service
     sudo systemctl daemon-reload
+    
+    # Validate service file syntax
+    if ! sudo systemctl cat $SERVICE_NAME >/dev/null 2>&1; then
+        error "Service file has syntax errors"
+        sudo systemctl cat $SERVICE_NAME || true
+        return 1
+    fi
+    
     sudo systemctl enable $SERVICE_NAME
+    
+    log "✅ Systemd service created and enabled successfully"
 }
 
 # Setup log rotation
@@ -1602,32 +1629,64 @@ start_services() {
         fi
     fi
     
-    # Start the systemd service with better error handling
+    # Clean up any existing failed service instances
+    sudo systemctl stop $SERVICE_NAME 2>/dev/null || true
+    sudo systemctl reset-failed $SERVICE_NAME 2>/dev/null || true
+    
+    # Validate service configuration before starting
+    log "Validating service configuration..."
+    if ! sudo systemctl show $SERVICE_NAME --property=ExecStart | grep -q "server/index.js"; then
+        error "Service ExecStart path is incorrect"
+        sudo systemctl show $SERVICE_NAME --property=ExecStart,User,WorkingDirectory,Environment
+        return 1
+    fi
+    
+    # Test manual execution first
+    log "Testing manual execution..."
+    cd $INSTALL_DIR
+    if ! sudo -u socks5admin timeout 10s bash -c "NODE_ENV=production DATABASE_URL=sqlite:$DB_FILE node server/index.js --version" 2>/dev/null; then
+        log "Manual execution test failed, but continuing with service start..."
+    fi
+    
+    # Start the systemd service with extensive error handling
     log "Starting systemd service..."
     if sudo systemctl start $SERVICE_NAME; then
-        # Wait longer for service to fully start
-        sleep 10
+        # Wait for service to fully initialize
+        sleep 15
         
         if sudo systemctl is-active --quiet $SERVICE_NAME; then
             success "✅ SOCKS5 Admin service started successfully"
             
             # Show service status for confirmation
             log "Service Status:"
-            sudo systemctl status $SERVICE_NAME --no-pager --lines=5 2>/dev/null || true
+            sudo systemctl status $SERVICE_NAME --no-pager --lines=10 2>/dev/null || true
+            
+            # Check if ports are listening
+            log "Checking listening ports:"
+            sudo netstat -tlnp | grep -E ":5000|:1080" || log "Ports not yet listening (may take a moment)"
+            
         else
             error "Service failed to start properly"
-            log "Checking service logs for errors..."
-            sudo journalctl -u $SERVICE_NAME --no-pager -l --since "5 minutes ago" --lines=20 2>/dev/null || true
+            log "Service status details:"
+            sudo systemctl status $SERVICE_NAME --no-pager --lines=20 2>/dev/null || true
+            
+            log "Recent service logs:"
+            sudo journalctl -u $SERVICE_NAME --no-pager -l --since "10 minutes ago" --lines=30 2>/dev/null || true
             
             log "Service configuration:"
-            sudo systemctl show $SERVICE_NAME --property=ExecStart,User,WorkingDirectory 2>/dev/null || true
+            sudo systemctl show $SERVICE_NAME --property=ExecStart,User,WorkingDirectory,Environment 2>/dev/null || true
+            
+            log "File permissions check:"
+            ls -la $INSTALL_DIR/server/index.js 2>/dev/null || true
+            ls -la $DB_FILE 2>/dev/null || true
             
             return 1
         fi
     else
         error "Failed to start systemd service"
-        log "Detailed systemd error:"
-        sudo journalctl -u $SERVICE_NAME --no-pager -l --since "5 minutes ago" 2>/dev/null || true
+        log "Systemd start command failed:"
+        sudo systemctl status $SERVICE_NAME --no-pager --lines=20 2>/dev/null || true
+        sudo journalctl -u $SERVICE_NAME --no-pager -l --since "10 minutes ago" 2>/dev/null || true
         return 1
     fi
 }
