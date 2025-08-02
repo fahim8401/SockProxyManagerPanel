@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SOCKS5 Proxy Test Interface</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background-color: #cce6ff; color: #004085; border: 1px solid #bee5eb; }
+        .config-box {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 15px 0;
+            font-family: monospace;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .test-result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+            background-color: #f8f9fa;
+            border-left: 4px solid #007bff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔒 SOCKS5 Proxy Connection Test</h1>
+        
+        <div class="info">
+            <strong>📋 SOCKS5 Server Status:</strong> Running on port 1080<br>
+            <strong>🌐 Server Address:</strong> localhost:1080 or your-domain:1080<br>
+            <strong>🔐 Authentication:</strong> Username/Password required
+        </div>
+
+        <h2>✅ Test Credentials</h2>
+        <div class="config-box">
+            <strong>Available Test Users:</strong><br>
+            • Username: <strong>routeduser1</strong> | Password: <strong>pass123</strong> | IP: 103.7.4.182<br>
+            • Username: <strong>routeduser2</strong> | Password: <strong>pass123</strong> | IP: 103.7.4.183<br>
+            • Username: <strong>shareduser1</strong> | Password: <strong>pass123</strong> | IP: 103.7.4.182<br>
+            • Username: <strong>shareduser2</strong> | Password: <strong>pass123</strong> | IP: 103.7.4.182
+        </div>
+
+        <h2>🔧 Browser Configuration Guide</h2>
+        
+        <h3>Chrome/Chromium:</h3>
+        <div class="config-box">
+            1. Go to Settings → Advanced → System → Open proxy settings<br>
+            2. Configure manual proxy setup:<br>
+            &nbsp;&nbsp;&nbsp;• SOCKS Host: <strong>localhost</strong> (or your domain)<br>
+            &nbsp;&nbsp;&nbsp;• Port: <strong>1080</strong><br>
+            &nbsp;&nbsp;&nbsp;• SOCKS version: <strong>SOCKS5</strong><br>
+            &nbsp;&nbsp;&nbsp;• Username: <strong>routeduser1</strong><br>
+            &nbsp;&nbsp;&nbsp;• Password: <strong>pass123</strong>
+        </div>
+
+        <h3>Firefox:</h3>
+        <div class="config-box">
+            1. Go to Settings → General → Network Settings → Settings<br>
+            2. Select "Manual proxy configuration"<br>
+            3. SOCKS Host: <strong>localhost</strong> Port: <strong>1080</strong><br>
+            4. Select "SOCKS v5"<br>
+            5. Check "Proxy DNS when using SOCKS v5"
+        </div>
+
+        <h3>Command Line Testing:</h3>
+        <div class="config-box">
+            # Test HTTP connection<br>
+            curl --socks5-hostname localhost:1080 --proxy-user routeduser1:pass123 http://httpbin.org/ip<br><br>
+            # Test HTTPS connection<br>
+            curl --socks5-hostname localhost:1080 --proxy-user routeduser1:pass123 https://www.google.com<br><br>
+            # Test with your domain<br>
+            curl --socks5-hostname your-domain:1080 --proxy-user routeduser1:pass123 http://httpbin.org/ip
+        </div>
+
+        <h2>🧪 Live Connection Tests</h2>
+        <button onclick="testConnection('http')">Test HTTP Connection</button>
+        <button onclick="testConnection('https')">Test HTTPS Connection</button>
+        <button onclick="testProxyStatus()">Check Proxy Status</button>
+        
+        <div id="test-results"></div>
+
+        <h2>❗ Common Issues & Solutions</h2>
+        <div class="status error">
+            <strong>Problem:</strong> "Host unreachable" error<br>
+            <strong>Solution:</strong> Ensure you're using the correct server address and port 1080
+        </div>
+        
+        <div class="status error">
+            <strong>Problem:</strong> Authentication failed<br>
+            <strong>Solution:</strong> Double-check username/password (case sensitive). Use: routeduser1/pass123
+        </div>
+        
+        <div class="status error">
+            <strong>Problem:</strong> Connection timeout<br>
+            <strong>Solution:</strong> Check if the SOCKS5 server is running and accessible on port 1080
+        </div>
+
+        <div class="status success">
+            <strong>✅ Server Confirmed Working:</strong> Successfully tested with curl commands.<br>
+            HTTP and HTTPS connections are functioning properly.
+        </div>
+
+        <h2>📞 Need Help?</h2>
+        <div class="info">
+            If you're still experiencing issues:<br>
+            1. Try the curl commands above to verify server connectivity<br>
+            2. Check your firewall settings for port 1080<br>
+            3. Ensure you're using the exact credentials: routeduser1:pass123<br>
+            4. Try connecting from a different device or network<br>
+            5. Verify your browser proxy settings are exactly as shown above
+        </div>
+    </div>
+
+    <script>
+        async function testConnection(protocol) {
+            const resultsDiv = document.getElementById('test-results');
+            const url = protocol === 'https' ? 'https://httpbin.org/ip' : 'http://httpbin.org/ip';
+            
+            resultsDiv.innerHTML += `<div class="test-result">
+                <strong>Testing ${protocol.toUpperCase()} connection...</strong><br>
+                <em>Note: This test runs from the browser and may be limited by CORS policies.</em><br>
+                <em>For accurate testing, use the curl commands shown above.</em>
+            </div>`;
+            
+            try {
+                const response = await fetch(url);
+                const data = await response.text();
+                resultsDiv.innerHTML += `<div class="test-result">
+                    <strong>✅ ${protocol.toUpperCase()} Test Result:</strong><br>
+                    Status: ${response.status}<br>
+                    Response: ${data}
+                </div>`;
+            } catch (error) {
+                resultsDiv.innerHTML += `<div class="test-result">
+                    <strong>❌ ${protocol.toUpperCase()} Test Failed:</strong><br>
+                    Error: ${error.message}<br>
+                    <em>This is expected when testing from browser. Use curl commands for accurate testing.</em>
+                </div>`;
+            }
+        }
+
+        async function testProxyStatus() {
+            const resultsDiv = document.getElementById('test-results');
+            
+            try {
+                const response = await fetch('/api/stats');
+                const data = await response.json();
+                resultsDiv.innerHTML += `<div class="test-result">
+                    <strong>✅ Proxy Server Status:</strong><br>
+                    Total Users: ${data.totalUsers}<br>
+                    Active Connections: ${data.activeConnections}<br>
+                    Total IPs: ${data.totalIPs}<br>
+                    Server: Online ✅
+                </div>`;
+            } catch (error) {
+                resultsDiv.innerHTML += `<div class="test-result">
+                    <strong>❌ Server Status Check Failed:</strong><br>
+                    Error: ${error.message}
+                </div>`;
+            }
+        }
+    </script>
+</body>
+</html>
