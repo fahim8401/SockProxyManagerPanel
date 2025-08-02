@@ -116,56 +116,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ valid: true, user: req.user });
   });
 
-  // User Portal Routes
-  app.post("/api/user/login", async (req, res) => {
-    try {
-      const { username, password } = req.body;
-      
-      // Find user in database
-      const user = await storage.getUserByUsername(username);
-      
-      if (!user) {
-        return res.status(401).json({ message: "Invalid credentials" });
-      }
-
-      // Verify password
-      const isValidPassword = await bcrypt.compare(password, user.password);
-      if (!isValidPassword) {
-        return res.status(401).json({ message: "Invalid credentials" });
-      }
-
-      // Check if user is active
-      if (!user.isActive) {
-        return res.status(401).json({ message: "Account is suspended" });
-      }
-
-      // Check if user is expired
-      if (user.expiresAt < Math.floor(Date.now() / 1000)) {
-        return res.status(401).json({ message: "Account has expired" });
-      }
-
-      // Generate JWT token for user
-      const token = jwt.sign(
-        { userId: user.id, username: user.username, role: "user" },
-        JWT_SECRET,
-        { expiresIn: "24h" }
-      );
-
-      res.json({
-        token,
-        user: {
-          id: user.id,
-          username: user.username,
-          assignedIP: user.ipAddress,
-          port: user.port
-        }
-      });
-    } catch (error) {
-      console.error("User login error:", error);
-      res.status(500).json({ message: "Login failed" });
-    }
-  });
-
   // User profile route
   app.get("/api/user/profile", async (req, res) => {
     try {
@@ -299,7 +249,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "User access required" });
       }
 
-      const user = await storage.getUser(decoded.id);
+      const user = await storage.getUser(decoded.userId);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
