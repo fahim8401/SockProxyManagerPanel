@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 
 export default function Login() {
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [, setLocation] = useLocation();
@@ -19,10 +20,9 @@ export default function Login() {
     e.preventDefault();
     setIsLoading(true);
 
-    // Simulate loading delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    if (login(password)) {
+    const result = await login(username, password);
+    
+    if (result.success) {
       toast({
         title: "Login Successful",
         description: "Welcome to SOCKS5 Admin Panel",
@@ -31,7 +31,7 @@ export default function Login() {
     } else {
       toast({
         title: "Login Failed", 
-        description: "Invalid password. Try 'admin123'",
+        description: result.error || "Invalid credentials",
         variant: "destructive",
       });
     }
@@ -56,13 +56,28 @@ export default function Login() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="password">Admin Password</Label>
+              <Label htmlFor="username">Username</Label>
+              <div className="relative">
+                <Shield className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <Input
+                  id="username"
+                  type="text"
+                  placeholder="Enter username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="pl-10"
+                  required
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                 <Input
                   id="password"
                   type="password"
-                  placeholder="Enter admin password"
+                  placeholder="Enter password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="pl-10"

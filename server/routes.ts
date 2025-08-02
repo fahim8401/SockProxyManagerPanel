@@ -274,7 +274,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Protected API Routes
-  app.get("/api/stats", async (req, res) => {
+  app.get("/api/stats", authenticateToken, async (req, res) => {
     try {
       const totalUsers = await storage.getTotalUsers();
       const activeConnections = await storage.getActiveConnectionsCount();
@@ -292,7 +292,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/users", async (req, res) => {
+  app.get("/api/users", authenticateToken, async (req, res) => {
     try {
       const users = await storage.getAllUsers();
       res.json(users);
@@ -301,7 +301,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/users", async (req, res) => {
+  app.post("/api/users", authenticateToken, async (req, res) => {
     try {
       console.log("Received user data:", req.body);
       const validatedData = insertUserSchema.parse(req.body);
@@ -333,7 +333,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/users/:id", async (req, res) => {
+  app.patch("/api/users/:id", authenticateToken, async (req, res) => {
     try {
       const { id } = req.params;
       const updates = req.body;
@@ -352,7 +352,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/users/:id", async (req, res) => {
+  app.delete("/api/users/:id", authenticateToken, async (req, res) => {
     try {
       const { id } = req.params;
       
@@ -379,7 +379,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/connections", async (req, res) => {
+  app.get("/api/connections", authenticateToken, async (req, res) => {
     try {
       const connections = await storage.getActiveConnections();
       res.json(connections);
@@ -389,7 +389,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get online users
-  app.get("/api/users/online", async (req, res) => {
+  app.get("/api/users/online", authenticateToken, async (req, res) => {
     try {
       const onlineUsers = socksProxy.getOnlineUsers();
       const onlineUserData = await Promise.all(
@@ -407,7 +407,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
   // Admin management routes
-  app.get("/api/admins", async (req, res) => {
+  app.get("/api/admins", authenticateToken, async (req, res) => {
     try {
       const admins = await storage.getAllAdmins();
       res.json(admins);
@@ -416,7 +416,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/admins", async (req, res) => {
+  app.post("/api/admins", authenticateToken, async (req, res) => {
     try {
       const { insertAdminSchema } = await import("@shared/schema");
       const validatedData = insertAdminSchema.parse(req.body);
@@ -446,7 +446,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/admins/:id", async (req, res) => {
+  app.patch("/api/admins/:id", authenticateToken, async (req, res) => {
     try {
       const { id } = req.params;
       const updates = req.body;
@@ -470,7 +470,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/admins/:id", async (req, res) => {
+  app.delete("/api/admins/:id", authenticateToken, async (req, res) => {
     try {
       const { id } = req.params;
       const currentAdminId = (req as any).user?.id;
@@ -492,7 +492,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // API Keys management routes
-  app.get("/api/api-keys", async (req, res) => {
+  app.get("/api/api-keys", authenticateToken, async (req, res) => {
     try {
       const apiKeys = await storage.getAllApiKeys();
       // Transform to match frontend expectations
@@ -511,7 +511,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/api-keys", async (req, res) => {
+  app.post("/api/api-keys", authenticateToken, async (req, res) => {
     try {
       const { name } = req.body;
       if (!name || typeof name !== 'string') {
@@ -525,7 +525,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/api-keys/:id", async (req, res) => {
+  app.delete("/api/api-keys/:id", authenticateToken, async (req, res) => {
     try {
       const { id } = req.params;
       const success = await storage.deleteApiKey(id);
@@ -600,7 +600,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/ip-pool", async (req, res) => {
+  app.get("/api/ip-pool", authenticateToken, async (req, res) => {
     try {
       const availableOnly = req.query.available === 'true';
       const ips = availableOnly ? await storage.getAvailableIPs() : await storage.getAllIPs();
@@ -617,7 +617,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/ip-pool", async (req, res) => {
+  app.post("/api/ip-pool", authenticateToken, async (req, res) => {
     try {
       const { ipAddress, ipType } = req.body;
       
@@ -645,7 +645,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/ip-pool/:id", async (req, res) => {
+  app.delete("/api/ip-pool/:id", authenticateToken, async (req, res) => {
     try {
       const { id } = req.params;
       const success = await storage.deleteIP(id);
