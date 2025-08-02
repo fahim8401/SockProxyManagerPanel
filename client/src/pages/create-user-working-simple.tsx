@@ -68,10 +68,7 @@ export default function CreateUserWorkingSimple() {
       return;
     }
 
-    if (!formData.ipAddress) {
-      alert("Please select an IP address");
-      return;
-    }
+    // Remove IP address requirement - auto-assigned by system
 
     try {
       const response = await fetch("/api/users", {
@@ -81,7 +78,6 @@ export default function CreateUserWorkingSimple() {
           username: formData.username,
           password: formData.password,
           email: formData.email || undefined,
-          ipAddress: formData.ipAddress,
           port: formData.port,
           dataLimit: formData.dataLimit * 1024 * 1024 * 1024, // Convert GB to bytes
           daysValid: formData.daysValid,
@@ -246,38 +242,35 @@ export default function CreateUserWorkingSimple() {
                   <h3 className="text-lg font-medium text-gray-900">Network Configuration</h3>
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      IP Address *
-                    </label>
-                    <select
-                      value={formData.ipAddress}
-                      onChange={(e) => setFormData({...formData, ipAddress: e.target.value})}
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-sm"
-                    >
-                      <option value="">Select IP address</option>
-                      {ipAddresses.map(ip => (
-                        <option key={ip.id} value={ip.ipAddress}>
-                          {ip.ipAddress} ({ip.ipType})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Port
-                    </label>
-                    <input
-                      type="number"
-                      value={formData.port}
-                      onChange={(e) => setFormData({...formData, port: parseInt(e.target.value)})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                      placeholder="1080"
-                      readOnly
-                    />
+                <div className="p-4 bg-green-50 border border-green-200 rounded-md">
+                  <h4 className="font-medium text-green-900 mb-2">🌐 Automatic IP Assignment</h4>
+                  <p className="text-sm text-green-700 mb-2">
+                    IP addresses are automatically assigned from the available pool. Users can share IPs without restrictions.
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        SOCKS5 Port
+                      </label>
+                      <input
+                        type="number"
+                        value={formData.port}
+                        onChange={(e) => setFormData({...formData, port: parseInt(e.target.value)})}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                        placeholder="1080"
+                        readOnly
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Standard SOCKS5 port</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Protocol Support
+                      </label>
+                      <div className="px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-sm">
+                        All Protocols Allowed
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">HTTP, HTTPS, FTP, SSH, etc.</p>
+                    </div>
                   </div>
                 </div>
 

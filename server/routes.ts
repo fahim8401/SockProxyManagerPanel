@@ -1174,9 +1174,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/server/restart", async (req, res) => {
     try {
       // Restart SOCKS5 proxy server
-      if (global.socksProxyServer) {
-        await global.socksProxyServer.stop();
-        await global.socksProxyServer.start();
+      if ((global as any).socksProxyServer) {
+        await (global as any).socksProxyServer.stop();
+        await (global as any).socksProxyServer.start();
       }
       res.json({ success: true, message: "Server restarted successfully" });
     } catch (error: any) {
