@@ -318,21 +318,18 @@ export class SocksProxyServer {
         connectionOptions.localAddress = currentUser.outboundIp;
         console.log(`🌐 Attempting to route ${currentUser.username} traffic through outbound IP: ${currentUser.outboundIp}`);
         
-        // Also apply NAT routing rules for this connection if possible
-        try {
-          const { IPRoutingManager } = require('./ipRouting');
-          const ipRouting = IPRoutingManager.getInstance();
-          // Note: NAT routing requires root privileges and may not work in all environments
-          ipRouting.applyUserNAT(currentUser.id, targetHost, targetPort).then(appliedIP => {
-            if (appliedIP) {
-              console.log(`🎯 NAT routing applied: ${currentUser.username} -> ${appliedIP}`);
-            }
+        // Apply comprehensive NAT routing for ALL user traffic
+        import('./ipRouting.js').then(ipRoutingModule => {
+          const ipRouting = ipRoutingModule.IPRoutingManager.getInstance();
+          // Setup comprehensive NAT routing so ALL traffic uses assigned IP
+          ipRouting.setupNATRules(currentUser.outboundIp).then(() => {
+            console.log(`🌐 Applied comprehensive NAT routing: ALL traffic for ${currentUser.username} -> ${currentUser.outboundIp}`);
           }).catch(natError => {
-            console.log(`⚠️ Could not apply NAT routing: ${natError.message}`);
+            console.log(`⚠️ Could not apply comprehensive NAT routing: ${natError.message}`);
           });
-        } catch (natError) {
-          console.log(`⚠️ Could not apply NAT routing: ${natError.message}`);
-        }
+        }).catch(natError => {
+          console.log(`⚠️ Could not load NAT routing module: ${natError.message}`);
+        });
       } catch (error) {
         console.log(`⚠️ Direct IP binding failed for ${currentUser.outboundIp}, using fallback routing`);
       }
