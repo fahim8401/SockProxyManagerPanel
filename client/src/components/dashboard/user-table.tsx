@@ -85,11 +85,11 @@ export default function UserTable({ users, onCreateUser, onRefresh }: UserTableP
   return (
     <>
     <Card className="bg-white shadow">
-      <CardHeader className="px-6 py-4 border-b border-gray-200">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-800">Recent Users</h3>
-          <Button onClick={onCreateUser} className="bg-primary hover:bg-blue-600">
-            <Plus className="mr-2 w-4 h-4" />
+      <CardHeader className="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-2 sm:space-y-0">
+          <h3 className="text-base sm:text-lg font-semibold text-gray-800">Recent Users</h3>
+          <Button onClick={onCreateUser} className="bg-primary hover:bg-blue-600 w-full sm:w-auto text-xs sm:text-sm">
+            <Plus className="mr-2 w-3 h-3 sm:w-4 sm:h-4" />
             Add User
           </Button>
         </div>
@@ -103,16 +103,16 @@ export default function UserTable({ users, onCreateUser, onRefresh }: UserTableP
                 <TableHead className="text-xs font-medium text-gray-500 uppercase tracking-wider">
                   User
                 </TableHead>
-                <TableHead className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <TableHead className="hidden sm:table-cell text-xs font-medium text-gray-500 uppercase tracking-wider">
                   IP Address
                 </TableHead>
-                <TableHead className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <TableHead className="hidden md:table-cell text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Port
                 </TableHead>
-                <TableHead className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <TableHead className="hidden lg:table-cell text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Data Usage
                 </TableHead>
-                <TableHead className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <TableHead className="hidden sm:table-cell text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Expires
                 </TableHead>
                 <TableHead className="text-xs font-medium text-gray-500 uppercase tracking-wider">

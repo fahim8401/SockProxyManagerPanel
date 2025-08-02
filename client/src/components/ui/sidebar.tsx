@@ -34,7 +34,7 @@ export default function Sidebar() {
   const { logout } = useAuth();
 
   return (
-    <div className="w-64 bg-white shadow-lg animate-slideInLeft flex flex-col">
+    <div className="w-64 md:w-72 lg:w-80 bg-white shadow-lg animate-slideInLeft flex flex-col min-h-screen">
       <div className="flex items-center justify-center h-16 border-b border-gray-200">
         <div className="flex items-center space-x-2 animate-fadeInScale">
           <Shield className="text-primary w-6 h-6 transition-transform hover:scale-110" />

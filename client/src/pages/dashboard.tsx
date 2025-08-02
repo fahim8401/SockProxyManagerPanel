@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Sidebar from "@/components/ui/sidebar";
+import MobileSidebar from "@/components/ui/mobile-sidebar";
 import StatsCards from "../components/dashboard/stats-cards";
 import UserTable from "../components/dashboard/user-table";
 import CreateUserModal from "../components/dashboard/create-user-modal";
@@ -111,23 +112,29 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      <Sidebar />
+    <div className="flex min-h-screen bg-gray-50">
+      {/* Mobile sidebar */}
+      <MobileSidebar />
       
-      <div className="flex-1 flex flex-col overflow-hidden">
+      {/* Desktop sidebar */}
+      <div className="hidden lg:block">
+        <Sidebar />
+      </div>
+      
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0 lg:ml-0">
         {/* Header */}
         <header className="bg-white shadow-sm border-b border-gray-200 animate-slideInRight">
-          <div className="flex items-center justify-between px-6 py-4">
-            <div className="animate-fadeInUp">
-              <h1 className="text-2xl font-semibold text-gray-800">Dashboard</h1>
-              <p className="text-sm text-gray-600">Manage your SOCKS5 proxy server and users</p>
+          <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 pl-16 lg:pl-6">
+            <div className="animate-fadeInUp min-w-0 flex-1">
+              <h1 className="text-xl sm:text-2xl font-semibold text-gray-800 truncate">Dashboard</h1>
+              <p className="text-xs sm:text-sm text-gray-600 hidden sm:block">Manage your SOCKS5 proxy server and users</p>
             </div>
-            <div className="flex items-center space-x-4 animate-fadeInUp delay-200">
-              <button className="relative p-2 text-gray-600 hover:text-gray-800">
-                <Bell className="w-5 h-5" />
+            <div className="flex items-center space-x-2 sm:space-x-4 animate-fadeInUp delay-200">
+              <button className="relative p-2 text-gray-600 hover:text-gray-800 hidden sm:block">
+                <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
                 <span className="absolute top-0 right-0 h-2 w-2 bg-red-500 rounded-full"></span>
               </button>
-              <div className="flex items-center space-x-2">
+              <div className="hidden md:flex items-center space-x-2">
                 <span className="text-sm text-gray-600">Admin User</span>
                 <UserCircle className="w-6 h-6 text-gray-600" />
               </div>
@@ -135,17 +142,17 @@ export default function Dashboard() {
                 variant="outline" 
                 size="sm"
                 onClick={logout}
-                className="text-red-600 hover:text-red-700"
+                className="text-red-600 hover:text-red-700 text-xs sm:text-sm"
               >
-                <LogOut className="w-4 h-4 mr-2" />
-                Logout
+                <LogOut className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
+                <span className="hidden sm:inline">Logout</span>
               </Button>
             </div>
           </div>
         </header>
 
         {/* Main Content */}
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-6">
           <div className="max-w-7xl mx-auto">
             {/* Dashboard Stats */}
             {isLoading || statsLoading ? (
@@ -162,7 +169,7 @@ export default function Dashboard() {
             )}
             
             {/* Charts and Components Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
               {/* Real-time Chart */}
               {isLoading ? (
                 <ChartSkeleton />
