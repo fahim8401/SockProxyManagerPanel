@@ -195,6 +195,11 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(connections).where(isNull(connections.endTime));
   }
 
+  async getTotalConnectionsCount(): Promise<number> {
+    const result = await db.select().from(connections);
+    return result.length;
+  }
+
   async getUserConnections(userId: string): Promise<Connection[]> {
     return await db.select().from(connections).where(eq(connections.userId, userId));
   }

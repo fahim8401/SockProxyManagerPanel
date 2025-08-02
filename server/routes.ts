@@ -939,6 +939,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
+  // Network monitoring routes
+  app.get('/api/network/metrics', async (req, res) => {
+    try {
+      const timeRange = req.query.timeRange as string || '1h';
+      const { networkMonitor } = await import('./services/networkMonitor.js');
+      const metrics = networkMonitor.getMetrics(timeRange);
+      res.json(metrics);
+    } catch (error) {
+      console.error('Error fetching network metrics:', error);
+      res.status(500).json({ message: 'Failed to fetch network metrics' });
+    }
+  });
+
+  app.get('/api/network/traffic', async (req, res) => {
+    try {
+      const { networkMonitor } = await import('./services/networkMonitor.js');
+      const traffic = networkMonitor.getUserTraffic();
+      res.json(traffic);
+    } catch (error) {
+      console.error('Error fetching user traffic:', error);
+      res.status(500).json({ message: 'Failed to fetch user traffic' });
+    }
+  });
+
+  app.get('/api/network/geographic', async (req, res) => {
+    try {
+      const { networkMonitor } = await import('./services/networkMonitor.js');
+      const geoData = networkMonitor.getGeographicData();
+      res.json(geoData);
+    } catch (error) {
+      console.error('Error fetching geographic data:', error);
+      res.status(500).json({ message: 'Failed to fetch geographic data' });
+    }
+  });
+
+  app.get('/api/network/quality', async (req, res) => {
+    try {
+      const timeRange = req.query.timeRange as string || '1h';
+      const { networkMonitor } = await import('./services/networkMonitor.js');
+      const qualityData = networkMonitor.getQualityData(timeRange);
+      res.json(qualityData);
+    } catch (error) {
+      console.error('Error fetching quality data:', error);
+      res.status(500).json({ message: 'Failed to fetch quality data' });
+    }
+  });
+
   // IP Scanning Routes
   app.post("/api/ip-pool/scan", authenticateToken, async (req, res) => {
     try {

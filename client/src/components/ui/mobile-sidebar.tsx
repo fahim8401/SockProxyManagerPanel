@@ -13,7 +13,8 @@ import {
   Shield,
   Key,
   Database,
-  Package
+  Package,
+  Activity
 } from "lucide-react";
 
 export default function MobileSidebar() {
@@ -26,6 +27,7 @@ export default function MobileSidebar() {
     { href: "/create-user", icon: Package, label: "Create User" },
     { href: "/ip-pool", icon: Server, label: "IP Pool" },
     { href: "/analytics", icon: BarChart3, label: "Analytics" },
+    { href: "/network-performance", icon: Activity, label: "Network Performance" },
     { href: "/api-management", icon: Key, label: "API Management" },
     { href: "/admin-management", icon: Shield, label: "Admin Management" },
     { href: "/packages", icon: Database, label: "Package Management" },

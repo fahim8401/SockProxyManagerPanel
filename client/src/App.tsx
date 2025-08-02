@@ -17,6 +17,7 @@ import UserManagement from "@/pages/user-management";
 import PackageManagement from "@/pages/package-management";
 import NotFound from "@/pages/not-found";
 import CreateUser from "@/pages/create-user";
+import NetworkPerformance from "@/pages/network-performance";
 import CreateUserWorkingSimple from "@/pages/create-user-working-simple";
 import TestPage from "@/pages/test";
 
@@ -47,6 +48,7 @@ function AuthenticatedRouter() {
       <Route path="/create-user" component={() => <ProtectedRoute component={CreateUserWorkingSimple} />} />
       <Route path="/create-user-full" component={() => <ProtectedRoute component={CreateUser} />} />
       <Route path="/test" component={TestPage} />
+      <Route path="/network-performance" component={() => <ProtectedRoute component={NetworkPerformance} />} />
       <Route component={NotFound} />
     </Switch>
   );
