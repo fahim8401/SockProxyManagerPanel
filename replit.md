@@ -58,6 +58,7 @@ This is a comprehensive full-stack SOCKS5 proxy management system with complete 
 - **✅ Fixed npm permission issues - runs npm as root then fixes ownership**
 - **✅ Fixed database schema conflicts - bypassed drizzle migrations, uses direct SQLite initialization**
 - **✅ Fixed systemd service startup issues - TypeScript execution with tsx, proper entry point detection**
+- **✅ Added complete dependency list - all required packages for full functionality**
 
 ## Complete Feature Set
 
