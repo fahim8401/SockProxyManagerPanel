@@ -1444,7 +1444,7 @@ Environment=PORT=5000
 Environment=SOCKS_PORT=1080
 Environment=DATABASE_URL=sqlite:$DB_FILE
 Environment=JWT_SECRET=socks5-admin-jwt-secret-key
-ExecStart=$NODE_PATH $INSTALL_DIR/server/index.js
+ExecStart=$NODE_PATH $INSTALL_DIR/server/index.ts
 Restart=always
 RestartSec=10
 StandardOutput=journal
@@ -1617,15 +1617,54 @@ start_services() {
     # Test if Node.js can run the application
     cd $INSTALL_DIR
     log "Testing application startup..."
-    if ! sudo -u socks5admin timeout 5s node server/index.js --version 2>/dev/null; then
-        log "Node.js test failed, checking dependencies..."
-        
-        # Ensure node_modules exists
-        if [[ ! -d "node_modules" ]]; then
-            error "Node modules missing! Reinstalling..."
-            sudo chown -R root:root $INSTALL_DIR
-            sudo npm install --omit=dev --unsafe-perm=true --allow-root
-            sudo chown -R socks5admin:socks5admin $INSTALL_DIR
+    
+    # Check if required files exist (TypeScript or JavaScript)
+    if [[ ! -f "server/index.ts" ]] && [[ ! -f "server/index.js" ]]; then
+        error "Application entry point not found! Installation directory structure:"
+        ls -la $INSTALL_DIR/ 2>/dev/null || true
+        ls -la $INSTALL_DIR/server/ 2>/dev/null || true
+        return 1
+    fi
+    
+    # Determine which entry point to use
+    if [[ -f "server/index.ts" ]]; then
+        ENTRY_POINT="server/index.ts"
+    else
+        ENTRY_POINT="server/index.js"
+    fi
+    
+    log "Using application entry point: $ENTRY_POINT"
+    
+    # Check if node_modules exists
+    if [[ ! -d "node_modules" ]]; then
+        log "Node modules missing! Reinstalling..."
+        sudo chown -R root:root $INSTALL_DIR
+        if ! sudo npm install --omit=dev --unsafe-perm=true --allow-root --no-audit --no-fund; then
+            error "Failed to install npm dependencies"
+            return 1
+        fi
+        sudo chown -R socks5admin:socks5admin $INSTALL_DIR
+    fi
+    
+    # Test basic Node.js execution
+    log "Testing Node.js execution..."
+    if ! sudo -u socks5admin timeout 10s node --version 2>/dev/null; then
+        error "Node.js not accessible by socks5admin user"
+        which node || error "Node.js not found in PATH"
+        return 1
+    fi
+    
+    # Test application file syntax
+    if [[ "$ENTRY_POINT" == "server/index.ts" ]]; then
+        # For TypeScript files, check if tsx is available or use node directly
+        if command -v tsx >/dev/null 2>&1; then
+            log "Testing TypeScript application with tsx..."
+            if ! sudo -u socks5admin timeout 5s tsx --version 2>/dev/null; then
+                log "tsx not accessible by socks5admin user, installing globally..."
+                sudo npm install -g tsx 2>/dev/null || log "tsx installation failed, will use node directly"
+            fi
+        else
+            log "TypeScript file detected but tsx not available, will use node directly"
         fi
     fi
     
@@ -1644,8 +1683,26 @@ start_services() {
     # Test manual execution first
     log "Testing manual execution..."
     cd $INSTALL_DIR
-    if ! sudo -u socks5admin timeout 10s bash -c "NODE_ENV=production DATABASE_URL=sqlite:$DB_FILE node server/index.js --version" 2>/dev/null; then
-        log "Manual execution test failed, but continuing with service start..."
+    
+    # Ensure all paths and permissions are correct
+    if [[ ! -f "$ENTRY_POINT" ]]; then
+        error "Application entry point missing: $ENTRY_POINT"
+        ls -la server/ 2>/dev/null || error "Server directory missing"
+        return 1
+    fi
+    
+    # Test with explicit environment
+    log "Testing with production environment..."
+    if ! sudo -u socks5admin timeout 15s bash -c "export NODE_ENV=production; export DATABASE_URL=sqlite:$DB_FILE; node $ENTRY_POINT" >/dev/null 2>&1; then
+        log "Manual execution test shows errors, checking details..."
+        
+        # Show actual error for debugging
+        log "Attempting to run with error output:"
+        sudo -u socks5admin timeout 5s bash -c "export NODE_ENV=production; export DATABASE_URL=sqlite:$DB_FILE; node $ENTRY_POINT" 2>&1 | head -10 || true
+        
+        log "Continuing with service start despite test failure..."
+    else
+        log "Manual execution test successful"
     fi
     
     # Start the systemd service with extensive error handling
@@ -1671,14 +1728,26 @@ start_services() {
             sudo systemctl status $SERVICE_NAME --no-pager --lines=20 2>/dev/null || true
             
             log "Recent service logs:"
-            sudo journalctl -u $SERVICE_NAME --no-pager -l --since "10 minutes ago" --lines=30 2>/dev/null || true
+            sudo journalctl -u $SERVICE_NAME --no-pager -l --since "10 minutes ago" --lines=50 2>/dev/null || true
             
             log "Service configuration:"
             sudo systemctl show $SERVICE_NAME --property=ExecStart,User,WorkingDirectory,Environment 2>/dev/null || true
             
-            log "File permissions check:"
-            ls -la $INSTALL_DIR/server/index.js 2>/dev/null || true
-            ls -la $DB_FILE 2>/dev/null || true
+            log "File permissions and paths check:"
+            ls -la $INSTALL_DIR/server/index.js 2>/dev/null || error "server/index.js missing"
+            ls -la $DB_FILE 2>/dev/null || error "Database file missing"
+            
+            log "Node.js accessibility test:"
+            sudo -u socks5admin which node || error "Node.js not in PATH for socks5admin"
+            sudo -u socks5admin node --version || error "Node.js not executable by socks5admin"
+            
+            log "Working directory contents:"
+            sudo -u socks5admin ls -la $INSTALL_DIR/ 2>/dev/null || true
+            
+            # Try one more manual start attempt with full error output
+            log "Final manual test with full error output:"
+            cd $INSTALL_DIR
+            sudo -u socks5admin bash -c "export NODE_ENV=production; export DATABASE_URL=sqlite:$DB_FILE; node $ENTRY_POINT" 2>&1 | head -20 || true
             
             return 1
         fi
