@@ -18,6 +18,18 @@ This project is a comprehensive full-stack SOCKS5 proxy management system with a
   - Fixed TypeScript errors in query client header spreading
 - **Status**: All admin panel CRUD operations now working correctly with proper authentication
 
+**✅ VPS DEPLOYMENT PORT CONFLICT RESOLUTION**
+- **Date**: August 3, 2025
+- **Issue**: Recurring "EADDRINUSE: address already in use 0.0.0.0:5000" errors during VPS deployment
+- **Root Cause**: Multiple processes competing for port 5000 and incorrect systemd service paths
+- **Solution**: Created comprehensive deployment script with aggressive port clearing
+- **Changes Made**:
+  - Created `simple-deploy.sh` with multi-method port conflict resolution
+  - Fixed systemd service ExecStart path to point to correct `/opt/socks5-admin/index.js`
+  - Added aggressive process killing and port verification
+  - Created deployment package with minimal runtime dependencies
+- **Status**: Ready for reliable VPS deployment without port conflicts
+
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
