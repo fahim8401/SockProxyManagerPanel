@@ -87,15 +87,81 @@ info "Installing firewall..."
 apt-get install -y ufw || warning "UFW installation failed"
 
 info "Installing Node.js (this may take a moment)..."
-# Try the default Node.js first
+
+# First, try to fix any broken packages
+apt-get install -f -y 2>/dev/null || true
+
+# Method 1: Try default Node.js from Debian repositories
+info "Attempting default Node.js installation..."
 if apt-get install -y nodejs npm 2>/dev/null; then
     success "Node.js installed from default repository"
-else
-    info "Installing Node.js from NodeSource..."
-    curl -fsSL https://deb.nodesource.com/setup_18.x | timeout 120 bash - || {
-        error "Failed to setup NodeSource repository"
+elif dpkg -l | grep -q nodejs; then
+    # Node.js partially installed, try to fix
+    info "Fixing existing Node.js installation..."
+    apt-get remove --purge -y nodejs npm 2>/dev/null || true
+    apt-get autoremove -y 2>/dev/null || true
+    apt-get install -y nodejs npm || {
+        info "Default installation failed, trying NodeSource..."
+        
+        # Method 2: Clean NodeSource installation
+        # Remove any existing NodeSource sources
+        rm -f /etc/apt/sources.list.d/nodesource.list 2>/dev/null || true
+        
+        # Add NodeSource repository with error handling
+        curl -fsSL https://deb.nodesource.com/gpgkey/nodesource.gpg.key | apt-key add - 2>/dev/null || {
+            warning "GPG key installation failed, trying alternative method..."
+        }
+        
+        echo "deb https://deb.nodesource.com/node_18.x $(lsb_release -cs) main" > /etc/apt/sources.list.d/nodesource.list
+        
+        apt-get update -y 2>/dev/null || true
+        
+        if apt-get install -y nodejs; then
+            success "Node.js installed from NodeSource"
+        else
+            # Method 3: Manual binary installation as fallback
+            warning "Package installation failed, installing Node.js manually..."
+            
+            cd /tmp
+            NODE_VERSION="v18.20.4"
+            NODE_ARCH="linux-x64"
+            NODE_PACKAGE="node-${NODE_VERSION}-${NODE_ARCH}"
+            
+            wget -q "https://nodejs.org/dist/${NODE_VERSION}/${NODE_PACKAGE}.tar.xz" || error "Failed to download Node.js"
+            tar -xf "${NODE_PACKAGE}.tar.xz" || error "Failed to extract Node.js"
+            
+            # Install to /usr/local
+            cp -r "${NODE_PACKAGE}"/* /usr/local/ || error "Failed to install Node.js"
+            
+            # Create symlinks
+            ln -sf /usr/local/bin/node /usr/bin/node 2>/dev/null || true
+            ln -sf /usr/local/bin/npm /usr/bin/npm 2>/dev/null || true
+            
+            success "Node.js installed manually"
+        fi
     }
-    apt-get install -y nodejs || error "Failed to install Node.js"
+else
+    # Fresh installation attempt
+    info "Fresh Node.js installation..."
+    apt-get install -y nodejs npm || {
+        # Fallback to manual installation
+        warning "Package manager failed, installing manually..."
+        
+        cd /tmp
+        NODE_VERSION="v18.20.4"
+        NODE_ARCH="linux-x64"
+        NODE_PACKAGE="node-${NODE_VERSION}-${NODE_ARCH}"
+        
+        wget -q "https://nodejs.org/dist/${NODE_VERSION}/${NODE_PACKAGE}.tar.xz" || error "Failed to download Node.js"
+        tar -xf "${NODE_PACKAGE}.tar.xz" || error "Failed to extract Node.js"
+        
+        cp -r "${NODE_PACKAGE}"/* /usr/local/ || error "Failed to install Node.js"
+        
+        ln -sf /usr/local/bin/node /usr/bin/node 2>/dev/null || true
+        ln -sf /usr/local/bin/npm /usr/bin/npm 2>/dev/null || true
+        
+        success "Node.js installed manually"
+    }
 fi
 
 # Verify Node.js installation
@@ -110,7 +176,7 @@ fi
 
 # Install build tools (optional)
 info "Installing build tools..."
-apt-get install -y build-essential || warning "Build tools installation failed (continuing...)"
+apt-get install -y build-essential python3-dev || warning "Build tools installation failed (continuing...)"
 
 # Install SSL tools (optional)
 info "Installing SSL certificate tools..."
