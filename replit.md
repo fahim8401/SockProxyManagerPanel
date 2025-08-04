@@ -64,7 +64,30 @@ Preferred communication style: Simple, everyday language.
   - GET/POST /api/external/users (with API key auth)
   - GET /api/external/stats
   - Full admin API for packages, users, IPs
-- **Status**: Production-ready commercial SAAS platform
+- **Status**: Production-ready commercial SAAS platform with Ubuntu VPS deployment ready
+
+## Ubuntu VPS Deployment
+
+**✅ COMPLETE DEPLOYMENT PACKAGE READY**
+- **Date**: August 4, 2025
+- **Deployment Method**: Automated Ubuntu VPS installation
+- **Package Includes**:
+  - Auto-installation script (`install-ubuntu.sh`)
+  - Complete deployment guide (`UBUNTU_VPS_INSTALLATION.md`)
+  - Systemd service configuration
+  - Nginx reverse proxy setup
+  - SSL certificate automation with Certbot
+  - Firewall configuration (UFW)
+  - Performance optimizations
+  - Automated backup system
+  - Monitoring and maintenance scripts
+- **System Requirements**:
+  - Ubuntu 20.04+ VPS
+  - Minimum 1GB RAM, 1 CPU core, 20GB storage
+  - Root or sudo access
+  - Optional: Domain name for SSL
+- **Installation**: Single command deployment with `sudo ./install-ubuntu.sh`
+- **Status**: Ready for immediate production deployment
 
 # External Dependencies
 
