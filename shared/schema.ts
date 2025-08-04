@@ -38,8 +38,8 @@ export const proxyUsers = sqliteTable("proxy_users", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
-  packageId: integer("package_id").references(() => packages.id),
-  selectedIpId: integer("selected_ip_id").references(() => ipPool.id),
+  packageId: integer("package_id").references(() => packages.id, { onDelete: 'set null' }),
+  selectedIpId: integer("selected_ip_id").references(() => ipPool.id, { onDelete: 'set null' }),
   ipAddress: text("ip_address").notNull().default("0.0.0.0"),
   port: integer("port").notNull().default(1080),
   dataLimit: integer("data_limit").notNull().default(1073741824), // 1GB in bytes
@@ -74,7 +74,7 @@ export const ipPool = sqliteTable("ip_pool", {
   country: text("country"),
   city: text("city"),
   provider: text("provider"),
-  assignedUserId: integer("assigned_user_id").references(() => proxyUsers.id),
+  assignedUserId: integer("assigned_user_id").references(() => proxyUsers.id, { onDelete: 'set null' }),
   createdAt: integer("created_at", { mode: 'timestamp' }).default(sql`(unixepoch())`),
 });
 

@@ -49,16 +49,12 @@
         "auth": "password",
         "accounts": [
           {
-            "user": "testuser",
-            "pass": "testpass"
-          },
-          {
-            "user": "1234",
-            "pass": "1234"
-          },
-          {
             "user": "123",
             "pass": "123"
+          },
+          {
+            "user": "testuser",
+            "pass": "testpass"
           }
         ],
         "udp": true,

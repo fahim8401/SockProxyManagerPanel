@@ -258,7 +258,7 @@ export async function registerRoutes(app: express.Application): Promise<Server> 
       // Set expiry date based on validity days
       if (userData.validityDays && typeof userData.validityDays === 'number') {
         const expiryDate = new Date(Date.now() + userData.validityDays * 24 * 60 * 60 * 1000);
-        userData.expiresAt = expiryDate;
+        (userData as any).expiresAt = Math.floor(expiryDate.getTime() / 1000);
       }
 
       // If IP is selected, get the IP address
@@ -278,7 +278,7 @@ export async function registerRoutes(app: express.Application): Promise<Server> 
       }
       
       // Update Xray configuration
-      await xrayManager.addUser(newUser.username, newUser.password);
+      await xrayManager.addUser(newUser.username, newUser.password || 'defaultpass');
 
       res.json({ ...newUser, password: undefined });
     } catch (error) {
@@ -518,11 +518,11 @@ export async function registerRoutes(app: express.Application): Promise<Server> 
       
       if (userData.validityDays && typeof userData.validityDays === 'number') {
         const expiryDate = new Date(Date.now() + userData.validityDays * 24 * 60 * 60 * 1000);
-        userData.expiresAt = expiryDate;
+        (userData as any).expiresAt = Math.floor(expiryDate.getTime() / 1000);
       }
 
       const newUser = await storage.createProxyUser(userData);
-      await xrayManager.addUser(newUser.username, newUser.password);
+      await xrayManager.addUser(newUser.username, newUser.password || 'defaultpass');
       
       res.json({ ...newUser, password: undefined });
     } catch (error) {
@@ -555,7 +555,7 @@ export async function registerRoutes(app: express.Application): Promise<Server> 
       // Handle validity days update
       if (updateData.validityDays && typeof updateData.validityDays === 'number') {
         const expiryDate = new Date(Date.now() + updateData.validityDays * 24 * 60 * 60 * 1000);
-        updateData.expiresAt = expiryDate;
+        updateData.expiresAt = Math.floor(expiryDate.getTime() / 1000);
       }
       
       const updatedUser = await storage.updateProxyUser(userId, updateData);
