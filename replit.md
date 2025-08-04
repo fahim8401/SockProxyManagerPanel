@@ -40,6 +40,16 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+**✅ INSTALLATION SCRIPT CONSOLIDATION**
+- **Date**: August 4, 2025
+- **Scope**: Simplified deployment with single installation script
+- **Major Updates**:
+  - **Removed Multiple .sh Files** - Cleaned up file clutter as requested
+  - **Single install-linux.sh Script** - All installation functionality consolidated
+  - **Fixed TypeScript Production Build** - Proper JavaScript compilation for deployment
+  - **Enhanced Node.js Dependency Handling** - Resolves Ubuntu/Debian package conflicts
+  - **Comprehensive Error Handling** - Production-ready installation with fallbacks
+
 **✅ FINAL PRODUCTION SAAS PLATFORM (Version 2.0)**
 - **Date**: August 4, 2025
 - **Scope**: Complete production-ready SAAS platform with universal Linux compatibility
@@ -111,9 +121,10 @@ Preferred communication style: Simple, everyday language.
   - Daily automated backups with retention
   - Comprehensive error handling and logging
 - **Installation Methods**:
-  - Quick: `curl -fsSL https://raw.githubusercontent.com/fahim8401/SockProxyManagerPanel/MAIN/install-linux.sh | sudo bash`
-  - With Domain: `curl -fsSL ... | sudo bash -s yourdomain.com`
-- **Status**: Production-ready for ANY Linux distribution worldwide
+  - **Single Command**: `curl -fsSL https://raw.githubusercontent.com/fahim8401/SockProxyManagerPanel/MAIN/install-linux.sh | sudo bash`
+  - **With Domain**: `curl -fsSL https://raw.githubusercontent.com/fahim8401/SockProxyManagerPanel/MAIN/install-linux.sh | sudo bash -s yourdomain.com`
+  - **File Cleanup**: Removed all redundant .sh files, single script handles everything
+- **Status**: Production-ready for ANY Linux distribution with simplified installation
 
 # External Dependencies
 

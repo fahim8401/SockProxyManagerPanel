@@ -1,410 +1,250 @@
-# Xray SOCKS5 Management System - Complete SAAS Platform
+# Socks5 Panel - Professional SOCKS5 Proxy Management
 
-[![Version](https://img.shields.io/badge/version-2.0-blue.svg)](https://github.com/fahim8401/SockProxyManagerPanel)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-Linux-orange.svg)](README.md)
-[![Status](https://img.shields.io/badge/status-Production%20Ready-brightgreen.svg)](README.md)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Node.js](https://img.shields.io/badge/node.js-18+-green.svg)](https://nodejs.org/)
+[![Platform](https://img.shields.io/badge/platform-Linux-lightgrey.svg)](https://www.linux.org/)
 
-A comprehensive commercial SAAS platform for SOCKS5 proxy management using Xray-core framework. Features enterprise-grade proxy management with package-based billing, IP selection options, data limits, expiry management, external API integration, and full automation.
-
-## 🌟 Key Features
-
-### 🚀 **Production-Ready SAAS Platform**
-- **Package-Based Billing System** - Basic, Premium, Enterprise tiers
-- **User Management** - Complete CRUD operations with package assignments
-- **IP Pool Management** - Select specific IPs for users during creation
-- **Data Limits & Expiry** - Customizable limits and validity periods
-- **External API** - Secure integration endpoints with API key authentication
-- **Real-time Analytics** - Comprehensive monitoring and reporting
-- **Modern Web Interface** - Professional admin dashboard
-
-### 🔧 **Enterprise Management**
-- **Xray-core v24.9.30** - Latest stable proxy framework
-- **WebSocket Real-time Updates** - Live connection monitoring
-- **Database Cleaning** - Preserve admin data while clearing user data
-- **Automated Backups** - Daily scheduled backups with retention
-- **Speed Testing** - Integrated network performance monitoring
-- **Multi-IP Support** - Advanced routing and IP assignment
-
-### 🛡️ **Security & Authentication**
-- **JWT Authentication** - Secure admin access
-- **API Key Management** - External integration security
-- **Role-based Access** - Admin and API user permissions
-- **bcrypt Password Hashing** - Industry-standard security
-- **SSL/TLS Support** - Production encryption ready
-
-### 🌍 **Universal Linux Compatibility**
-- **All Linux Distributions** - Ubuntu, Debian, CentOS, RHEL, Fedora, Arch, Alpine
-- **Automated Installation** - Single command deployment
-- **Systemd Integration** - Professional service management
-- **Nginx Reverse Proxy** - Production web server setup
-- **Firewall Configuration** - Automatic security setup
-
-## 📋 System Requirements
-
-### Minimum Requirements
-- **OS**: Any Linux distribution (Ubuntu 18+, Debian 9+, CentOS 7+, etc.)
-- **RAM**: 1GB minimum, 2GB recommended
-- **CPU**: 1 core minimum, 2+ cores recommended
-- **Storage**: 20GB minimum, 50GB recommended
-- **Network**: Public IP address for SOCKS5 proxy service
-
-### Recommended for Production
-- **RAM**: 4GB or more
-- **CPU**: 4+ cores
-- **Storage**: 100GB+ SSD
-- **Network**: Dedicated server or VPS with good bandwidth
-- **Domain**: Optional but recommended for SSL setup
+> **Complete SAAS Platform** for professional SOCKS5 proxy management with enterprise-grade features, built using Xray-core framework.
 
 ## 🚀 Quick Installation
 
-### One-Command Installation
-
+**Single Command Installation** (recommended):
 ```bash
-# Basic installation
 curl -fsSL https://raw.githubusercontent.com/fahim8401/SockProxyManagerPanel/MAIN/install-linux.sh | sudo bash
+```
 
-# Installation with custom domain (enables SSL)
+**With Custom Domain**:
+```bash
 curl -fsSL https://raw.githubusercontent.com/fahim8401/SockProxyManagerPanel/MAIN/install-linux.sh | sudo bash -s yourdomain.com
 ```
 
-### Manual Installation
+## 🌟 Key Features
 
-```bash
-# Download installer
-wget https://raw.githubusercontent.com/fahim8401/SockProxyManagerPanel/MAIN/install-linux.sh
-chmod +x install-linux.sh
+### 🎯 **Professional SAAS Platform**
+- **User Management** - Create, edit, delete users with package-based billing
+- **Package Plans** - Flexible data limits, speed controls, and expiry management
+- **IP Pool Selection** - Dedicated IP assignment for enterprise clients
+- **Real-time Analytics** - Monitor usage, connections, and performance metrics
+- **External API** - Complete REST API for third-party integrations
 
-# Run installation
-sudo ./install-linux.sh
-
-# Or with domain for SSL
-sudo ./install-linux.sh yourdomain.com
-```
-
-## 🔧 Configuration
-
-### Default Configuration
-- **Web Interface**: Port 5000 (HTTP) / 443 (HTTPS)
-- **SOCKS5 Proxy**: Port 1080
-- **Database**: SQLite (production-ready with WAL mode)
-- **Admin Credentials**: admin / admin123
-- **Default SOCKS5 User**: testuser / testpass
-
-### Environment Variables
-```bash
-# Optional customization
-export WEB_PORT=5000
-export SOCKS_PORT=1080
-export DOMAIN=your-domain.com
-```
-
-### Service Management
-```bash
-# Start/Stop/Restart service
-sudo systemctl start xray-socks5
-sudo systemctl stop xray-socks5
-sudo systemctl restart xray-socks5
-
-# Check status and logs
-sudo systemctl status xray-socks5
-sudo journalctl -u xray-socks5 -f
-```
-
-## 🌐 Access Information
-
-### Web Interfaces
-- **Main Dashboard**: `http://your-server-ip:5000`
-- **Admin Panel**: `http://your-server-ip:5000/admin`
-- **With Domain**: `https://yourdomain.com` (if SSL configured)
-
-### SOCKS5 Proxy Connection
-- **Host**: Your server IP
-- **Port**: 1080 (default)
-- **Username**: testuser (default)
-- **Password**: testpass (default)
-
-## 📊 Admin Panel Features
-
-### 🏢 **SAAS Management**
-- **Dashboard** - Real-time statistics and system overview
-- **Package Management** - Create/edit/delete subscription packages
-- **User Management** - Full CRUD with package assignments and IP selection
-- **IP Pool Management** - Add/remove/assign IP addresses
-- **API Key Management** - Generate secure external integration keys
-- **Analytics** - Revenue tracking and user behavior analysis
-
-### ⚙️ **System Administration**
-- **General Settings** - Core system configuration
-- **Xray Core Management** - Start/stop/restart proxy service
-- **Network Performance** - Integrated speed testing with openspeedtest.hplink.com.bd
-- **Backup & Maintenance** - Database backup and cleaning tools
-- **System Logs** - Real-time log monitoring
-
-### 🧹 **Database Management**
-- **Clean Database** - Remove all user data while preserving admin credentials
+### 🔧 **Enterprise-Grade Infrastructure**
+- **Xray-core v24.9.30** - High-performance proxy framework (same as 3x-ui)
+- **Universal Linux Support** - Works on Ubuntu, Debian, CentOS, RHEL, Fedora, Arch, Alpine
+- **Production Ready** - Systemd services, Nginx reverse proxy, SSL certificates
+- **Security Hardened** - JWT authentication, bcryptjs hashing, firewall configuration
 - **Automated Backups** - Daily backups with 7-day retention
-- **Manual Backup** - On-demand database exports
 
-## 🔌 External API
+### 📊 **Management Interface**
+- **Modern Web UI** - Responsive design with dark/light theme support
+- **User Portal** - Self-service dashboard for end users
+- **Admin Panel** - Comprehensive management tools
+- **Real-time Monitoring** - Live connection tracking and bandwidth usage
+- **Database Management** - Built-in cleanup and maintenance tools
 
-### Authentication
-All external API endpoints require an API key in the header:
-```bash
-X-API-Key: your-generated-api-key
-```
+## 💻 System Requirements
 
-### Available Endpoints
+- **OS**: Linux (any distribution)
+- **RAM**: 512MB minimum, 1GB recommended
+- **Storage**: 2GB free space
+- **Network**: Public IP address
+- **Ports**: 80 (HTTP), 443 (HTTPS), 1080 (SOCKS5), 5000 (Admin Panel)
 
-#### Users Management
-```bash
-# Get all users
-GET /api/external/users
+## 🔧 Installation Details
 
-# Create new user
-POST /api/external/users
-{
-  "username": "newuser",
-  "password": "userpass",
-  "packageId": 1,
-  "dataLimit": 1073741824,
-  "validityDays": 30
-}
+### Supported Linux Distributions
+- ✅ **Ubuntu** 18.04, 20.04, 22.04, 24.04
+- ✅ **Debian** 9, 10, 11, 12
+- ✅ **CentOS** 7, 8, 9
+- ✅ **RHEL** 7, 8, 9
+- ✅ **Rocky Linux** 8, 9
+- ✅ **AlmaLinux** 8, 9
+- ✅ **Fedora** 35, 36, 37, 38+
+- ✅ **Arch Linux** & Manjaro
+- ✅ **OpenSUSE** Leap & Tumbleweed
+- ✅ **Alpine Linux** 3.15+
 
-# Get system statistics
-GET /api/external/stats
-```
+### What Gets Installed
+1. **Node.js 18.x** - Application runtime (with dependency conflict resolution)
+2. **Xray-core v24.9.30** - High-performance proxy engine
+3. **Nginx** - Reverse proxy with WebSocket support
+4. **Systemd Service** - Auto-start and process management
+5. **Firewall Rules** - Secure port configuration
+6. **SSL Certificate** - Automatic HTTPS setup (if domain provided)
+7. **Backup System** - Automated daily backups
 
-### Example API Usage
-```bash
-# Create a new user via API
-curl -X POST http://your-server:5000/api/external/users \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: your-api-key" \
-  -d '{
-    "username": "client1",
-    "password": "securepass",
-    "packageId": 2,
-    "dataLimit": 10737418240,
-    "validityDays": 30
-  }'
-```
+## 🎮 Default Access Credentials
 
-## 📦 Package Management
+After installation, access your panel with these default credentials:
 
-### Default Packages
+### Web Interface
+- **URL**: `http://your-server-ip` or `https://yourdomain.com`
+- **Admin Login**: `admin` / `admin123`
 
-| Package | Data Limit | Validity | Price | Connections | IPs |
-|---------|------------|----------|--------|-------------|-----|
-| Basic | 1GB | 30 days | $10.00 | 1 | 1 |
-| Premium | 10GB | 30 days | $50.00 | 5 | 3 |
-| Enterprise | 100GB | 90 days | $200.00 | 20 | 10 |
+### SOCKS5 Proxy
+- **Server**: `your-server-ip:1080`
+- **Username**: `testuser`
+- **Password**: `testpass`
 
-### Custom Package Creation
-Create unlimited custom packages through the admin panel with:
-- Custom data limits (GB/TB)
-- Flexible validity periods (days)
-- Competitive pricing tiers
-- Connection limits
-- IP assignment options
+> ⚠️ **Important**: Change default passwords immediately after installation!
 
-## 🛠️ Advanced Configuration
+## 📱 Management Commands
 
-### Custom Port Configuration
-```bash
-# Edit service file
-sudo systemctl edit xray-socks5
-
-# Add custom environment variables
-[Service]
-Environment=WEB_PORT=8080
-Environment=SOCKS_PORT=1080
-```
-
-### SSL Certificate Setup
-```bash
-# Manual SSL setup
-sudo certbot --nginx -d yourdomain.com
-
-# Auto-renewal
-sudo crontab -e
-# Add: 0 12 * * * /usr/bin/certbot renew --quiet
-```
-
-### Nginx Custom Configuration
-```bash
-# Edit Nginx config
-sudo nano /etc/nginx/sites-available/xray-socks5
-
-# Test and reload
-sudo nginx -t
-sudo systemctl reload nginx
-```
-
-## 🔒 Security Best Practices
-
-### Essential Security Steps
-1. **Change Default Credentials** - Update admin password immediately
-2. **Configure Firewall** - Limit access to necessary ports only
-3. **Enable SSL** - Use HTTPS for web interface
-4. **Regular Updates** - Keep system and dependencies updated
-5. **Monitor Logs** - Set up log monitoring and alerting
-6. **API Key Management** - Rotate API keys regularly
-7. **Backup Strategy** - Implement comprehensive backup plan
-
-### Recommended Firewall Rules
-```bash
-# UFW (Ubuntu/Debian)
-sudo ufw allow ssh
-sudo ufw allow 80/tcp
-sudo ufw allow 443/tcp
-sudo ufw allow 5000/tcp  # Web interface
-sudo ufw allow 1080/tcp  # SOCKS5 proxy
-sudo ufw enable
-
-# FirewallD (CentOS/RHEL/Fedora)
-sudo firewall-cmd --permanent --add-service=ssh
-sudo firewall-cmd --permanent --add-service=http
-sudo firewall-cmd --permanent --add-service=https
-sudo firewall-cmd --permanent --add-port=5000/tcp
-sudo firewall-cmd --permanent --add-port=1080/tcp
-sudo firewall-cmd --reload
-```
-
-## 🔧 Troubleshooting
-
-### Common Issues
-
-#### Service Won't Start
 ```bash
 # Check service status
 sudo systemctl status xray-socks5
 
-# Check logs
+# View real-time logs
 sudo journalctl -u xray-socks5 -f
 
-# Check port availability
-sudo netstat -tlnp | grep 5000
+# Restart the service
+sudo systemctl restart xray-socks5
+
+# Create manual backup
+sudo /opt/xray-socks5/backup.sh
+
+# View Nginx configuration
+sudo nano /etc/nginx/sites-available/xray-socks5
 ```
 
-#### Permission Issues
-```bash
-# Fix ownership
-sudo chown -R xray-socks5:xray-socks5 /opt/xray-socks5
+## 🔗 API Integration
 
-# Fix permissions
-sudo chmod +x /opt/xray-socks5/server/index.js
+Complete REST API for external integrations:
+
+```bash
+# Get all users
+curl -H "X-API-Key: your-api-key" http://your-server/api/external/users
+
+# Create new user
+curl -X POST -H "X-API-Key: your-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{"username":"newuser","password":"password123","dataLimit":10737418240}' \
+  http://your-server/api/external/users
+
+# Get system statistics
+curl -H "X-API-Key: your-api-key" http://your-server/api/external/stats
 ```
 
-#### Database Issues
+## 🏗️ Architecture Overview
+
+```
+┌─────────────────┐    ┌──────────────┐    ┌─────────────────┐
+│   Client Apps   │───▶│   Nginx      │───▶│  Socks5 Panel   │
+│  (Web Browser)  │    │ (Port 80/443)│    │   (Port 5000)   │
+└─────────────────┘    └──────────────┘    └─────────────────┘
+                                                    │
+┌─────────────────┐    ┌──────────────┐    ┌─────────────────┐
+│  SOCKS5 Client  │───▶│  Xray-core   │───▶│   SQLite DB     │
+│  (Applications) │    │ (Port 1080)  │    │   (Data Store)  │
+└─────────────────┘    └──────────────┘    └─────────────────┘
+```
+
+## 🛠️ Configuration Files
+
+- **Application**: `/opt/xray-socks5/`
+- **Service**: `/etc/systemd/system/xray-socks5.service`
+- **Nginx**: `/etc/nginx/sites-available/xray-socks5`
+- **Logs**: `/var/log/nginx/` and `journalctl -u xray-socks5`
+- **Backups**: `/opt/xray-socks5/backups/`
+
+## 🔒 Security Features
+
+- **JWT Authentication** - Secure session management
+- **bcryptjs Password Hashing** - Industry-standard encryption
+- **API Key Authentication** - External integration security
+- **Firewall Configuration** - Automated port security
+- **SSL/TLS Support** - HTTPS encryption
+- **Process Isolation** - Dedicated user and permissions
+- **Security Hardening** - Systemd security features
+
+## 📈 Monitoring & Analytics
+
+- **Real-time Connection Tracking** - Live user sessions
+- **Bandwidth Monitoring** - Upload/download statistics
+- **User Activity Logs** - Detailed access records
+- **System Performance** - CPU, memory, and network metrics
+- **Package Usage Tracking** - Data consumption by plan
+- **IP Pool Management** - Available and assigned addresses
+
+## 🆘 Troubleshooting
+
+### Installation Issues
 ```bash
-# Check database file
-ls -la /opt/xray-socks5/*.db
+# Check if all services are running
+sudo systemctl status xray-socks5 nginx
+
+# View installation logs
+sudo journalctl -u xray-socks5 --since today
+
+# Test Nginx configuration
+sudo nginx -t
+
+# Check firewall status
+sudo ufw status
+```
+
+### Connection Problems
+```bash
+# Test SOCKS5 proxy
+curl --socks5 your-server-ip:1080 --socks5-hostname your-server-ip:1080 http://httpbin.org/ip
+
+# Check if ports are open
+sudo netstat -tlnp | grep -E '(1080|5000|80|443)'
+
+# Restart all services
+sudo systemctl restart xray-socks5 nginx
+```
+
+### Log Locations
+- **Application Logs**: `sudo journalctl -u xray-socks5 -f`
+- **Nginx Access**: `sudo tail -f /var/log/nginx/access.log`
+- **Nginx Errors**: `sudo tail -f /var/log/nginx/error.log`
+- **System Logs**: `sudo dmesg | tail -20`
+
+## 🔄 Updates & Maintenance
+
+### Update to Latest Version
+```bash
+# Download latest installation script
+curl -fsSL https://raw.githubusercontent.com/fahim8401/SockProxyManagerPanel/MAIN/install-linux.sh -o install-linux.sh
+
+# Run update (preserves data)
+sudo bash install-linux.sh
+```
+
+### Manual Backup
+```bash
+# Create backup
+sudo /opt/xray-socks5/backup.sh
 
 # Restore from backup
-sudo /usr/local/bin/xray-socks5-backup
+sudo systemctl stop xray-socks5
+sudo tar -xzf /opt/xray-socks5/backups/backup_file.tar.gz -C /
+sudo systemctl start xray-socks5
 ```
 
-#### Network Issues
-```bash
-# Check firewall status
-sudo ufw status          # Ubuntu/Debian
-sudo firewall-cmd --list-all  # CentOS/RHEL
+## 🤝 Support & Community
 
-# Test connectivity
-curl http://localhost:5000
-telnet your-server-ip 1080
-```
-
-## 📚 Documentation
-
-### Architecture Overview
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Web Client    │───▶│   Nginx Proxy   │───▶│  Node.js App    │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-                                                      │
-                       ┌─────────────────┐           │
-                       │  Xray-core      │◀──────────┤
-                       │  SOCKS5 Proxy   │           │
-                       └─────────────────┘           │
-                                                      │
-                       ┌─────────────────┐           │
-                       │  SQLite DB      │◀──────────┘
-                       │  (WAL Mode)     │
-                       └─────────────────┘
-```
-
-### Database Schema
-- **admins** - Administrative user accounts
-- **packages** - Subscription package definitions
-- **proxy_users** - SOCKS5 proxy user accounts
-- **connections** - Active connection tracking
-- **ip_pool** - Available IP addresses
-- **api_keys** - External API authentication
-- **settings** - System configuration
-- **xray_configs** - Xray service configuration
-
-## 🤝 Support & Contributing
-
-### Getting Help
-- **Issues**: [GitHub Issues](https://github.com/fahim8401/SockProxyManagerPanel/issues)
-- **Documentation**: [Project Wiki](https://github.com/fahim8401/SockProxyManagerPanel/wiki)
-- **Discussions**: [GitHub Discussions](https://github.com/fahim8401/SockProxyManagerPanel/discussions)
-
-### Contributing
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
-
-### Development Setup
-```bash
-# Clone repository
-git clone https://github.com/fahim8401/SockProxyManagerPanel.git
-cd SockProxyManagerPanel
-
-# Install dependencies
-npm install
-
-# Start development server
-npm run dev
-```
-
-## 📝 Changelog
-
-### Version 2.0 (Latest)
-- ✅ Complete SAAS platform upgrade
-- ✅ Package-based user management system
-- ✅ IP selection options for users
-- ✅ Data limits and expiry management
-- ✅ External API integration
-- ✅ Database cleaning functionality
-- ✅ Speed test integration
-- ✅ Universal Linux compatibility
-- ✅ Production deployment ready
-
-### Version 1.0
-- ✅ Basic SOCKS5 proxy management
-- ✅ Web interface
-- ✅ User management
-- ✅ Xray-core integration
+- **Documentation**: [Complete API Documentation](API_DOCUMENTATION.md)
+- **GitHub Issues**: [Report Problems](https://github.com/fahim8401/SockProxyManagerPanel/issues)
+- **Feature Requests**: Open a GitHub issue with enhancement label
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-## 🙏 Acknowledgments
+## 🏢 Enterprise Features
 
-- **Xray-core** - High-performance proxy framework
-- **3x-ui** - Inspiration for management interface
-- **Express.js** - Web application framework
-- **SQLite** - Reliable database engine
-- **Contributors** - Thank you to all contributors
+- ✅ **Multi-tenant Architecture** - Separate user spaces
+- ✅ **Package-based Billing** - Flexible pricing plans
+- ✅ **External API Integration** - REST API for automation
+- ✅ **Real-time Analytics** - Comprehensive reporting
+- ✅ **IP Pool Management** - Dedicated IP assignment
+- ✅ **Automated Backups** - Data protection
+- ✅ **SSL/TLS Security** - Enterprise-grade encryption
+- ✅ **High Availability** - Production-ready deployment
 
 ---
 
-**© 2025 Xray SOCKS5 Management System - Production-Ready Commercial SAAS Platform**
+**Made by [fasthostbd.cloud](https://fasthostbd.cloud) | © 2025 All Rights Reserved**
 
-*Built with ❤️ for enterprise proxy management*
+> 🚀 **Ready to deploy?** Run the installation command and have your professional SOCKS5 management platform running in minutes!
