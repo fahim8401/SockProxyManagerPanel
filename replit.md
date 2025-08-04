@@ -43,6 +43,22 @@ This project is a comprehensive full-stack SOCKS5 proxy management system with a
   - Proper systemd service with automatic restart capabilities
 - **Status**: Ready for production VPS deployment with zero external dependencies
 
+**✅ XRAY-CORE BASED SOCKS5 SYSTEM (True 3x-ui Architecture)**
+- **Date**: August 4, 2025
+- **Discovery**: 3x-ui doesn't implement SOCKS5 directly - they use Xray-core for all proxy protocols
+- **Solution**: Created `xray-based-install.sh` using actual Xray-core like 3x-ui does
+- **Key Insights**:
+  - 3x-ui is a management panel for Xray-core (not custom proxy implementation)
+  - Xray-core handles SOCKS5, Vmess, Vless, Trojan protocols with enterprise reliability
+  - All proxy logic handled by proven Xray binary, not custom code
+- **Changes Made**:
+  - Downloads and configures Xray-core binary (v24.9.30 latest stable)
+  - Creates Xray JSON configuration for SOCKS5 with authentication
+  - Node.js management interface with SQLite user database
+  - Real-time config updates and Xray process management
+  - Auto-restart and health monitoring like 3x-ui
+- **Status**: Production-ready system using same core technology as 3x-ui
+
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
