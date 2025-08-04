@@ -497,6 +497,80 @@ export async function registerRoutes(app: express.Application): Promise<Server> 
     }
   });
 
+  // Get specific user by ID
+  app.get('/api/external/users/:id', authenticateApiKey, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      const user = await storage.getProxyUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+      
+      res.json({ ...user, password: undefined });
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to fetch user' });
+    }
+  });
+
+  // Update user by ID
+  app.put('/api/external/users/:id', authenticateApiKey, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      const updateData = req.body;
+      
+      // Handle validity days update
+      if (updateData.validityDays && typeof updateData.validityDays === 'number') {
+        const expiryDate = new Date(Date.now() + updateData.validityDays * 24 * 60 * 60 * 1000);
+        updateData.expiresAt = expiryDate;
+      }
+      
+      const updatedUser = await storage.updateProxyUser(userId, updateData);
+      res.json({ ...updatedUser, password: undefined });
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to update user' });
+    }
+  });
+
+  // Delete user by ID
+  app.delete('/api/external/users/:id', authenticateApiKey, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      const user = await storage.getProxyUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+      
+      await storage.deleteProxyUser(userId);
+      await xrayManager.removeUser(user.username);
+      
+      res.json({ message: 'User deleted successfully' });
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to delete user' });
+    }
+  });
+
+  // Get all packages
+  app.get('/api/external/packages', authenticateApiKey, async (req, res) => {
+    try {
+      const packages = await storage.getAllPackages();
+      res.json(packages);
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to fetch packages' });
+    }
+  });
+
+  // Get available IPs
+  app.get('/api/external/ip-pool', authenticateApiKey, async (req, res) => {
+    try {
+      const ips = await storage.getAvailableIps();
+      res.json(ips);
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to fetch IP pool' });
+    }
+  });
+
   app.get('/api/external/stats', authenticateApiKey, async (req, res) => {
     try {
       const users = await storage.getAllProxyUsers();
@@ -507,7 +581,12 @@ export async function registerRoutes(app: express.Application): Promise<Server> 
         totalUsers: users.length,
         activeUsers: activeUsers.length,
         totalConnections: connections.length,
-        xrayRunning: xrayManager.isRunning()
+        xrayRunning: xrayManager.isRunning(),
+        systemInfo: {
+          uptime: process.uptime(),
+          memoryUsage: process.memoryUsage(),
+          cpuUsage: process.cpuUsage()
+        }
       });
     } catch (error) {
       res.status(500).json({ message: 'Failed to fetch stats' });
