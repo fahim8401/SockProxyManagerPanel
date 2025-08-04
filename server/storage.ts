@@ -98,19 +98,29 @@ export class DatabaseStorage implements IStorage {
   async createAdmin(admin: InsertAdmin): Promise<Admin> {
     const hashedPassword = bcrypt.hashSync(admin.password, 10);
     const [newAdmin] = await db.insert(admins)
-      .values({ ...admin, password: hashedPassword })
+      .values({ 
+        username: admin.username,
+        password: hashedPassword,
+        role: admin.role || 'admin'
+      })
       .returning();
     return newAdmin;
   }
 
-  async updateAdmin(username: string, admin: Partial<InsertAdmin>): Promise<Admin> {
-    const updateData = { ...admin };
-    if (updateData.password) {
-      updateData.password = bcrypt.hashSync(updateData.password, 10);
+  async updateAdmin(username: string, adminData: Partial<InsertAdmin>): Promise<Admin> {
+    const updateData: any = {};
+    
+    if (adminData.password) {
+      updateData.password = bcrypt.hashSync(adminData.password, 10);
+    }
+    if (adminData.role) {
+      updateData.role = adminData.role;
     }
     
+    updateData.updatedAt = Math.floor(Date.now() / 1000);
+    
     const [updatedAdmin] = await db.update(admins)
-      .set({ ...updateData, updatedAt: new Date() })
+      .set(updateData)
       .where(eq(admins.username, username))
       .returning();
     return updatedAdmin;
@@ -149,9 +159,24 @@ export class DatabaseStorage implements IStorage {
     return newUser;
   }
 
-  async updateProxyUser(id: number, user: Partial<InsertProxyUser>): Promise<ProxyUser> {
+  async updateProxyUser(id: number, userData: Partial<InsertProxyUser>): Promise<ProxyUser> {
+    const updateData: any = {};
+    
+    if (userData.username) updateData.username = userData.username;
+    if (userData.password) updateData.password = userData.password;  
+    if (userData.packageId !== undefined) updateData.packageId = userData.packageId;
+    if (userData.selectedIpId !== undefined) updateData.selectedIpId = userData.selectedIpId;
+    if (userData.ipAddress) updateData.ipAddress = userData.ipAddress;
+    if (userData.port) updateData.port = userData.port;
+    if (userData.dataLimit !== undefined) updateData.dataLimit = userData.dataLimit;
+    if (userData.validityDays !== undefined) updateData.validityDays = userData.validityDays;
+    if (userData.isActive !== undefined) updateData.isActive = userData.isActive;
+    if (userData.expiresAt !== undefined) updateData.expiresAt = userData.expiresAt;
+    
+    updateData.updatedAt = Math.floor(Date.now() / 1000);
+    
     const [updatedUser] = await db.update(proxyUsers)
-      .set({ ...user, updatedAt: new Date() })
+      .set(updateData)
       .where(eq(proxyUsers.id, id))
       .returning();
     return updatedUser;
@@ -174,14 +199,28 @@ export class DatabaseStorage implements IStorage {
 
   async createConnection(connection: InsertConnection): Promise<Connection> {
     const [newConnection] = await db.insert(connections)
-      .values(connection)
+      .values({
+        userId: connection.userId,
+        clientIp: connection.clientIp,
+        targetHost: connection.targetHost,
+        targetPort: connection.targetPort,
+        bytesUp: connection.bytesUp || 0,
+        bytesDown: connection.bytesDown || 0
+      })
       .returning();
     return newConnection;
   }
 
-  async updateConnection(id: number, connection: Partial<InsertConnection>): Promise<Connection> {
+  async updateConnection(id: number, connectionData: Partial<InsertConnection>): Promise<Connection> {
+    const updateData: any = {};
+    
+    if (connectionData.targetHost) updateData.targetHost = connectionData.targetHost;
+    if (connectionData.targetPort) updateData.targetPort = connectionData.targetPort;
+    if (connectionData.bytesUp !== undefined) updateData.bytesUp = connectionData.bytesUp;
+    if (connectionData.bytesDown !== undefined) updateData.bytesDown = connectionData.bytesDown;
+    
     const [updatedConnection] = await db.update(connections)
-      .set(connection)
+      .set(updateData)
       .where(eq(connections.id, id))
       .returning();
     return updatedConnection;
@@ -190,8 +229,7 @@ export class DatabaseStorage implements IStorage {
   async closeConnection(id: number): Promise<boolean> {
     const result = await db.update(connections)
       .set({ 
-        isActive: false, 
-        disconnectedAt: new Date() 
+        disconnectedAt: Math.floor(Date.now() / 1000)
       })
       .where(eq(connections.id, id));
     return result.changes > 0;
@@ -248,13 +286,16 @@ export class DatabaseStorage implements IStorage {
 
   async saveXrayConfig(config: InsertXrayConfig): Promise<XrayConfig> {
     const [savedConfig] = await db.insert(xrayConfigs)
-      .values(config)
+      .values({
+        configName: config.configName,
+        configData: config.configData,
+        isActive: config.isActive || false
+      })
       .onConflictDoUpdate({
         target: xrayConfigs.configName,
         set: {
           configData: config.configData,
-          isActive: config.isActive,
-          updatedAt: new Date()
+          updatedAt: Math.floor(Date.now() / 1000)
         }
       })
       .returning();
@@ -278,7 +319,16 @@ export class DatabaseStorage implements IStorage {
 
   async createPackage(packageData: InsertPackage): Promise<Package> {
     const [newPackage] = await db.insert(packages)
-      .values(packageData)
+      .values({
+        name: packageData.name,
+        description: packageData.description,
+        dataLimit: packageData.dataLimit,
+        validityDays: packageData.validityDays,
+        price: packageData.price || 0,
+        maxConnections: packageData.maxConnections || 1,
+        allowedIpCount: packageData.allowedIpCount || 1,
+        isActive: packageData.isActive !== false
+      })
       .returning();
     return newPackage;
   }

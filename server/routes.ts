@@ -250,7 +250,7 @@ export async function registerRoutes(app: express.Application): Promise<Server> 
       const userData = insertProxyUserSchema.parse(req.body);
       
       // Check if username already exists
-      const existingUser = await storage.getProxyUserByUsername(userData.username);
+      const existingUser = await storage.getProxyUserByUsername(userData.username as string);
       if (existingUser) {
         return res.status(400).json({ message: 'Username already exists' });
       }
