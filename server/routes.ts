@@ -16,12 +16,44 @@ import { storage } from './storage';
 import { xrayManager } from './xray';
 import { 
   insertAdminSchema, 
+  insertPackageSchema,
   insertProxyUserSchema, 
   insertIpPoolSchema, 
-  insertSettingSchema 
+  insertSettingSchema,
+  insertApiKeySchema 
 } from '../shared/schema';
+import crypto from 'crypto';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'xray-socks5-management-secret';
+
+// API key authentication middleware
+export const authenticateApiKey = async (req: Request, res: Response, next: any) => {
+  const apiKey = req.headers['x-api-key'] as string;
+
+  if (!apiKey) {
+    return res.status(401).json({ message: 'API key required' });
+  }
+
+  try {
+    const keyRecord = await storage.getApiKey(apiKey);
+    if (!keyRecord || !keyRecord.isActive) {
+      return res.status(401).json({ message: 'Invalid or inactive API key' });
+    }
+
+    // Check expiry
+    if (keyRecord.expiresAt && new Date() > new Date(keyRecord.expiresAt)) {
+      return res.status(401).json({ message: 'API key expired' });
+    }
+
+    // Update last used (handled separately)
+    // await storage.updateApiKey(keyRecord.id, { lastUsed: new Date() });
+    
+    req.user = { apiKey: keyRecord, role: 'api' };
+    next();
+  } catch (error) {
+    return res.status(401).json({ message: 'Invalid API key' });
+  }
+};
 
 // Authentication middleware
 export const authenticate = async (req: Request, res: Response, next: any) => {
@@ -122,6 +154,51 @@ export async function registerRoutes(app: express.Application): Promise<Server> 
     }
   });
 
+  // Packages management
+  app.get('/api/packages', authenticate, async (req, res) => {
+    try {
+      const packages = await storage.getAllPackages();
+      res.json(packages);
+    } catch (error) {
+      console.error('Get packages error:', error);
+      res.status(500).json({ message: 'Failed to fetch packages' });
+    }
+  });
+
+  app.post('/api/packages', authenticate, async (req, res) => {
+    try {
+      const packageData = insertPackageSchema.parse(req.body);
+      const newPackage = await storage.createPackage(packageData);
+      res.json(newPackage);
+    } catch (error) {
+      console.error('Create package error:', error);
+      res.status(500).json({ message: 'Failed to create package' });
+    }
+  });
+
+  app.put('/api/packages/:id', authenticate, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const packageData = req.body;
+      const updatedPackage = await storage.updatePackage(id, packageData);
+      res.json(updatedPackage);
+    } catch (error) {
+      console.error('Update package error:', error);
+      res.status(500).json({ message: 'Failed to update package' });
+    }
+  });
+
+  app.delete('/api/packages/:id', authenticate, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deletePackage(id);
+      res.json({ message: 'Package deleted successfully' });
+    } catch (error) {
+      console.error('Delete package error:', error);
+      res.status(500).json({ message: 'Failed to delete package' });
+    }
+  });
+
   // Proxy users management
   app.get('/api/users', authenticate, async (req, res) => {
     try {
@@ -145,7 +222,27 @@ export async function registerRoutes(app: express.Application): Promise<Server> 
         return res.status(400).json({ message: 'Username already exists' });
       }
 
+      // Set expiry date based on validity days
+      if (userData.validityDays && typeof userData.validityDays === 'number') {
+        const expiryDate = new Date(Date.now() + userData.validityDays * 24 * 60 * 60 * 1000);
+        userData.expiresAt = expiryDate;
+      }
+
+      // If IP is selected, get the IP address
+      if (userData.selectedIpId && typeof userData.selectedIpId === 'number') {
+        const selectedIps = await storage.getAvailableIps();
+        const ip = selectedIps.find(ip => ip.id === userData.selectedIpId);
+        if (ip) {
+          userData.ipAddress = ip.ipAddress;
+        }
+      }
+
       const newUser = await storage.createProxyUser(userData);
+      
+      // Update IP assignment with actual user ID
+      if (userData.selectedIpId && typeof userData.selectedIpId === 'number') {
+        await storage.assignIpToUser(userData.selectedIpId, newUser.id);
+      }
       
       // Update Xray configuration
       await xrayManager.addUser(newUser.username, newUser.password);
@@ -301,6 +398,102 @@ export async function registerRoutes(app: express.Application): Promise<Server> 
     } catch (error) {
       console.error('Set setting error:', error);
       res.status(500).json({ message: 'Failed to set setting' });
+    }
+  });
+
+  // API keys management
+  app.get('/api/api-keys', authenticate, async (req, res) => {
+    try {
+      const apiKeys = await storage.getAllApiKeys();
+      // Don't send the actual API keys in response for security
+      const safeApiKeys = apiKeys.map(key => ({
+        ...key,
+        apiKey: key.apiKey.substring(0, 8) + '...' + key.apiKey.substring(key.apiKey.length - 4)
+      }));
+      res.json(safeApiKeys);
+    } catch (error) {
+      console.error('Get API keys error:', error);
+      res.status(500).json({ message: 'Failed to fetch API keys' });
+    }
+  });
+
+  app.post('/api/api-keys', authenticate, async (req, res) => {
+    try {
+      const { keyName, permissions, expiryDays } = req.body;
+      
+      // Generate secure API key
+      const apiKey = 'xray_' + crypto.randomBytes(32).toString('hex');
+      
+      const apiKeyData = {
+        keyName,
+        apiKey,
+        permissions: permissions || 'read',
+        isActive: true,
+        expiresAt: expiryDays ? new Date(Date.now() + expiryDays * 24 * 60 * 60 * 1000) : undefined
+      };
+
+      const newApiKey = await storage.createApiKey(apiKeyData);
+      res.json(newApiKey); // Return full key only on creation
+    } catch (error) {
+      console.error('Create API key error:', error);
+      res.status(500).json({ message: 'Failed to create API key' });
+    }
+  });
+
+  app.delete('/api/api-keys/:id', authenticate, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deleteApiKey(id);
+      res.json({ message: 'API key deleted successfully' });
+    } catch (error) {
+      console.error('Delete API key error:', error);
+      res.status(500).json({ message: 'Failed to delete API key' });
+    }
+  });
+
+  // External API endpoints (for API key access)
+  app.get('/api/external/users', authenticateApiKey, async (req, res) => {
+    try {
+      const users = await storage.getAllProxyUsers();
+      const safeUsers = users.map(user => ({ ...user, password: undefined }));
+      res.json(safeUsers);
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to fetch users' });
+    }
+  });
+
+  app.post('/api/external/users', authenticateApiKey, async (req, res) => {
+    try {
+      const userData = insertProxyUserSchema.parse(req.body);
+      
+      if (userData.validityDays && typeof userData.validityDays === 'number') {
+        const expiryDate = new Date(Date.now() + userData.validityDays * 24 * 60 * 60 * 1000);
+        userData.expiresAt = expiryDate;
+      }
+
+      const newUser = await storage.createProxyUser(userData);
+      await xrayManager.addUser(newUser.username, newUser.password);
+      
+      res.json({ ...newUser, password: undefined });
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to create user' });
+    }
+  });
+
+  app.get('/api/external/stats', authenticateApiKey, async (req, res) => {
+    try {
+      const users = await storage.getAllProxyUsers();
+      const activeUsers = await storage.getActiveProxyUsers();
+      const connections = await storage.getConnections();
+      
+      res.json({
+        totalUsers: users.length,
+        activeUsers: activeUsers.length,
+        totalConnections: connections.length,
+        xrayRunning: xrayManager.isRunning()
+      });
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to fetch stats' });
     }
   });
 

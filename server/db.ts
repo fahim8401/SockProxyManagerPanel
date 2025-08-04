@@ -24,15 +24,54 @@ export async function initializeDatabase() {
       })
       .onConflictDoNothing();
 
+    // Create default packages
+    await db.insert(schema.packages)
+      .values([
+        {
+          name: 'Basic',
+          description: '1GB data, 30 days validity',
+          dataLimit: 1073741824, // 1GB
+          validityDays: 30,
+          price: 10.0,
+          maxConnections: 1,
+          allowedIpCount: 1,
+          isActive: true
+        },
+        {
+          name: 'Premium',
+          description: '10GB data, 30 days validity, 3 IPs',
+          dataLimit: 10737418240, // 10GB
+          validityDays: 30,
+          price: 50.0,
+          maxConnections: 5,
+          allowedIpCount: 3,
+          isActive: true
+        },
+        {
+          name: 'Enterprise',
+          description: '100GB data, 90 days validity, unlimited IPs',
+          dataLimit: 107374182400, // 100GB
+          validityDays: 90,
+          price: 200.0,
+          maxConnections: 20,
+          allowedIpCount: 10,
+          isActive: true
+        }
+      ])
+      .onConflictDoNothing();
+
     // Create default SOCKS5 user
     await db.insert(schema.proxyUsers)
       .values({
         username: 'testuser',
         password: 'testpass',
+        packageId: 1,
         ipAddress: '0.0.0.0',
         port: 1080,
         dataLimit: 1073741824, // 1GB
-        isActive: true
+        validityDays: 30,
+        isActive: true,
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days from now
       })
       .onConflictDoNothing();
 

@@ -4,6 +4,8 @@
   "main": "update-schema.js",
   "dependencies": {
     "@neondatabase/serverless": "^1.0.1",
+    "@stripe/react-stripe-js": "^3.9.0",
+    "@stripe/stripe-js": "^7.8.0",
     "@types/bcryptjs": "^2.4.6",
     "@types/express": "^5.0.3",
     "@types/jsonwebtoken": "^9.0.10",
@@ -329,6 +331,7 @@
     "strip-ansi": "^7.1.0",
     "strip-ansi-cjs": "^6.0.1",
     "strip-json-comments": "^2.0.1",
+    "stripe": "^18.4.0",
     "sucrase": "^3.35.0",
     "supports-preserve-symlinks-flag": "^1.0.0",
     "tailwind-merge": "^2.6.0",

@@ -1,23 +1,29 @@
 import { db } from './db';
 import { 
   admins, 
+  packages,
   proxyUsers, 
   connections, 
   ipPool, 
   xrayConfigs, 
   settings,
+  apiKeys,
   type Admin,
+  type Package,
   type ProxyUser,
   type Connection,
   type IpPool,
   type XrayConfig,
   type Setting,
+  type ApiKey,
   type InsertAdmin,
+  type InsertPackage,
   type InsertProxyUser,
   type InsertConnection,
   type InsertIpPool,
   type InsertXrayConfig,
-  type InsertSetting
+  type InsertSetting,
+  type InsertApiKey
 } from '../shared/schema';
 import { eq, desc, and } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
@@ -28,6 +34,13 @@ export interface IStorage {
   createAdmin(admin: InsertAdmin): Promise<Admin>;
   updateAdmin(username: string, admin: Partial<InsertAdmin>): Promise<Admin>;
   deleteAdmin(username: string): Promise<boolean>;
+
+  // Package operations
+  getAllPackages(): Promise<Package[]>;
+  getPackage(id: number): Promise<Package | undefined>;
+  createPackage(packageData: InsertPackage): Promise<Package>;
+  updatePackage(id: number, packageData: Partial<InsertPackage>): Promise<Package>;
+  deletePackage(id: number): Promise<boolean>;
 
   // Proxy user operations
   getProxyUser(id: number): Promise<ProxyUser | undefined>;
@@ -63,6 +76,13 @@ export interface IStorage {
   getAllSettings(): Promise<Setting[]>;
   setSetting(setting: InsertSetting): Promise<Setting>;
   deleteSetting(key: string): Promise<boolean>;
+
+  // API key operations
+  getAllApiKeys(): Promise<ApiKey[]>;
+  getApiKey(apiKey: string): Promise<ApiKey | undefined>;
+  createApiKey(apiKey: InsertApiKey): Promise<ApiKey>;
+  updateApiKey(id: number, apiKey: Partial<InsertApiKey>): Promise<ApiKey>;
+  deleteApiKey(id: number): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -182,8 +202,7 @@ export class DatabaseStorage implements IStorage {
   async getAvailableIps(): Promise<IpPool[]> {
     return await db.select().from(ipPool)
       .where(and(
-        eq(ipPool.isActive, true),
-        eq(ipPool.assignedUserId, undefined)
+        eq(ipPool.isActive, true)
       ));
   }
 
@@ -244,6 +263,36 @@ export class DatabaseStorage implements IStorage {
     return result.changes > 0;
   }
 
+  // Package operations
+  async getAllPackages(): Promise<Package[]> {
+    return await db.select().from(packages).orderBy(desc(packages.createdAt));
+  }
+
+  async getPackage(id: number): Promise<Package | undefined> {
+    const [package_] = await db.select().from(packages).where(eq(packages.id, id));
+    return package_;
+  }
+
+  async createPackage(packageData: InsertPackage): Promise<Package> {
+    const [newPackage] = await db.insert(packages)
+      .values(packageData)
+      .returning();
+    return newPackage;
+  }
+
+  async updatePackage(id: number, packageData: Partial<InsertPackage>): Promise<Package> {
+    const [updatedPackage] = await db.update(packages)
+      .set({ ...packageData, updatedAt: new Date() })
+      .where(eq(packages.id, id))
+      .returning();
+    return updatedPackage;
+  }
+
+  async deletePackage(id: number): Promise<boolean> {
+    const result = await db.delete(packages).where(eq(packages.id, id));
+    return result.changes > 0;
+  }
+
   // Settings operations
   async getSetting(key: string): Promise<Setting | undefined> {
     const [setting] = await db.select().from(settings).where(eq(settings.key, key));
@@ -271,6 +320,36 @@ export class DatabaseStorage implements IStorage {
 
   async deleteSetting(key: string): Promise<boolean> {
     const result = await db.delete(settings).where(eq(settings.key, key));
+    return result.changes > 0;
+  }
+
+  // API key operations
+  async getAllApiKeys(): Promise<ApiKey[]> {
+    return await db.select().from(apiKeys).orderBy(desc(apiKeys.createdAt));
+  }
+
+  async getApiKey(apiKey: string): Promise<ApiKey | undefined> {
+    const [key] = await db.select().from(apiKeys).where(eq(apiKeys.apiKey, apiKey));
+    return key;
+  }
+
+  async createApiKey(apiKey: InsertApiKey): Promise<ApiKey> {
+    const [newApiKey] = await db.insert(apiKeys)
+      .values(apiKey)
+      .returning();
+    return newApiKey;
+  }
+
+  async updateApiKey(id: number, apiKey: Partial<InsertApiKey>): Promise<ApiKey> {
+    const [updatedApiKey] = await db.update(apiKeys)
+      .set(apiKey)
+      .where(eq(apiKeys.id, id))
+      .returning();
+    return updatedApiKey;
+  }
+
+  async deleteApiKey(id: number): Promise<boolean> {
+    const result = await db.delete(apiKeys).where(eq(apiKeys.id, id));
     return result.changes > 0;
   }
 }
