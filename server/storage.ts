@@ -83,6 +83,9 @@ export interface IStorage {
   createApiKey(apiKey: InsertApiKey): Promise<ApiKey>;
   updateApiKey(id: number, apiKey: Partial<InsertApiKey>): Promise<ApiKey>;
   deleteApiKey(id: number): Promise<boolean>;
+
+  // Database maintenance
+  cleanDatabase(): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -351,6 +354,47 @@ export class DatabaseStorage implements IStorage {
   async deleteApiKey(id: number): Promise<boolean> {
     const result = await db.delete(apiKeys).where(eq(apiKeys.id, id));
     return result.changes > 0;
+  }
+
+  // Database maintenance - Clean all data except admin credentials
+  async cleanDatabase(): Promise<void> {
+    console.log('🧹 Starting database cleanup (preserving admin credentials)...');
+    
+    try {
+      // Delete all user data in proper order to handle foreign key constraints
+      await db.delete(connections);
+      console.log('✅ Cleared connections table');
+      
+      await db.delete(proxyUsers);
+      console.log('✅ Cleared proxy users table');
+      
+      await db.delete(packages);
+      console.log('✅ Cleared packages table');
+      
+      await db.delete(ipPool);
+      console.log('✅ Cleared IP pool table');
+      
+      await db.delete(xrayConfigs);
+      console.log('✅ Cleared Xray configs table');
+      
+      await db.delete(apiKeys);
+      console.log('✅ Cleared API keys table');
+      
+      // Clear non-essential settings (keep core system settings)
+      await db.delete(settings).where(
+        and(
+          // Don't delete core system settings
+          eq(settings.key, 'user_cleanup_date')
+        )
+      );
+      console.log('✅ Cleared user-specific settings');
+      
+      console.log('🎉 Database cleanup completed successfully!');
+      console.log('🔐 Admin credentials preserved');
+    } catch (error) {
+      console.error('❌ Database cleanup failed:', error);
+      throw new Error('Failed to clean database: ' + (error as Error).message);
+    }
   }
 }
 

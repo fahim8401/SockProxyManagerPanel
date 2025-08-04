@@ -40,55 +40,56 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
-**✅ COMPLETE SAAS PLATFORM UPGRADE (Final Version)**
+**✅ FINAL PRODUCTION SAAS PLATFORM (Version 2.0)**
 - **Date**: August 4, 2025
-- **Scope**: Complete upgrade to full commercial SAAS platform
-- **Architecture**: Enterprise-grade proxy management with package-based billing
-- **Changes Made**:
-  - Added package management system with pricing tiers
-  - Built comprehensive admin panel with full CRUD operations
-  - Implemented IP selection options for users
-  - Added data limits and expiry day management
-  - Created external API system with secure key authentication
-  - Enhanced user management with package assignments
-  - Added analytics and reporting dashboard
-- **Key SAAS Features**:
-  - Package-based user management (Basic, Premium, Enterprise)
-  - IP pool selection during user creation
-  - Customizable data limits and validity periods
-  - External API endpoints for integration
-  - Secure API key generation and management
-  - Real-time analytics and system monitoring
-  - Complete admin dashboard with modern UI
-- **API Endpoints**:
-  - GET/POST /api/external/users (with API key auth)
-  - GET /api/external/stats
-  - Full admin API for packages, users, IPs
-- **Status**: Production-ready commercial SAAS platform with Ubuntu VPS deployment ready
+- **Scope**: Complete production-ready SAAS platform with universal Linux compatibility
+- **Major Updates**:
+  - **Removed "Default Package"** from General Settings as requested
+  - **Added Database Cleaning** feature that preserves admin credentials while clearing all user data
+  - **Integrated Speed Test** - Embedded openspeedtest.hplink.com.bd in Network Performance Monitor
+  - **Universal Linux Compatibility** - Created install-linux.sh for all Linux distributions
+  - **Comprehensive Documentation** - Complete README.md with installation and usage guides
+- **Enhanced Features**:
+  - Triple-confirmation database cleaning with safety warnings
+  - Real-time iframe speed testing integration
+  - Automated installation for Ubuntu, Debian, CentOS, RHEL, Fedora, Arch, Alpine, OpenSUSE
+  - Systemd service integration with security hardening
+  - Nginx reverse proxy with SSL/TLS support
+  - Automated backup system with 7-day retention
+  - Firewall configuration for all major Linux distributions
+- **Production Deployment**:
+  - Single-command installation: `curl -fsSL https://raw.githubusercontent.com/fahim8401/SockProxyManagerPanel/MAIN/install-linux.sh | sudo bash`
+  - Domain-based SSL setup support
+  - Professional service management with systemd
+  - Comprehensive security configuration
+- **Status**: Complete commercial SAAS platform ready for immediate production deployment on any Linux system
 
-## Ubuntu VPS Deployment
+## Universal Linux Deployment
 
-**✅ COMPLETE DEPLOYMENT PACKAGE READY**
+**✅ UNIVERSAL LINUX COMPATIBILITY ACHIEVED**
 - **Date**: August 4, 2025
-- **Deployment Method**: Automated Ubuntu VPS installation
-- **Package Includes**:
-  - Auto-installation script (`install-ubuntu.sh`)
-  - Complete deployment guide (`UBUNTU_VPS_INSTALLATION.md`)
-  - Systemd service configuration
-  - Nginx reverse proxy setup
+- **Deployment Method**: Automated installation for ALL Linux distributions
+- **Supported Distributions**:
+  - Ubuntu/Debian (apt package manager)
+  - CentOS/RHEL/Rocky/AlmaLinux (yum/dnf package manager)
+  - Fedora (dnf package manager)
+  - Arch/Manjaro (pacman package manager)
+  - OpenSUSE/SLES (zypper package manager)
+  - Alpine Linux (apk package manager)
+  - Generic Linux (automatic package manager detection)
+- **Installation Features**:
+  - Automatic distribution detection
+  - Package manager auto-selection
+  - Firewall configuration (UFW/firewalld)
   - SSL certificate automation with Certbot
-  - Firewall configuration (UFW)
-  - Performance optimizations
-  - Automated backup system
-  - Monitoring and maintenance scripts
-- **System Requirements**:
-  - Ubuntu 20.04+ VPS
-  - Minimum 1GB RAM, 1 CPU core, 20GB storage
-  - Root or sudo access
-  - Optional: Domain name for SSL
-- **Installation**: Single command deployment with `sudo ./install-ubuntu.sh`
-- **GitHub Integration**: Automatically downloads complete SAAS platform from https://github.com/fahim8401/SockProxyManagerPanel/archive/refs/heads/MAIN.zip
-- **Status**: Ready for immediate production deployment
+  - Systemd service with security hardening
+  - Nginx reverse proxy with WebSocket support
+  - Daily automated backups with retention
+  - Comprehensive error handling and logging
+- **Installation Methods**:
+  - Quick: `curl -fsSL https://raw.githubusercontent.com/fahim8401/SockProxyManagerPanel/MAIN/install-linux.sh | sudo bash`
+  - With Domain: `curl -fsSL ... | sudo bash -s yourdomain.com`
+- **Status**: Production-ready for ANY Linux distribution worldwide
 
 # External Dependencies
 

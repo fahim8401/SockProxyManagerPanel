@@ -51,6 +51,14 @@
           {
             "user": "testuser",
             "pass": "testpass"
+          },
+          {
+            "user": "1234",
+            "pass": "1234"
+          },
+          {
+            "user": "123",
+            "pass": "123"
           }
         ],
         "udp": true,

@@ -451,6 +451,23 @@ export async function registerRoutes(app: express.Application): Promise<Server> 
     }
   });
 
+  // Admin-only database cleaning endpoint
+  app.post('/api/admin/clean-database', authenticate, async (req, res) => {
+    try {
+      // Only allow admin users to clean database
+      if (req.user?.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      await storage.cleanDatabase();
+      
+      res.json({ message: 'Database cleaned successfully. All user data removed except admin credentials.' });
+    } catch (error) {
+      console.error('Clean database error:', error);
+      res.status(500).json({ message: 'Failed to clean database' });
+    }
+  });
+
   // External API endpoints (for API key access)
   app.get('/api/external/users', authenticateApiKey, async (req, res) => {
     try {
