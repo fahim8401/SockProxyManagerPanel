@@ -212,6 +212,39 @@ export async function registerRoutes(app: express.Application): Promise<Server> 
     }
   });
 
+  app.get('/api/users/:id', authenticate, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const user = await storage.getProxyUser(id);
+      
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      // Get user's package information if exists
+      let packageInfo: any = null;
+      if (user.packageId) {
+        try {
+          packageInfo = await storage.getPackage(user.packageId);
+        } catch (error) {
+          // Package might not exist, continue without it
+        }
+      }
+
+      // Don't send password in response
+      const safeUser = {
+        ...user,
+        password: undefined,
+        packageName: packageInfo?.name || null
+      };
+      
+      res.json(safeUser);
+    } catch (error) {
+      console.error('Get user error:', error);
+      res.status(500).json({ message: 'Failed to fetch user' });
+    }
+  });
+
   app.post('/api/users', authenticate, async (req, res) => {
     try {
       const userData = insertProxyUserSchema.parse(req.body);
