@@ -9,6 +9,10 @@
 
 set -e
 
+# Set timeout for operations to prevent hanging
+export DEBIAN_FRONTEND=noninteractive
+export APT_LISTCHANGES_FRONTEND=none
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -71,9 +75,34 @@ install_packages() {
     
     case $OS in
         ubuntu|debian)
+            # Ensure non-interactive mode
             export DEBIAN_FRONTEND=noninteractive
-            apt-get update -qq
-            apt-get install -y curl wget unzip nginx sqlite3 ufw certbot python3-certbot-nginx nodejs npm build-essential >/dev/null 2>&1
+            export APT_LISTCHANGES_FRONTEND=none
+            info "Updating package lists..."
+            timeout 120 apt-get update -qq || error "Failed to update package lists (timeout after 2 minutes)"
+            
+            info "Installing core packages..."
+            apt-get install -y -q curl wget unzip sqlite3 || error "Failed to install core packages"
+            
+            info "Installing web server packages..."
+            apt-get install -y -q nginx ufw || error "Failed to install nginx/ufw"
+            
+            info "Installing Node.js..."
+            # Try default nodejs first for faster installation
+            if ! apt-get install -y -q nodejs npm 2>/dev/null; then
+                info "Installing Node.js from NodeSource..."
+                curl -fsSL https://deb.nodesource.com/setup_18.x | timeout 60 bash - >/dev/null 2>&1 || {
+                    warning "NodeSource setup failed"
+                    error "Failed to install Node.js - please install manually"
+                }
+                apt-get install -y -q nodejs npm || error "Failed to install nodejs from NodeSource"
+            fi
+            
+            info "Installing SSL certificate tools..."
+            apt-get install -y -q certbot python3-certbot-nginx || warning "Certbot installation failed - SSL will need manual setup"
+            
+            info "Installing build tools..."
+            apt-get install -y -q build-essential || warning "Build tools installation failed"
             ;;
         centos|rhel|rocky|almalinux)
             if command -v dnf >/dev/null 2>&1; then
