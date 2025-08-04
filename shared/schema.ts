@@ -1,174 +1,133 @@
-import { sql } from "drizzle-orm";
+import { sql } from 'drizzle-orm';
 import {
+  integer,
   sqliteTable,
   text,
-  integer,
   real,
 } from "drizzle-orm/sqlite-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// Users table
-export const users = sqliteTable("users", {
-  id: text("id").primaryKey().default(sql`(hex(randomblob(16)))`),
+// Admin users table
+export const admins = sqliteTable("admins", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
-  email: text("email"),
-  ipAddress: text("ip_address"), // Optional - can be auto-assigned from pool
-  outboundIp: text("outbound_ip"), // The public IP this user's traffic will be routed through
-  port: integer("port").notNull(),
-  dataLimit: integer("data_limit").notNull(), // in bytes
-  dataUsed: integer("data_used").default(0),
-  daysValid: integer("days_valid"), // Optional - can calculate from expiresAt
-  createdAt: integer("created_at").default(sql`CURRENT_TIMESTAMP`),
-  expiresAt: integer("expires_at").notNull(),
-  isActive: integer("is_active", { mode: "boolean" }).default(true),
-  lastConnection: integer("last_connection"),
+  role: text("role").notNull().default("admin"),
+  createdAt: integer("created_at", { mode: 'timestamp' }).default(sql`(unixepoch())`),
+  updatedAt: integer("updated_at", { mode: 'timestamp' }).default(sql`(unixepoch())`),
 });
 
-// Connections table
-export const connections = sqliteTable("connections", {
-  id: text("id").primaryKey().default(sql`(hex(randomblob(16)))`),
-  userId: text("user_id").references(() => users.id).notNull(),
-  ipAddress: text("ip_address").notNull(),
-  startTime: integer("start_time").default(sql`CURRENT_TIMESTAMP`),
-  endTime: integer("end_time"),
-  bytesTransferred: integer("bytes_transferred").default(0),
-});
-
-// IP Pool table
-export const ipPool = sqliteTable("ip_pool", {
-  id: text("id").primaryKey().default(sql`(hex(randomblob(16)))`),
-  ipAddress: text("ip_address").notNull().unique(),
-  ipType: text("ip_type").notNull(), // 'IPv4' or 'IPv6'
-  isPublic: integer("is_public", { mode: "boolean" }).default(false), // Is this a public outbound IP?
-  isAvailable: integer("is_available", { mode: "boolean" }).default(true),
-  // Removed assignedUserId - multiple users can share the same IP
-});
-
-// Admin management table
-export const admins = sqliteTable("admins", {
-  id: text("id").primaryKey().default(sql`(hex(randomblob(16)))`),
-  username: text("username").unique().notNull(),
-  email: text("email").unique(),
+// SOCKS5 proxy users table
+export const proxyUsers = sqliteTable("proxy_users", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  username: text("username").notNull().unique(),
   password: text("password").notNull(),
-  role: text("role").notNull().default("admin"), // super_admin, admin, moderator, viewer
-  permissions: text("permissions").default("{}"), // JSON string for permissions
-  isActive: integer("is_active", { mode: "boolean" }).default(true),
-  lastLogin: integer("last_login"),
-  createdAt: integer("created_at").default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: integer("updated_at").default(sql`CURRENT_TIMESTAMP`),
-  createdBy: text("created_by"), // ID of admin who created this account
+  ipAddress: text("ip_address").notNull().default("0.0.0.0"),
+  port: integer("port").notNull().default(1080),
+  dataLimit: integer("data_limit").notNull().default(1073741824), // 1GB in bytes
+  dataUsed: integer("data_used").notNull().default(0),
+  isActive: integer("is_active", { mode: 'boolean' }).notNull().default(true),
+  createdAt: integer("created_at", { mode: 'timestamp' }).default(sql`(unixepoch())`),
+  updatedAt: integer("updated_at", { mode: 'timestamp' }).default(sql`(unixepoch())`),
+  expiresAt: integer("expires_at", { mode: 'timestamp' }),
 });
 
-// Product Packages table
-export const packages = sqliteTable("packages", {
-  id: text("id").primaryKey().default(sql`(hex(randomblob(16)))`),
-  name: text("name").notNull(),
-  description: text("description"),
-  dataLimitGB: integer("data_limit_gb").notNull(),
-  timeLimit: integer("time_limit").notNull(), // in days
-  maxConnections: integer("max_connections").default(1),
-  allowedIPs: text("allowed_ips"), // comma-separated
-  price: real("price"),
-  isActive: integer("is_active", { mode: "boolean" }).default(true),
-  createdAt: integer("created_at").default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: integer("updated_at").default(sql`CURRENT_TIMESTAMP`),
+// Connection logs table
+export const connections = sqliteTable("connections", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("user_id").notNull().references(() => proxyUsers.id, { onDelete: 'cascade' }),
+  clientIp: text("client_ip").notNull(),
+  targetHost: text("target_host"),
+  targetPort: integer("target_port"),
+  bytesUp: integer("bytes_up").notNull().default(0),
+  bytesDown: integer("bytes_down").notNull().default(0),
+  connectedAt: integer("connected_at", { mode: 'timestamp' }).default(sql`(unixepoch())`),
+  disconnectedAt: integer("disconnected_at", { mode: 'timestamp' }),
+  isActive: integer("is_active", { mode: 'boolean' }).notNull().default(true),
 });
 
-// Settings table for persisting system configuration
+// IP pool table for outbound routing
+export const ipPool = sqliteTable("ip_pool", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  ipAddress: text("ip_address").notNull().unique(),
+  isPublic: integer("is_public", { mode: 'boolean' }).notNull().default(true),
+  isActive: integer("is_active", { mode: 'boolean' }).notNull().default(true),
+  country: text("country"),
+  city: text("city"),
+  provider: text("provider"),
+  assignedUserId: integer("assigned_user_id").references(() => proxyUsers.id),
+  createdAt: integer("created_at", { mode: 'timestamp' }).default(sql`(unixepoch())`),
+});
+
+// Xray configuration table
+export const xrayConfigs = sqliteTable("xray_configs", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  configName: text("config_name").notNull().unique(),
+  configData: text("config_data").notNull(), // JSON string
+  isActive: integer("is_active", { mode: 'boolean' }).notNull().default(false),
+  createdAt: integer("created_at", { mode: 'timestamp' }).default(sql`(unixepoch())`),
+  updatedAt: integer("updated_at", { mode: 'timestamp' }).default(sql`(unixepoch())`),
+});
+
+// System settings table
 export const settings = sqliteTable("settings", {
-  id: text("id").primaryKey().default(sql`(hex(randomblob(16)))`),
-  category: text("category").notNull(), // server, security, firewall, etc.
-  key: text("key").notNull(),
-  value: text("value").notNull(), // JSON string
-  updatedAt: integer("updated_at").default(sql`CURRENT_TIMESTAMP`),
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  key: text("key").notNull().unique(),
+  value: text("value").notNull(),
+  description: text("description"),
+  updatedAt: integer("updated_at", { mode: 'timestamp' }).default(sql`(unixepoch())`),
 });
 
-// API Keys table
-export const apiKeys = sqliteTable("api_keys", {
-  id: text("id").primaryKey().default(sql`(hex(randomblob(16)))`),
-  name: text("name").notNull(),
-  keyHash: text("key_hash").notNull().unique(),
-  isActive: integer("is_active", { mode: "boolean" }).default(true),
-  usageCount: integer("usage_count").default(0),
-  lastUsed: integer("last_used"),
-  createdAt: integer("created_at").default(sql`CURRENT_TIMESTAMP`),
-  createdBy: text("created_by").notNull(),
-});
-
-// Schema validation
-export const insertUserSchema = createInsertSchema(users)
-  .omit({
-    id: true,
-    createdAt: true,
-    dataUsed: true,
-    lastConnection: true,
-    expiresAt: true, // Omit this so we can make it optional
-  })
-  .extend({
-    confirmPassword: z.string().optional(),
-    packageId: z.string().optional(),
-    expiresAt: z.number().optional(), // Optional - calculated from daysValid if not provided
-    // Make all network fields optional for auto-assignment
-    ipAddress: z.string().optional(),
-    outboundIp: z.string().optional(),
-    daysValid: z.number().optional(), // Optional since we calculate expiresAt
-    port: z.number().optional(), // Optional - auto-assigned if not provided
-  })
-  .refine((data) => !data.confirmPassword || data.password === data.confirmPassword, {
-    message: "Passwords don't match",
-    path: ["confirmPassword"],
-  });
-
-export const insertConnectionSchema = createInsertSchema(connections).omit({
-  id: true,
-  startTime: true,
-});
-
-export const insertIpPoolSchema = createInsertSchema(ipPool).omit({
-  id: true,
-});
-
-export const insertAdminSchema = createInsertSchema(admins)
-  .omit({
-    id: true,
-    createdAt: true,
-    updatedAt: true,
-    lastLogin: true,
-  })
-  .extend({
-    confirmPassword: z.string().min(6, "Password must be at least 6 characters"),
-  })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: "Passwords don't match",
-    path: ["confirmPassword"],
-  });
-
-export const insertPackageSchema = createInsertSchema(packages).omit({
+// Zod schemas for validation
+export const insertAdminSchema = createInsertSchema(admins).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
 });
 
-export const insertApiKeySchema = createInsertSchema(apiKeys).omit({
+export const insertProxyUserSchema = createInsertSchema(proxyUsers).omit({
   id: true,
-  keyHash: true,
-  usageCount: true,
-  lastUsed: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertConnectionSchema = createInsertSchema(connections).omit({
+  id: true,
+  connectedAt: true,
+});
+
+export const insertIpPoolSchema = createInsertSchema(ipPool).omit({
+  id: true,
   createdAt: true,
 });
 
+export const insertXrayConfigSchema = createInsertSchema(xrayConfigs).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertSettingSchema = createInsertSchema(settings).omit({
+  id: true,
+  updatedAt: true,
+});
+
 // Type exports
-export type User = typeof users.$inferSelect;
-export type InsertUser = z.infer<typeof insertUserSchema>;
-export type Connection = typeof connections.$inferSelect;
-export type InsertConnection = z.infer<typeof insertConnectionSchema>;
-export type IpPool = typeof ipPool.$inferSelect;
-export type InsertIpPool = z.infer<typeof insertIpPoolSchema>;
 export type Admin = typeof admins.$inferSelect;
 export type InsertAdmin = z.infer<typeof insertAdminSchema>;
-export type Package = typeof packages.$inferSelect;
-export type InsertPackage = z.infer<typeof insertPackageSchema>;
-export type ApiKey = typeof apiKeys.$inferSelect;
-export type InsertApiKey = z.infer<typeof insertApiKeySchema>;
+
+export type ProxyUser = typeof proxyUsers.$inferSelect;
+export type InsertProxyUser = z.infer<typeof insertProxyUserSchema>;
+
+export type Connection = typeof connections.$inferSelect;
+export type InsertConnection = z.infer<typeof insertConnectionSchema>;
+
+export type IpPool = typeof ipPool.$inferSelect;
+export type InsertIpPool = z.infer<typeof insertIpPoolSchema>;
+
+export type XrayConfig = typeof xrayConfigs.$inferSelect;
+export type InsertXrayConfig = z.infer<typeof insertXrayConfigSchema>;
+
+export type Setting = typeof settings.$inferSelect;
+export type InsertSetting = z.infer<typeof insertSettingSchema>;

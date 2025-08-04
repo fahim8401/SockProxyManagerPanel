@@ -1,108 +1,92 @@
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
-import * as schema from "@shared/schema";
+import * as schema from '../shared/schema';
+import { sql } from 'drizzle-orm';
+import bcrypt from 'bcryptjs';
 
-// Create SQLite database
-const sqlite = new Database('./database.sqlite');
-
-// Enable WAL mode for better performance
+const sqlite = new Database('xray-socks5.db');
 sqlite.pragma('journal_mode = WAL');
 
 export const db = drizzle(sqlite, { schema });
 
-// Initialize tables directly
-const initializeDatabase = () => {
+// Initialize database with default data
+export async function initializeDatabase() {
+  console.log('🔧 Initializing Xray SOCKS5 database...');
+  
   try {
-    // Create tables if they don't exist
-    sqlite.exec(`
-      CREATE TABLE IF NOT EXISTS users (
-        id TEXT PRIMARY KEY DEFAULT (hex(randomblob(16))),
-        username TEXT NOT NULL UNIQUE,
-        password TEXT NOT NULL,
-        email TEXT,
-        ip_address TEXT NOT NULL,
-        port INTEGER NOT NULL,
-        data_limit INTEGER NOT NULL,
-        data_used INTEGER DEFAULT 0,
-        days_valid INTEGER NOT NULL,
-        created_at INTEGER DEFAULT CURRENT_TIMESTAMP,
-        expires_at INTEGER NOT NULL,
-        is_active INTEGER DEFAULT 1,
-        last_connection INTEGER
-      );
+    // Create default admin user
+    const adminPassword = bcrypt.hashSync('admin123', 10);
+    await db.insert(schema.admins)
+      .values({
+        username: 'admin',
+        password: adminPassword,
+        role: 'admin'
+      })
+      .onConflictDoNothing();
 
-      CREATE TABLE IF NOT EXISTS connections (
-        id TEXT PRIMARY KEY DEFAULT (hex(randomblob(16))),
-        user_id TEXT NOT NULL REFERENCES users(id),
-        ip_address TEXT NOT NULL,
-        start_time INTEGER DEFAULT CURRENT_TIMESTAMP,
-        end_time INTEGER,
-        bytes_transferred INTEGER DEFAULT 0
-      );
+    // Create default SOCKS5 user
+    await db.insert(schema.proxyUsers)
+      .values({
+        username: 'testuser',
+        password: 'testpass',
+        ipAddress: '0.0.0.0',
+        port: 1080,
+        dataLimit: 1073741824, // 1GB
+        isActive: true
+      })
+      .onConflictDoNothing();
 
-      CREATE TABLE IF NOT EXISTS ip_pool (
-        id TEXT PRIMARY KEY DEFAULT (hex(randomblob(16))),
-        ip_address TEXT NOT NULL UNIQUE,
-        ip_type TEXT NOT NULL,
-        is_available INTEGER DEFAULT 1,
-        assigned_user_id TEXT REFERENCES users(id)
-      );
+    // Create default IP pool entries
+    await db.insert(schema.ipPool)
+      .values([
+        {
+          ipAddress: '103.7.4.182',
+          isPublic: true,
+          isActive: true,
+          country: 'US',
+          city: 'New York',
+          provider: 'VPS Provider'
+        },
+        {
+          ipAddress: '103.7.4.183',
+          isPublic: true,
+          isActive: true,
+          country: 'US',
+          city: 'New York',
+          provider: 'VPS Provider'
+        }
+      ])
+      .onConflictDoNothing();
 
-      CREATE TABLE IF NOT EXISTS admins (
-        id TEXT PRIMARY KEY DEFAULT (hex(randomblob(16))),
-        username TEXT UNIQUE NOT NULL,
-        email TEXT UNIQUE,
-        password TEXT NOT NULL,
-        role TEXT NOT NULL DEFAULT 'admin',
-        permissions TEXT DEFAULT '{}',
-        is_active INTEGER DEFAULT 1,
-        last_login INTEGER,
-        created_at INTEGER DEFAULT CURRENT_TIMESTAMP,
-        updated_at INTEGER DEFAULT CURRENT_TIMESTAMP,
-        created_by TEXT
-      );
-    `);
+    // Create default system settings
+    await db.insert(schema.settings)
+      .values([
+        {
+          key: 'xray_version',
+          value: 'v24.9.30',
+          description: 'Xray-core version'
+        },
+        {
+          key: 'socks_port',
+          value: '1080',
+          description: 'SOCKS5 proxy port'
+        },
+        {
+          key: 'web_port',
+          value: '5000',
+          description: 'Web management port'
+        },
+        {
+          key: 'max_connections',
+          value: '1000',
+          description: 'Maximum concurrent connections'
+        }
+      ])
+      .onConflictDoNothing();
 
-    // Insert default IP pool if empty
-    const ipCount = sqlite.prepare('SELECT COUNT(*) as count FROM ip_pool').get() as { count: number };
-    if (ipCount.count === 0) {
-      const insertIP = sqlite.prepare(`
-        INSERT INTO ip_pool (ip_address, ip_type, is_available) 
-        VALUES (?, ?, 1)
-      `);
-      
-      const defaultIPs = [
-        '192.168.1.100',
-        '192.168.1.101', 
-        '192.168.1.102',
-        '10.0.0.100',
-        '10.0.0.101',
-        '2001:db8::1'
-      ];
-
-      defaultIPs.forEach(ip => {
-        const ipType = ip.includes(':') ? 'IPv6' : 'IPv4';
-        insertIP.run(ip, ipType);
-      });
-      
-      console.log('✅ Initialized IP pool with 6 default addresses');
-    }
-
-    // Insert default admin if none exists
-    const adminCount = sqlite.prepare('SELECT COUNT(*) as count FROM admins').get() as { count: number };
-    if (adminCount.count === 0) {
-      sqlite.prepare(`
-        INSERT INTO admins (username, password, role, email) 
-        VALUES ('admin', 'admin123', 'super_admin', 'admin@localhost')
-      `).run();
-      console.log('✅ Created default admin account (admin/admin123)');
-    }
-
-    console.log('✅ SQLite database initialized successfully');
+    console.log('✅ Database initialized successfully');
   } catch (error) {
-    console.error('❌ Database initialization error:', error);
+    console.error('❌ Database initialization failed:', error);
+    throw error;
   }
-};
-
-// Initialize on startup
-initializeDatabase();
+}

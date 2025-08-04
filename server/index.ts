@@ -1,25 +1,21 @@
-import express, { type Request, Response, NextFunction } from "express";
-import { registerRoutes } from "./routes";
-import { setupVite, serveStatic, log } from "./vite";
+import express from 'express';
+import { join } from 'path';
+import { initializeDatabase } from './db';
+import { registerRoutes } from './routes';
+import { xrayManager } from './xray';
 
 const app = express();
+const PORT = process.env.PORT || 5000;
 
-// Trust proxy for reverse proxy/load balancer setup
-app.set('trust proxy', true);
+// Middleware
+app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
 
-// CORS configuration for custom domains
+// CORS for development
 app.use((req, res, next) => {
-  // Allow requests from any origin for your custom domain setup
-  const origin = req.headers.origin;
-  if (origin) {
-    res.header('Access-Control-Allow-Origin', origin);
-  } else {
-    res.header('Access-Control-Allow-Origin', '*');
-  }
-  
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-  res.header('Access-Control-Allow-Credentials', 'true');
   
   if (req.method === 'OPTIONS') {
     res.sendStatus(200);
@@ -28,72 +24,61 @@ app.use((req, res, next) => {
   }
 });
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+// Serve static files from client
+app.use(express.static(join(process.cwd(), 'client', 'dist')));
 
-app.use((req, res, next) => {
-  const start = Date.now();
-  const path = req.path;
-  let capturedJsonResponse: Record<string, any> | undefined = undefined;
-
-  const originalResJson = res.json;
-  res.json = function (bodyJson, ...args) {
-    capturedJsonResponse = bodyJson;
-    return originalResJson.apply(res, [bodyJson, ...args]);
-  };
-
-  res.on("finish", () => {
-    const duration = Date.now() - start;
-    if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
+async function startServer() {
+  try {
+    console.log('🚀 Starting Xray SOCKS5 Management System...');
+    
+    // Initialize database
+    await initializeDatabase();
+    
+    // Download and setup Xray if needed
+    await xrayManager.downloadXray();
+    
+    // Start Xray-core
+    await xrayManager.start();
+    
+    // Register routes
+    const server = await registerRoutes(app);
+    
+    // Serve React app for all other routes
+    app.get('*', (req, res) => {
+      res.sendFile(join(process.cwd(), 'client', 'dist', 'index.html'));
+    });
+    
+    // Start server
+    server.listen(Number(PORT), '0.0.0.0', () => {
+      console.log('✅ Server started successfully');
+      console.log(`🌐 Web interface: http://localhost:${PORT}`);
+      console.log(`🔗 SOCKS5 proxy: localhost:1080`);
+      console.log(`🔑 Default login: admin / admin123`);
+      console.log(`🔑 Default SOCKS5 user: testuser / testpass`);
+    }).on('error', (err: any) => {
+      if (err.code === 'EADDRINUSE') {
+        console.log(`❌ Port ${PORT} is already in use. Stopping conflicting process...`);
+        process.exit(1);
+      } else {
+        console.error('❌ Server error:', err);
+        process.exit(1);
       }
-
-      if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + "…";
-      }
-
-      log(logLine);
-    }
-  });
-
-  next();
-});
-
-(async () => {
-  const server = await registerRoutes(app);
-
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
-
-    res.status(status).json({ message });
-    throw err;
-  });
-
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
-  if (process.env.NODE_ENV === "development") {
-    await setupVite(app, server);
-  } else {
-    serveStatic(app);
+    });
+    
+    // Graceful shutdown
+    process.on('SIGTERM', async () => {
+      console.log('🛑 Shutting down gracefully...');
+      await xrayManager.stop();
+      server.close(() => {
+        console.log('✅ Server closed');
+        process.exit(0);
+      });
+    });
+    
+  } catch (error) {
+    console.error('❌ Server startup failed:', error);
+    process.exit(1);
   }
+}
 
-  // ALWAYS serve the app on the port specified in the environment variable PORT
-  // Other ports are firewalled. Default to 5000 if not specified.
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = parseInt(process.env.PORT || '5000', 10);
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
-    log(`serving on port ${port}`);
-    log(`SOCKS5 proxy available on port 1080`);
-    log(`Replit domain: ${process.env.REPLIT_DOMAINS}`);
-    log(`Custom domain access: http://103.7.4.183 (via reverse proxy)`);
-  });
-})();
+startServer();

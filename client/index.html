@@ -1,13 +1,609 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-    <!-- This is a replit script which adds a banner on the top of the page when opened in development mode outside the replit environment -->
-    <script type="text/javascript" src="https://replit.com/public/js/replit-dev-banner.js"></script>
-  </body>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Xray SOCKS5 Management</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .header { 
+            background: rgba(255,255,255,0.95); 
+            backdrop-filter: blur(10px);
+            padding: 30px; 
+            border-radius: 15px; 
+            margin-bottom: 25px; 
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        .card { 
+            background: rgba(255,255,255,0.95); 
+            backdrop-filter: blur(10px);
+            padding: 25px; 
+            border-radius: 15px; 
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1); 
+            margin-bottom: 25px;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: 600; color: #555; }
+        input, select { 
+            width: 100%; 
+            padding: 12px 16px; 
+            border: 2px solid #e1e5e9; 
+            border-radius: 8px; 
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+        input:focus, select:focus { 
+            outline: none; 
+            border-color: #667eea; 
+            box-shadow: 0 0 0 3px rgba(102,126,234,0.1);
+        }
+        button { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            color: white; 
+            padding: 12px 24px; 
+            border: none; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-weight: 600;
+            transition: transform 0.2s;
+        }
+        button:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(102,126,234,0.3); }
+        .btn-danger { 
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%); 
+        }
+        .btn-success { 
+            background: linear-gradient(135deg, #26de81 0%, #20bf6b 100%); 
+        }
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; }
+        .stat-card { 
+            text-align: center; 
+            padding: 20px;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            border-radius: 12px;
+        }
+        .stat-value { font-size: 2.5em; font-weight: bold; margin-bottom: 5px; }
+        .stat-label { font-size: 0.9em; opacity: 0.9; }
+        .table-container { overflow-x: auto; }
+        .users-table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-top: 15px;
+        }
+        .users-table th, .users-table td { 
+            padding: 15px 12px; 
+            text-align: left; 
+            border-bottom: 1px solid #e1e5e9; 
+        }
+        .users-table th { 
+            background: #f8f9fa; 
+            font-weight: 600;
+            color: #555;
+        }
+        .users-table tr:hover { background: #f8f9fa; }
+        .hidden { display: none; }
+        .error { color: #ff6b6b; margin-top: 10px; font-weight: 500; }
+        .success { color: #26de81; margin-top: 10px; font-weight: 500; }
+        .status-indicator { 
+            display: inline-block; 
+            width: 12px; 
+            height: 12px; 
+            border-radius: 50%; 
+            margin-left: 10px; 
+        }
+        .status-running { background: #26de81; box-shadow: 0 0 8px rgba(38,222,129,0.6); }
+        .status-stopped { background: #ff6b6b; box-shadow: 0 0 8px rgba(255,107,107,0.6); }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; }
+        .badge { 
+            padding: 4px 8px; 
+            border-radius: 12px; 
+            font-size: 0.85em; 
+            font-weight: 500;
+        }
+        .badge-active { background: #d4edda; color: #155724; }
+        .badge-inactive { background: #f8d7da; color: #721c24; }
+        h1 { color: #333; margin-bottom: 10px; }
+        h2 { color: #555; margin-bottom: 15px; }
+        h3 { color: #666; margin-bottom: 15px; }
+        .subtitle { color: #666; font-size: 1.1em; }
+        .xray-status {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid;
+        }
+        .xray-running {
+            background: #d4edda;
+            border-color: #26de81;
+            color: #155724;
+        }
+        .xray-stopped {
+            background: #f8d7da;
+            border-color: #ff6b6b;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Login Form -->
+        <div id="loginForm" class="card">
+            <h2>🔐 Xray SOCKS5 Management Login</h2>
+            <p class="subtitle">Enterprise-grade proxy management using Xray-core</p>
+            <br>
+            <form onsubmit="login(event)">
+                <div class="form-group">
+                    <label>Username:</label>
+                    <input type="text" id="username" value="admin" required>
+                </div>
+                <div class="form-group">
+                    <label>Password:</label>
+                    <input type="password" id="password" value="admin123" required>
+                </div>
+                <button type="submit">Login</button>
+                <div id="loginError" class="error"></div>
+            </form>
+        </div>
+
+        <!-- Admin Panel -->
+        <div id="adminPanel" class="hidden">
+            <div class="header">
+                <h1>🚀 Xray SOCKS5 Management System</h1>
+                <p class="subtitle">Production-ready proxy server powered by Xray-core (like 3x-ui)</p>
+                <button onclick="logout()" style="float: right;">Logout</button>
+            </div>
+
+            <!-- Xray Status -->
+            <div id="xrayStatus" class="xray-status">
+                <strong>Xray Core Status:</strong> <span id="xrayStatusText">Checking...</span>
+                <span id="xrayIndicator" class="status-indicator"></span>
+                <div style="margin-top: 10px;">
+                    <button onclick="controlXray('start')" class="btn-success">Start</button>
+                    <button onclick="controlXray('stop')" class="btn-danger">Stop</button>
+                    <button onclick="controlXray('restart')">Restart</button>
+                </div>
+            </div>
+
+            <!-- Stats -->
+            <div class="card">
+                <h3>📊 System Statistics</h3>
+                <div class="stats">
+                    <div class="stat-card">
+                        <div class="stat-value" id="totalUsers">0</div>
+                        <div class="stat-label">Total Users</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="activeUsers">0</div>
+                        <div class="stat-label">Active Users</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="activeConnections">0</div>
+                        <div class="stat-label">Active Connections</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="totalData">0 MB</div>
+                        <div class="stat-label">Data Transferred</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Add User -->
+            <div class="card">
+                <h3>➕ Add SOCKS5 User</h3>
+                <form onsubmit="addUser(event)">
+                    <div class="grid-3">
+                        <div class="form-group">
+                            <label>Username:</label>
+                            <input type="text" id="newUsername" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Password:</label>
+                            <input type="text" id="newPassword" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Data Limit (GB):</label>
+                            <input type="number" id="newDataLimit" value="1" min="0.1" step="0.1">
+                        </div>
+                    </div>
+                    <button type="submit">Add User & Update Xray</button>
+                    <div id="addUserMessage"></div>
+                </form>
+            </div>
+
+            <!-- Users List -->
+            <div class="card">
+                <h3>👥 SOCKS5 Users</h3>
+                <div class="table-container">
+                    <table class="users-table">
+                        <thead>
+                            <tr>
+                                <th>Username</th>
+                                <th>IP Address</th>
+                                <th>Data Used</th>
+                                <th>Data Limit</th>
+                                <th>Status</th>
+                                <th>Created</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersTableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- IP Pool -->
+            <div class="card">
+                <h3>🌐 IP Pool Management</h3>
+                <div style="margin-bottom: 20px;">
+                    <div class="grid-2">
+                        <div>
+                            <label>IP Address:</label>
+                            <input type="text" id="newIpAddress" placeholder="192.168.1.100">
+                        </div>
+                        <div>
+                            <label>Country:</label>
+                            <input type="text" id="newIpCountry" placeholder="US">
+                        </div>
+                    </div>
+                    <br>
+                    <button onclick="addIp()">Add IP to Pool</button>
+                </div>
+                <div class="table-container">
+                    <table class="users-table">
+                        <thead>
+                            <tr>
+                                <th>IP Address</th>
+                                <th>Country</th>
+                                <th>Status</th>
+                                <th>Assigned User</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ipPoolTableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- System Logs -->
+            <div class="card">
+                <h3>📋 System Information</h3>
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; font-family: monospace;">
+                    <div><strong>SOCKS5 Port:</strong> 1080</div>
+                    <div><strong>Management Port:</strong> 5000</div>
+                    <div><strong>Xray Version:</strong> v24.9.30</div>
+                    <div><strong>Architecture:</strong> <span id="systemArch">Unknown</span></div>
+                    <div><strong>Uptime:</strong> <span id="systemUptime">0h</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let authToken = localStorage.getItem('authToken');
+        let ws = null;
+        
+        if (authToken) {
+            document.getElementById('loginForm').classList.add('hidden');
+            document.getElementById('adminPanel').classList.remove('hidden');
+            loadDashboard();
+        }
+
+        // WebSocket connection for real-time updates
+        function connectWebSocket() {
+            const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+            const wsUrl = `${protocol}//${window.location.host}/ws`;
+            
+            ws = new WebSocket(wsUrl);
+            
+            ws.onopen = () => {
+                console.log('WebSocket connected');
+            };
+            
+            ws.onmessage = (event) => {
+                const message = JSON.parse(event.data);
+                if (message.type === 'stats') {
+                    updateXrayStatus(message.data);
+                }
+            };
+            
+            ws.onclose = () => {
+                console.log('WebSocket disconnected, reconnecting...');
+                setTimeout(connectWebSocket, 5000);
+            };
+        }
+
+        async function login(event) {
+            event.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    authToken = data.token;
+                    localStorage.setItem('authToken', authToken);
+                    document.getElementById('loginForm').classList.add('hidden');
+                    document.getElementById('adminPanel').classList.remove('hidden');
+                    loadDashboard();
+                } else {
+                    document.getElementById('loginError').textContent = data.message;
+                }
+            } catch (error) {
+                document.getElementById('loginError').textContent = 'Login failed: ' + error.message;
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('authToken');
+            if (ws) ws.close();
+            location.reload();
+        }
+
+        async function loadDashboard() {
+            await Promise.all([loadStats(), loadUsers(), loadIpPool(), checkXrayStatus()]);
+            connectWebSocket();
+            
+            // Auto-refresh every 10 seconds
+            setInterval(() => {
+                loadStats();
+                loadUsers();
+                loadIpPool();
+            }, 10000);
+        }
+
+        function updateXrayStatus(data) {
+            const statusEl = document.getElementById('xrayStatusText');
+            const indicatorEl = document.getElementById('xrayIndicator');
+            const containerEl = document.getElementById('xrayStatus');
+            
+            if (data.xrayRunning) {
+                statusEl.textContent = 'Running';
+                indicatorEl.className = 'status-indicator status-running';
+                containerEl.className = 'xray-status xray-running';
+            } else {
+                statusEl.textContent = 'Stopped';
+                indicatorEl.className = 'status-indicator status-stopped';
+                containerEl.className = 'xray-status xray-stopped';
+            }
+        }
+
+        async function checkXrayStatus() {
+            try {
+                const response = await fetch('/api/health');
+                const data = await response.json();
+                updateXrayStatus(data.xray);
+            } catch (error) {
+                console.error('Failed to check Xray status:', error);
+            }
+        }
+
+        async function controlXray(action) {
+            try {
+                const response = await fetch(`/api/xray/${action}`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                
+                if (response.ok) {
+                    setTimeout(checkXrayStatus, 2000);
+                } else {
+                    alert(`Failed to ${action} Xray`);
+                }
+            } catch (error) {
+                alert(`Error: ${error.message}`);
+            }
+        }
+
+        async function loadStats() {
+            try {
+                const response = await fetch('/api/stats', {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                
+                if (response.ok) {
+                    const stats = await response.json();
+                    document.getElementById('totalUsers').textContent = stats.totalUsers;
+                    document.getElementById('activeUsers').textContent = stats.activeUsers;
+                    document.getElementById('activeConnections').textContent = stats.activeConnections;
+                    document.getElementById('totalData').textContent = Math.round(stats.totalDataTransfer / 1024 / 1024) + ' MB';
+                    document.getElementById('systemUptime').textContent = Math.round(stats.uptime / 3600) + 'h';
+                }
+            } catch (error) {
+                console.error('Failed to load stats:', error);
+            }
+        }
+
+        async function loadUsers() {
+            try {
+                const response = await fetch('/api/users', {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                
+                if (response.ok) {
+                    const users = await response.json();
+                    const tbody = document.getElementById('usersTableBody');
+                    tbody.innerHTML = users.map(user => `
+                        <tr>
+                            <td><strong>${user.username}</strong></td>
+                            <td>${user.ipAddress}</td>
+                            <td>${Math.round(user.dataUsed / 1024 / 1024)} MB</td>
+                            <td>${Math.round(user.dataLimit / 1024 / 1024)} MB</td>
+                            <td><span class="badge ${user.isActive ? 'badge-active' : 'badge-inactive'}">${user.isActive ? 'Active' : 'Inactive'}</span></td>
+                            <td>${new Date(user.createdAt).toLocaleDateString()}</td>
+                            <td><button class="btn-danger" onclick="deleteUser(${user.id})">Delete</button></td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Failed to load users:', error);
+            }
+        }
+
+        async function loadIpPool() {
+            try {
+                const response = await fetch('/api/ip-pool', {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                
+                if (response.ok) {
+                    const ips = await response.json();
+                    const tbody = document.getElementById('ipPoolTableBody');
+                    tbody.innerHTML = ips.map(ip => `
+                        <tr>
+                            <td><strong>${ip.ipAddress}</strong></td>
+                            <td>${ip.country || 'Unknown'}</td>
+                            <td><span class="badge ${ip.isActive ? 'badge-active' : 'badge-inactive'}">${ip.isActive ? 'Active' : 'Inactive'}</span></td>
+                            <td>${ip.assignedUserId || 'Unassigned'}</td>
+                            <td><button class="btn-danger" onclick="deleteIp(${ip.id})">Delete</button></td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Failed to load IP pool:', error);
+            }
+        }
+
+        async function addUser(event) {
+            event.preventDefault();
+            const username = document.getElementById('newUsername').value;
+            const password = document.getElementById('newPassword').value;
+            const dataLimit = parseInt(document.getElementById('newDataLimit').value) * 1024 * 1024 * 1024;
+            
+            try {
+                const response = await fetch('/api/users', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({ 
+                        username, 
+                        password, 
+                        dataLimit,
+                        ipAddress: '0.0.0.0',
+                        port: 1080,
+                        isActive: true
+                    })
+                });
+                
+                const data = await response.json();
+                const messageEl = document.getElementById('addUserMessage');
+                
+                if (response.ok) {
+                    messageEl.className = 'success';
+                    messageEl.textContent = 'User added successfully! Xray configuration updated.';
+                    event.target.reset();
+                    setTimeout(() => {
+                        loadUsers();
+                        messageEl.textContent = '';
+                    }, 3000);
+                } else {
+                    messageEl.className = 'error';
+                    messageEl.textContent = data.message;
+                }
+            } catch (error) {
+                const messageEl = document.getElementById('addUserMessage');
+                messageEl.className = 'error';
+                messageEl.textContent = 'Failed to add user: ' + error.message;
+            }
+        }
+
+        async function deleteUser(id) {
+            if (!confirm('Delete this user? This will update Xray configuration.')) return;
+            
+            try {
+                const response = await fetch(`/api/users/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                
+                if (response.ok) {
+                    loadUsers();
+                    loadStats();
+                } else {
+                    alert('Failed to delete user');
+                }
+            } catch (error) {
+                alert('Failed to delete user: ' + error.message);
+            }
+        }
+
+        async function addIp() {
+            const ipAddress = document.getElementById('newIpAddress').value;
+            const country = document.getElementById('newIpCountry').value;
+            
+            if (!ipAddress) {
+                alert('Please enter an IP address');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/ip-pool', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({ 
+                        ipAddress,
+                        country,
+                        isPublic: true,
+                        isActive: true
+                    })
+                });
+                
+                if (response.ok) {
+                    document.getElementById('newIpAddress').value = '';
+                    document.getElementById('newIpCountry').value = '';
+                    loadIpPool();
+                } else {
+                    alert('Failed to add IP');
+                }
+            } catch (error) {
+                alert('Failed to add IP: ' + error.message);
+            }
+        }
+
+        async function deleteIp(id) {
+            if (!confirm('Delete this IP?')) return;
+            
+            try {
+                const response = await fetch(`/api/ip-pool/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                
+                if (response.ok) {
+                    loadIpPool();
+                } else {
+                    alert('Failed to delete IP');
+                }
+            } catch (error) {
+                alert('Failed to delete IP: ' + error.message);
+            }
+        }
+
+        // Detect system architecture
+        document.getElementById('systemArch').textContent = navigator.platform || 'Unknown';
+    </script>
+</body>
 </html>

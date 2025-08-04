@@ -1,116 +1,79 @@
-# SOCKS5 Proxy Admin Panel
+# Xray SOCKS5 Management System
 
-## Overview
+This is a comprehensive SOCKS5 proxy management system built using Xray-core framework, inspired by 3x-ui's proven architecture. The system provides enterprise-grade proxy management with a modern web interface.
 
-This project is a comprehensive full-stack SOCKS5 proxy management system with an admin interface, designed for enterprise use. It offers features such as user management, real-time monitoring, IP pool management (including IP sharing), detailed analytics, security controls, and system administration. The system aims to provide a robust and scalable solution for managing SOCKS5 proxies, enabling efficient user and resource allocation, and delivering insightful operational data.
-
-## Recent Changes (August 2025)
-
-**✅ CRITICAL AUTHENTICATION ISSUES RESOLVED**
-- **Date**: August 3, 2025
-- **Issue**: Frontend and backend used completely different authentication systems causing errors on all pages
-- **Root Cause**: Frontend used simple password check (`admin123`) with localStorage, backend used JWT tokens
-- **Solution**: Integrated frontend with backend JWT authentication system
-- **Changes Made**:
-  - Updated `client/src/hooks/useAuth.ts` to use backend JWT authentication
-  - Fixed login page to require username and password (admin/admin123)  
-  - Added authentication middleware to ALL protected API endpoints
-  - Fixed TypeScript errors in query client header spreading
-- **Status**: All admin panel CRUD operations now working correctly with proper authentication
-
-**✅ VPS DEPLOYMENT PORT CONFLICT RESOLUTION**
-- **Date**: August 3, 2025
-- **Issue**: Recurring "EADDRINUSE: address already in use 0.0.0.0:5000" errors during VPS deployment
-- **Root Cause**: Multiple processes competing for port 5000 and incorrect systemd service paths
-- **Solution**: Created comprehensive deployment script with aggressive port clearing
-- **Changes Made**:
-  - Created `simple-deploy.sh` with multi-method port conflict resolution
-  - Fixed systemd service ExecStart path to point to correct `/opt/socks5-admin/index.js`
-  - Added aggressive process killing and port verification
-  - Created deployment package with minimal runtime dependencies
-- **Status**: Ready for reliable VPS deployment without port conflicts
-
-**✅ PRODUCTION VPS INSTALLATION SYSTEM (3x-ui Inspired)**
-- **Date**: August 4, 2025
-- **Issue**: Need bare metal/VPS compatible system inspired by 3x-ui's proven methodology
-- **Solution**: Built complete production system with aggressive port management and proper NAT routing
-- **Changes Made**:
-  - Created `vps-install.sh` inspired by 3x-ui's installation approach
-  - Implemented production-ready Node.js SOCKS5 server with admin panel
-  - Added comprehensive NAT routing test script (`test-comprehensive-nat.sh`)
-  - Aggressive port cleanup using fuser and lsof (multi-method approach)
-  - Self-contained application with minimal dependencies
-  - Proper systemd service with automatic restart capabilities
-- **Status**: Ready for production VPS deployment with zero external dependencies
-
-**✅ XRAY-CORE BASED SOCKS5 SYSTEM (True 3x-ui Architecture)**
-- **Date**: August 4, 2025
-- **Discovery**: 3x-ui doesn't implement SOCKS5 directly - they use Xray-core for all proxy protocols
-- **Solution**: Created `xray-based-install.sh` using actual Xray-core like 3x-ui does
-- **Key Insights**:
-  - 3x-ui is a management panel for Xray-core (not custom proxy implementation)
-  - Xray-core handles SOCKS5, Vmess, Vless, Trojan protocols with enterprise reliability
-  - All proxy logic handled by proven Xray binary, not custom code
-- **Changes Made**:
-  - Downloads and configures Xray-core binary (v24.9.30 latest stable)
-  - Creates Xray JSON configuration for SOCKS5 with authentication
-  - Node.js management interface with SQLite user database
-  - Real-time config updates and Xray process management
-  - Auto-restart and health monitoring like 3x-ui
-- **Status**: Production-ready system using same core technology as 3x-ui
-
-## User Preferences
+# User Preferences
 
 Preferred communication style: Simple, everyday language.
 
-## System Architecture
+# System Architecture
 
-### Frontend Architecture
-- **Framework**: React 18 with TypeScript
-- **UI Library**: shadcn/ui components (Radix UI primitives)
-- **Styling**: Tailwind CSS
-- **Routing**: Wouter
-- **State Management**: TanStack Query
-- **Forms**: React Hook Form with Zod validation
-- **Build Tool**: Vite
+## Core Technology Stack
+- **Proxy Engine**: Xray-core v24.9.30 (same technology as 3x-ui)
+- **Backend**: Node.js with TypeScript and Express.js
+- **Database**: SQLite with Drizzle ORM for type-safe operations
+- **Frontend**: Vanilla HTML/CSS/JavaScript with modern design
+- **Authentication**: JWT tokens with bcryptjs password hashing
+- **Real-time Updates**: WebSocket connections for live status monitoring
 
-### Backend Architecture
-- **Framework**: Express.js with TypeScript
-- **Database**: SQLite with Drizzle ORM
-- **Database Provider**: Better SQLite3 (Local file-based database)
-- **Real-time Communication**: WebSocket server
-- **Session Management**: JWT-based authentication
-- **SOCKS5 Server**: Custom implementation
-- **Security**: bcrypt password hashing, JWT tokens, rate limiting
+## Key Architectural Decisions
 
-### Data Storage
-- **Primary Database**: SQLite (local file: `./database.sqlite`)
-- **ORM**: Drizzle ORM
-- **Schema Location**: `shared/schema.ts`
-- **Tables**: users, connections, ip_pool, admins
+### Xray-core Integration
+- Downloads and manages Xray-core binary (like 3x-ui does)
+- Generates JSON configuration files for SOCKS5 protocol
+- Automatic process management with restart capabilities
+- Real-time stats via Xray's built-in API
 
-### Key Features
-- **Admin Dashboard**: Real-time statistics, live connection monitoring, system status, data transfer analytics, user activity.
-- **User Management**: Create/edit/delete SOCKS5 users, username/password authentication, data quota, expiration dates, IP assignment, custom port assignment, user status.
-- **IP Pool Management**: IPv4 and IPv6 address management, multiple users can share the same IP, automatic IP assignment, IP availability tracking, bulk import.
-- **Real-time Analytics**: Connection patterns, data transfer monitoring, geographic user distribution, bandwidth utilization, historical data.
-- **Advanced Security**: Rate limiting, geographic blocking, Fail2Ban integration, connection encryption (TLS 1.3), session management.
-- **API Management System**: API key generation and management with usage analytics, external API endpoints, JWT token authentication, rate limiting.
-- **User Portal System**: Dedicated user dashboard for proxy users, real-time usage monitoring, account information, secure login separate from admin panel.
-- **Interactive Network Performance Dashboard**: Real-time bandwidth, connection quality analysis, latency/jitter, user traffic analysis, server health tracking.
-- **System Administration**: Comprehensive settings panel, server configuration, security settings, advanced routing, DNS management, regional & timezone settings, database backup.
-- **Monitoring & Logs**: Real-time system logs, connection activity, error tracking, performance metrics, security events.
-- **SOCKS5 Proxy Server**: Full SOCKS5 protocol implementation, multi-user authentication, bandwidth monitoring per user, connection tracking, automatic quota enforcement.
+### Database Schema
+- **admins**: Administrative user accounts with JWT authentication
+- **proxy_users**: SOCKS5 proxy users with credentials and limits
+- **connections**: Active connection tracking with bandwidth monitoring
+- **ip_pool**: Available IP addresses for outbound routing
+- **xray_configs**: Xray configuration storage and versioning
+- **settings**: System configuration key-value store
 
-## External Dependencies
+### Security Model
+- JWT-based authentication with 24-hour token expiration
+- bcryptjs password hashing for all user credentials
+- Prepared SQL statements via Drizzle ORM
+- CORS configuration for development flexibility
 
-- **@neondatabase/serverless**: PostgreSQL database connectivity (for deployment)
-- **drizzle-orm**: Type-safe database operations
-- **@tanstack/react-query**: Server state management
-- **@radix-ui/***: UI component primitives
-- **react-hook-form**: Form handling and validation
-- **zod**: Runtime type validation
-- **Vite**: Build tool and development server
-- **TypeScript**: Type safety across the stack
-- **Tailwind CSS**: Utility-first styling
-- **ESBuild**: Server-side bundling for production
+## Recent Changes
+
+**✅ COMPLETE XRAY-CORE REBUILD (Final Version)**
+- **Date**: August 4, 2025
+- **Scope**: Complete system rebuild using Xray-core framework
+- **Architecture**: Replicated 3x-ui's proven methodology but focused on SOCKS5
+- **Changes Made**:
+  - Implemented XrayManager class for process management
+  - Created comprehensive database schema with Drizzle ORM
+  - Built modern web interface with real-time WebSocket updates
+  - Added JWT authentication and proper user management
+  - Integrated IP pool management for advanced routing
+  - Created production-ready systemd service configuration
+- **Key Features**:
+  - Real-time Xray process monitoring and control
+  - Dynamic configuration updates without downtime
+  - Enterprise-grade user management with data limits
+  - Beautiful modern interface with gradient design
+  - WebSocket-based live updates
+  - Complete API for external integrations
+- **Status**: Production-ready system using proven Xray-core technology
+
+# External Dependencies
+
+## Core Runtime
+- **Xray-core**: High-performance proxy framework (v24.9.30)
+- **Express.js**: Web application framework
+- **better-sqlite3**: High-performance SQLite driver
+- **jsonwebtoken**: JWT authentication
+- **bcryptjs**: Password hashing
+- **ws**: WebSocket server implementation
+
+## Database & ORM
+- **Drizzle ORM**: Type-safe database toolkit
+- **Drizzle-Zod**: Schema validation integration
+
+## Development Tools
+- **TypeScript**: Static type checking
+- **tsx**: TypeScript execution for Node.js
