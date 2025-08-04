@@ -56,7 +56,7 @@ export class XrayManager {
     console.log('⚙️ Generating Xray configuration...');
     
     // Get active users from database
-    const users = await db.select().from(proxyUsers).where(eq(proxyUsers.isActive, true));
+    const users = await db.select().from(proxyUsers).where(eq(proxyUsers.isActive, 1));
     
     const config = {
       log: {
@@ -166,13 +166,13 @@ export class XrayManager {
       .values({
         configName: 'main',
         configData: JSON.stringify(config),
-        isActive: true
+        isActive: 1
       })
       .onConflictDoUpdate({
         target: xrayConfigs.configName,
         set: {
           configData: JSON.stringify(config),
-          updatedAt: new Date()
+          updatedAt: Math.floor(Date.now() / 1000)
         }
       });
 

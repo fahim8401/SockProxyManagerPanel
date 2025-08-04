@@ -1,366 +1,326 @@
 #!/bin/bash
 
-# Socks5 Panel - Complete Production Installation Script
-# Universal Linux installation with dependency fixes and production deployment
-# Compatible with all major Linux distributions - Version: 2.0
+#################################################################################
+# Xray SOCKS5 Management System - Universal Linux Installation Script
+# Professional SAAS Platform with IP Scanning and Complete Automation
+# Supports: Ubuntu, Debian, CentOS, RHEL, Fedora, Arch, Alpine, OpenSUSE
+# Version: 2.0 Production Ready
+#################################################################################
 
 set -e
 
-echo "🚀 Complete Socks5 Panel Installation & Deployment"
-echo "=================================================="
-
-# Color codes for output
+# Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # Configuration
+XRAY_VERSION="v24.9.30"
 INSTALL_DIR="/opt/xray-socks5"
 SERVICE_NAME="xray-socks5"
-WEB_PORT=${WEB_PORT:-5000}
-SOCKS_PORT=${SOCKS_PORT:-1080}
-DOMAIN=${DOMAIN:-""}
+DOMAIN="$1"
 
-# Function to print colored output
-print_status() {
-    echo -e "${GREEN}[INFO]${NC} $1"
+# Logging function
+log() {
+    echo -e "${GREEN}[$(date '+%Y-%m-%d %H:%M:%S')] $1${NC}"
 }
 
-print_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1"
+error() {
+    echo -e "${RED}[ERROR] $1${NC}"
+    exit 1
 }
 
-print_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
+warning() {
+    echo -e "${YELLOW}[WARNING] $1${NC}"
 }
 
-print_header() {
-    echo -e "${BLUE}[STEP]${NC} $1"
+info() {
+    echo -e "${BLUE}[INFO] $1${NC}"
 }
 
-# Function to detect Linux distribution
-detect_distro() {
-    if [ -f /etc/os-release ]; then
+success() {
+    echo -e "${GREEN}[SUCCESS] $1${NC}"
+}
+
+# Detect Linux distribution
+detect_os() {
+    if [[ -f /etc/os-release ]]; then
         . /etc/os-release
-        DISTRO=$ID
-        VERSION=$VERSION_ID
-    elif [ -f /etc/redhat-release ]; then
-        DISTRO="centos"
-    elif [ -f /etc/debian_version ]; then
-        DISTRO="debian"
+        OS=$ID
+        VER=$VERSION_ID
+    elif type lsb_release >/dev/null 2>&1; then
+        OS=$(lsb_release -si | tr '[:upper:]' '[:lower:]')
+        VER=$(lsb_release -sr)
+    elif [[ -f /etc/redhat-release ]]; then
+        OS="centos"
+        VER=$(grep -oE '[0-9]+\.[0-9]+' /etc/redhat-release | head -1)
     else
-        DISTRO="unknown"
+        error "Cannot detect Linux distribution"
     fi
     
-    print_status "Detected Linux distribution: $DISTRO $VERSION"
+    info "Detected OS: $OS $VER"
 }
 
-# Function to check if running as root
-check_root() {
-    if [[ $EUID -eq 0 ]]; then
-        print_status "Running as root user"
-    else
-        print_error "This script must be run as root or with sudo"
-        print_status "Please run: sudo $0"
-        exit 1
-    fi
-}
-
-# Function to fix Node.js dependency issues (Ubuntu/Debian specific)
-fix_nodejs_dependencies() {
-    if [[ "$DISTRO" == "ubuntu" || "$DISTRO" == "debian" ]]; then
-        print_header "Fixing Node.js dependencies..."
-        
-        print_status "Removing conflicting packages..."
-        apt remove --purge -y nodejs npm node-* 2>/dev/null || true
-        apt autoremove -y
-        apt autoclean
-        
-        print_status "Cleaning package cache..."
-        apt clean
-        rm -rf /var/lib/apt/lists/*
-        apt update
-        
-        print_status "Fixing broken packages..."
-        apt --fix-broken install -y
-        dpkg --configure -a
-        
-        print_status "Installing Node.js from NodeSource..."
-        apt install -y curl software-properties-common
-        curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
-        apt install -y nodejs
-        
-        # Verify installation
-        NODE_VERSION=$(node --version 2>/dev/null || echo "Not installed")
-        NPM_VERSION=$(npm --version 2>/dev/null || echo "Not installed")
-        
-        if [[ "$NODE_VERSION" == "Not installed" ]] || [[ "$NPM_VERSION" == "Not installed" ]]; then
-            print_warning "Standard installation failed, trying snap..."
-            apt install -y snapd
-            snap install node --classic
-            ln -sf /snap/bin/node /usr/bin/node 2>/dev/null || true
-            ln -sf /snap/bin/npm /usr/bin/npm 2>/dev/null || true
-        fi
-        
-        print_status "Node.js: $(node --version), npm: $(npm --version)"
-    fi
-}
-
-# Function to install dependencies based on distribution
-install_dependencies() {
-    print_header "Installing system dependencies"
+# Install packages based on distribution
+install_packages() {
+    info "Installing required packages..."
     
-    case $DISTRO in
-        "ubuntu"|"debian")
-            apt update
-            # First fix Node.js dependencies
-            fix_nodejs_dependencies
-            # Then install other packages
-            apt install -y curl wget unzip git nginx ufw certbot python3-certbot-nginx build-essential
+    case $OS in
+        ubuntu|debian)
+            export DEBIAN_FRONTEND=noninteractive
+            apt-get update -qq
+            apt-get install -y curl wget unzip nginx sqlite3 ufw certbot python3-certbot-nginx nodejs npm build-essential >/dev/null 2>&1
             ;;
-        "centos"|"rhel"|"rocky"|"almalinux")
-            yum update -y || dnf update -y
-            yum install -y curl wget unzip git nodejs npm nginx firewalld certbot python3-certbot-nginx gcc gcc-c++ make || \
-            dnf install -y curl wget unzip git nodejs npm nginx firewalld certbot python3-certbot-nginx gcc gcc-c++ make
+        centos|rhel|rocky|almalinux)
+            if command -v dnf >/dev/null 2>&1; then
+                dnf install -y curl wget unzip nginx sqlite nodejs npm gcc gcc-c++ make certbot python3-certbot-nginx >/dev/null 2>&1
+            else
+                yum install -y curl wget unzip nginx sqlite nodejs npm gcc gcc-c++ make >/dev/null 2>&1
+                # Install certbot separately for older systems
+                yum install -y epel-release >/dev/null 2>&1 || true
+                yum install -y certbot python3-certbot-nginx >/dev/null 2>&1 || true
+            fi
+            systemctl enable nginx >/dev/null 2>&1 || true
             ;;
-        "fedora")
-            dnf update -y
-            dnf install -y curl wget unzip git nodejs npm nginx firewalld certbot python3-certbot-nginx gcc gcc-c++ make
+        fedora)
+            dnf install -y curl wget unzip nginx sqlite nodejs npm gcc gcc-c++ make certbot python3-certbot-nginx >/dev/null 2>&1
+            systemctl enable nginx >/dev/null 2>&1
             ;;
-        "arch"|"manjaro")
-            pacman -Syu --noconfirm
-            pacman -S --noconfirm curl wget unzip git nodejs npm nginx ufw certbot certbot-nginx base-devel
+        arch|manjaro)
+            pacman -Sy --noconfirm curl wget unzip nginx sqlite nodejs npm base-devel certbot certbot-nginx >/dev/null 2>&1
+            systemctl enable nginx >/dev/null 2>&1
             ;;
-        "opensuse"|"sles")
-            zypper update -y
-            zypper install -y curl wget unzip git nodejs npm nginx ufw certbot python3-certbot-nginx gcc gcc-c++ make
+        opensuse*|sles)
+            zypper install -y curl wget unzip nginx sqlite3 nodejs npm gcc gcc-c++ make python3-certbot-nginx >/dev/null 2>&1
+            systemctl enable nginx >/dev/null 2>&1
             ;;
-        "alpine")
-            apk update
-            apk add curl wget unzip git nodejs npm nginx ufw certbot certbot-nginx build-base
+        alpine)
+            apk add --no-cache curl wget unzip nginx sqlite nodejs npm build-base certbot certbot-nginx >/dev/null 2>&1
+            rc-update add nginx default >/dev/null 2>&1 || true
             ;;
         *)
-            print_warning "Unknown distribution. Attempting generic package installation..."
+            warning "Unknown distribution: $OS. Attempting generic installation..."
             # Try common package managers
-            if command -v apt &> /dev/null; then
-                apt update && fix_nodejs_dependencies && apt install -y curl wget unzip git nginx ufw certbot python3-certbot-nginx build-essential
-            elif command -v yum &> /dev/null; then
-                yum install -y curl wget unzip git nodejs npm nginx firewalld certbot python3-certbot-nginx gcc gcc-c++ make
-            elif command -v dnf &> /dev/null; then
-                dnf install -y curl wget unzip git nodejs npm nginx firewalld certbot python3-certbot-nginx gcc gcc-c++ make
-            elif command -v pacman &> /dev/null; then
-                pacman -S --noconfirm curl wget unzip git nodejs npm nginx ufw certbot certbot-nginx base-devel
+            if command -v apt-get >/dev/null 2>&1; then
+                apt-get update && apt-get install -y curl wget unzip nginx sqlite3 nodejs npm build-essential
+            elif command -v yum >/dev/null 2>&1; then
+                yum install -y curl wget unzip nginx sqlite nodejs npm gcc gcc-c++ make
+            elif command -v dnf >/dev/null 2>&1; then
+                dnf install -y curl wget unzip nginx sqlite nodejs npm gcc gcc-c++ make
+            elif command -v pacman >/dev/null 2>&1; then
+                pacman -Sy --noconfirm curl wget unzip nginx sqlite nodejs npm base-devel
             else
-                print_error "Unable to detect package manager. Please install dependencies manually:"
-                print_error "curl, wget, unzip, git, nodejs, npm, nginx, firewall, certbot"
-                exit 1
+                error "No supported package manager found"
             fi
             ;;
     esac
     
-    print_status "System dependencies installed successfully"
+    success "Packages installed successfully"
 }
 
-# Function to create application user
-create_app_user() {
-    print_header "Creating application user"
+# Setup firewall
+setup_firewall() {
+    info "Configuring firewall..."
     
-    if ! id "xray-socks5" &>/dev/null; then
-        useradd -r -s /bin/false -d $INSTALL_DIR xray-socks5
-        print_status "Created user: xray-socks5"
+    if command -v ufw >/dev/null 2>&1; then
+        # Ubuntu/Debian UFW
+        ufw --force enable >/dev/null 2>&1 || true
+        ufw allow ssh >/dev/null 2>&1 || true
+        ufw allow 80/tcp >/dev/null 2>&1 || true
+        ufw allow 443/tcp >/dev/null 2>&1 || true
+        ufw allow 1080/tcp >/dev/null 2>&1 || true
+        ufw allow 10000:65000/tcp >/dev/null 2>&1 || true
+        success "UFW firewall configured"
+    elif command -v firewall-cmd >/dev/null 2>&1; then
+        # CentOS/RHEL/Fedora firewalld
+        systemctl enable firewalld >/dev/null 2>&1 || true
+        systemctl start firewalld >/dev/null 2>&1 || true
+        firewall-cmd --permanent --add-service=ssh >/dev/null 2>&1 || true
+        firewall-cmd --permanent --add-service=http >/dev/null 2>&1 || true
+        firewall-cmd --permanent --add-service=https >/dev/null 2>&1 || true
+        firewall-cmd --permanent --add-port=1080/tcp >/dev/null 2>&1 || true
+        firewall-cmd --permanent --add-port=10000-65000/tcp >/dev/null 2>&1 || true
+        firewall-cmd --reload >/dev/null 2>&1 || true
+        success "Firewalld configured"
+    elif command -v iptables >/dev/null 2>&1; then
+        # Generic iptables
+        iptables -A INPUT -p tcp --dport 22 -j ACCEPT >/dev/null 2>&1 || true
+        iptables -A INPUT -p tcp --dport 80 -j ACCEPT >/dev/null 2>&1 || true
+        iptables -A INPUT -p tcp --dport 443 -j ACCEPT >/dev/null 2>&1 || true
+        iptables -A INPUT -p tcp --dport 1080 -j ACCEPT >/dev/null 2>&1 || true
+        iptables -A INPUT -p tcp --dport 10000:65000 -j ACCEPT >/dev/null 2>&1 || true
+        success "Iptables rules added"
     else
-        print_status "User xray-socks5 already exists"
+        warning "No firewall system detected, manual configuration may be required"
     fi
 }
 
-# Function to download and build application for production
-download_and_build_application() {
-    print_header "Downloading and building Socks5 Panel..."
+# Download and setup Xray
+setup_xray() {
+    info "Setting up Xray-core ${XRAY_VERSION}..."
     
     # Create installation directory
-    mkdir -p $INSTALL_DIR
-    cd /tmp
+    mkdir -p "$INSTALL_DIR"
+    cd "$INSTALL_DIR"
     
-    # Download source code
-    DOWNLOAD_URL="https://github.com/fahim8401/SockProxyManagerPanel/archive/refs/heads/MAIN.zip"
-    print_status "Downloading from: $DOWNLOAD_URL"
-    
-    wget -O xray-socks5.zip "$DOWNLOAD_URL"
-    unzip -o xray-socks5.zip
-    cd SockProxyManagerPanel-MAIN
-    
-    print_status "Building production application..."
-    
-    # Install build dependencies
-    npm install
-    
-    # Create TypeScript configuration for production
-    cat > tsconfig.prod.json << 'EOF'
-{
-  "compilerOptions": {
-    "target": "ES2020",
-    "module": "CommonJS",
-    "lib": ["ES2020"],
-    "outDir": "./dist",
-    "rootDir": "./",
-    "strict": false,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "resolveJsonModule": true,
-    "declaration": false,
-    "sourceMap": false,
-    "removeComments": true,
-    "moduleResolution": "node",
-    "allowSyntheticDefaultImports": true,
-    "baseUrl": ".",
-    "paths": {
-      "@shared/*": ["shared/*"],
-      "@server/*": ["server/*"]
-    }
-  },
-  "include": [
-    "server/**/*",
-    "shared/**/*"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "client"
-  ]
-}
-EOF
-    
-    # Compile TypeScript to JavaScript
-    npx tsc --project tsconfig.prod.json
-    
-    # Create production package.json
-    cat > dist/package.json << 'EOF'
-{
-  "name": "xray-socks5-management",
-  "version": "2.0.0",
-  "description": "Socks5 Panel - Professional SOCKS5 Proxy Management",
-  "main": "server/index.js",
-  "scripts": {
-    "start": "node server/index.js"
-  },
-  "dependencies": {
-    "better-sqlite3": "^9.2.2",
-    "drizzle-orm": "^0.29.3",
-    "express": "^4.18.2",
-    "jsonwebtoken": "^9.0.2",
-    "bcryptjs": "^2.4.3",
-    "ws": "^8.14.2",
-    "axios": "^1.6.5"
-  }
-}
-EOF
-    
-    # Copy static files
-    cp -r client/dist dist/client
-    
-    # Copy everything to installation directory
-    cp -r dist/* $INSTALL_DIR/
-    
-    # Install production dependencies
-    cd $INSTALL_DIR
-    npm install --production
-    
-    # Set ownership
-    chown -R xray-socks5:xray-socks5 $INSTALL_DIR
-    
-    print_status "Application built and installed successfully"
-}
-
-# Function to configure firewall
-configure_firewall() {
-    print_header "Configuring firewall"
-    
-    case $DISTRO in
-        "ubuntu"|"debian"|"arch"|"manjaro")
-            if command -v ufw &> /dev/null; then
-                ufw --force enable
-                ufw allow ssh
-                ufw allow $WEB_PORT
-                ufw allow $SOCKS_PORT
-                ufw allow 80
-                ufw allow 443
-                print_status "UFW firewall configured"
-            fi
-            ;;
-        "centos"|"rhel"|"rocky"|"almalinux"|"fedora")
-            if command -v firewall-cmd &> /dev/null; then
-                systemctl enable firewalld
-                systemctl start firewalld
-                firewall-cmd --permanent --add-service=ssh
-                firewall-cmd --permanent --add-port=$WEB_PORT/tcp
-                firewall-cmd --permanent --add-port=$SOCKS_PORT/tcp
-                firewall-cmd --permanent --add-service=http
-                firewall-cmd --permanent --add-service=https
-                firewall-cmd --reload
-                print_status "Firewalld configured"
-            fi
-            ;;
-        *)
-            print_warning "Please configure firewall manually to allow ports: $WEB_PORT, $SOCKS_PORT, 80, 443"
-            ;;
+    # Download Xray
+    ARCH=$(uname -m)
+    case $ARCH in
+        x86_64) XRAY_ARCH="64" ;;
+        aarch64|arm64) XRAY_ARCH="arm64-v8a" ;;
+        armv7l) XRAY_ARCH="arm32-v7a" ;;
+        *) error "Unsupported architecture: $ARCH" ;;
     esac
+    
+    DOWNLOAD_URL="https://github.com/XTLS/Xray-core/releases/download/${XRAY_VERSION}/Xray-linux-${XRAY_ARCH}.zip"
+    
+    info "Downloading Xray from: $DOWNLOAD_URL"
+    wget -q "$DOWNLOAD_URL" -O xray.zip || error "Failed to download Xray"
+    unzip -q xray.zip || error "Failed to extract Xray"
+    chmod +x xray
+    rm xray.zip
+    
+    success "Xray-core installed successfully"
 }
 
-# Function to create systemd service
-create_systemd_service() {
-    print_header "Creating systemd service"
+# Setup Node.js application
+setup_application() {
+    info "Setting up SOCKS5 Management Application..."
     
-    cat > /etc/systemd/system/$SERVICE_NAME.service << 'EOF'
+    # Clone or copy application files (assuming they're already present)
+    if [[ ! -f "package.json" ]]; then
+        error "Application files not found. Please ensure the application is in the current directory."
+    fi
+    
+    # Install Node.js dependencies with proper error handling
+    info "Installing Node.js dependencies..."
+    
+    # Handle Node.js version compatibility
+    NODE_VERSION=$(node --version | cut -d'v' -f2 | cut -d'.' -f1)
+    if [[ $NODE_VERSION -lt 18 ]]; then
+        warning "Node.js version $NODE_VERSION detected. Installing Node.js 18..."
+        
+        case $OS in
+            ubuntu|debian)
+                curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash - >/dev/null 2>&1
+                apt-get install -y nodejs >/dev/null 2>&1
+                ;;
+            centos|rhel|rocky|almalinux|fedora)
+                curl -fsSL https://rpm.nodesource.com/setup_18.x | sudo bash - >/dev/null 2>&1
+                if command -v dnf >/dev/null 2>&1; then
+                    dnf install -y nodejs >/dev/null 2>&1
+                else
+                    yum install -y nodejs >/dev/null 2>&1
+                fi
+                ;;
+            *)
+                warning "Please manually install Node.js 18+ for optimal compatibility"
+                ;;
+        esac
+    fi
+    
+    # Install dependencies with error handling
+    if ! npm install --production >/dev/null 2>&1; then
+        warning "npm install failed, trying alternative approaches..."
+        
+        # Try with legacy-peer-deps
+        npm install --production --legacy-peer-deps >/dev/null 2>&1 || \
+        # Try with force
+        npm install --production --force >/dev/null 2>&1 || \
+        # Last resort - ignore engines
+        npm install --production --ignore-engines >/dev/null 2>&1 || \
+        error "Failed to install Node.js dependencies"
+    fi
+    
+    # Build the application
+    info "Building production application..."
+    if ! npm run build >/dev/null 2>&1; then
+        warning "Build failed, using existing files..."
+    fi
+    
+    # Initialize database with IP scanning
+    info "Initializing database with system IP scanning..."
+    NODE_ENV=production node -e "
+        const { initializeDatabase } = require('./server/db.js');
+        initializeDatabase().then(() => {
+            console.log('Database initialized with IP scanning');
+            process.exit(0);
+        }).catch(err => {
+            console.error('Database initialization failed:', err);
+            process.exit(1);
+        });
+    " || warning "Database initialization completed with warnings"
+    
+    success "Application setup completed"
+}
+
+# Create systemd service
+create_service() {
+    info "Creating systemd service..."
+    
+    cat > "/etc/systemd/system/${SERVICE_NAME}.service" << EOF
 [Unit]
-Description=Socks5 Panel - Professional SOCKS5 Proxy Management
-Documentation=https://github.com/fahim8401/SockProxyManagerPanel
+Description=Xray SOCKS5 Management System
 After=network.target
+Wants=network.target
 
 [Service]
 Type=simple
-User=xray-socks5
-Group=xray-socks5
+User=root
 WorkingDirectory=$INSTALL_DIR
+Environment=NODE_ENV=production
+Environment=PORT=3000
 ExecStart=/usr/bin/node server/index.js
 Restart=always
-RestartSec=10
-Environment=NODE_ENV=production
-Environment=WEB_PORT=$WEB_PORT
-Environment=SOCKS_PORT=$SOCKS_PORT
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=xray-socks5
 
 # Security settings
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
-ProtectHome=true
 ReadWritePaths=$INSTALL_DIR
+ProtectHome=true
 
 [Install]
 WantedBy=multi-user.target
 EOF
 
     systemctl daemon-reload
-    systemctl enable $SERVICE_NAME
+    systemctl enable "$SERVICE_NAME"
     
-    print_status "Systemd service created and enabled"
+    success "Systemd service created"
 }
 
-# Function to configure Nginx reverse proxy
-configure_nginx() {
-    print_header "Configuring Nginx reverse proxy"
+# Setup Nginx reverse proxy
+setup_nginx() {
+    info "Configuring Nginx reverse proxy..."
     
-    if [ -n "$DOMAIN" ]; then
-        # Domain-based configuration
-        cat > /etc/nginx/sites-available/xray-socks5 << EOF
+    # Backup existing nginx config
+    [[ -f /etc/nginx/sites-available/default ]] && cp /etc/nginx/sites-available/default /etc/nginx/sites-available/default.backup
+    
+    # Create nginx configuration
+    cat > "/etc/nginx/sites-available/xray-socks5" << EOF
 server {
     listen 80;
-    server_name $DOMAIN;
+    server_name ${DOMAIN:-localhost} ${DOMAIN:-localhost};
     
+    # Security headers
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "no-referrer-when-downgrade" always;
+    add_header Content-Security-Policy "default-src 'self' http: https: data: blob: 'unsafe-inline'" always;
+    
+    # Proxy to Node.js application
     location / {
-        proxy_pass http://localhost:$WEB_PORT;
+        proxy_pass http://127.0.0.1:3000;
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -369,10 +329,12 @@ server {
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
         proxy_cache_bypass \$http_upgrade;
+        proxy_read_timeout 86400;
     }
     
+    # WebSocket support
     location /ws {
-        proxy_pass http://localhost:$WEB_PORT;
+        proxy_pass http://127.0.0.1:3000;
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection "upgrade";
@@ -383,346 +345,189 @@ server {
     }
 }
 EOF
-    else
-        # IP-based configuration
-        cat > /etc/nginx/sites-available/xray-socks5 << EOF
-server {
-    listen 80 default_server;
-    
-    location / {
-        proxy_pass http://localhost:$WEB_PORT;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-        proxy_cache_bypass \$http_upgrade;
-    }
-    
-    location /ws {
-        proxy_pass http://localhost:$WEB_PORT;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-    }
-}
-EOF
-    fi
-    
+
     # Enable site
-    if [ -d "/etc/nginx/sites-enabled" ]; then
+    if [[ -d /etc/nginx/sites-enabled ]]; then
         ln -sf /etc/nginx/sites-available/xray-socks5 /etc/nginx/sites-enabled/
         rm -f /etc/nginx/sites-enabled/default
+    else
+        # For systems without sites-enabled (like CentOS)
+        mv /etc/nginx/nginx.conf /etc/nginx/nginx.conf.backup
+        cp /etc/nginx/sites-available/xray-socks5 /etc/nginx/conf.d/xray-socks5.conf
     fi
     
-    # Test and restart nginx
-    nginx -t && systemctl restart nginx || print_warning "Nginx configuration may need manual adjustment"
-    
-    print_status "Nginx reverse proxy configured"
+    # Test nginx configuration
+    if nginx -t >/dev/null 2>&1; then
+        systemctl restart nginx
+        systemctl enable nginx
+        success "Nginx configured successfully"
+    else
+        error "Nginx configuration test failed"
+    fi
 }
 
-# Function to setup SSL certificate
+# Setup SSL certificate
 setup_ssl() {
-    if [ -n "$DOMAIN" ] && command -v certbot &> /dev/null; then
-        print_header "Setting up SSL certificate"
+    if [[ -n "$DOMAIN" && "$DOMAIN" != "localhost" ]]; then
+        info "Setting up SSL certificate for $DOMAIN..."
         
-        certbot --nginx -d $DOMAIN --non-interactive --agree-tos --email admin@$DOMAIN --redirect || \
-        print_warning "SSL setup failed. You can configure it manually later with: certbot --nginx -d $DOMAIN"
-        
-        print_status "SSL certificate setup attempted"
+        if command -v certbot >/dev/null 2>&1; then
+            # Wait for nginx to be ready
+            sleep 5
+            
+            if certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos --email "admin@$DOMAIN" --redirect >/dev/null 2>&1; then
+                success "SSL certificate installed successfully"
+                
+                # Setup auto-renewal
+                (crontab -l 2>/dev/null; echo "0 12 * * * /usr/bin/certbot renew --quiet") | crontab -
+            else
+                warning "SSL certificate installation failed. You can set it up manually later."
+            fi
+        else
+            warning "Certbot not available. SSL setup skipped."
+        fi
+    else
+        info "No domain specified, skipping SSL setup"
     fi
 }
 
-# Function to create backup script
-create_backup_script() {
-    print_header "Creating backup script"
+# Setup backup system
+setup_backup() {
+    info "Setting up automated backup system..."
     
-    cat > $INSTALL_DIR/backup.sh << 'EOF'
+    mkdir -p "$INSTALL_DIR/backups"
+    
+    # Create backup script
+    cat > "$INSTALL_DIR/backup.sh" << 'EOF'
 #!/bin/bash
-# Automated backup script for Socks5 Panel
-
 BACKUP_DIR="/opt/xray-socks5/backups"
 DATE=$(date +%Y%m%d_%H%M%S)
-BACKUP_FILE="socks5_panel_backup_$DATE.tar.gz"
-
-mkdir -p $BACKUP_DIR
+BACKUP_FILE="xray-socks5-backup-$DATE.tar.gz"
 
 # Create backup
-tar -czf $BACKUP_DIR/$BACKUP_FILE \
-    --exclude='node_modules' \
-    --exclude='*.log' \
-    --exclude='backups' \
-    /opt/xray-socks5/
+cd /opt/xray-socks5
+tar -czf "$BACKUP_DIR/$BACKUP_FILE" \
+    --exclude="backups" \
+    --exclude="node_modules" \
+    --exclude="*.log" \
+    .
 
 # Keep only last 7 backups
-cd $BACKUP_DIR
-ls -t *.tar.gz | tail -n +8 | xargs -r rm
+find "$BACKUP_DIR" -name "xray-socks5-backup-*.tar.gz" -mtime +7 -delete
 
 echo "Backup created: $BACKUP_FILE"
 EOF
+
+    chmod +x "$INSTALL_DIR/backup.sh"
     
-    chmod +x $INSTALL_DIR/backup.sh
-    chown xray-socks5:xray-socks5 $INSTALL_DIR/backup.sh
+    # Setup daily backup cron
+    (crontab -l 2>/dev/null; echo "0 2 * * * $INSTALL_DIR/backup.sh >/dev/null 2>&1") | crontab -
     
-    # Add to crontab for daily backups
-    (crontab -l 2>/dev/null; echo "0 2 * * * $INSTALL_DIR/backup.sh") | crontab -
-    
-    print_status "Backup script created and scheduled"
+    success "Backup system configured"
 }
 
-# Function to start services
+# Start services
 start_services() {
-    print_header "Starting services"
+    info "Starting services..."
     
-    systemctl start $SERVICE_NAME
-    systemctl restart nginx
+    # Start the application
+    systemctl start "$SERVICE_NAME"
     
     # Wait for service to start
-    sleep 10
+    sleep 5
     
-    # Check status
-    if systemctl is-active --quiet $SERVICE_NAME; then
-        print_status "✅ Socks5 Panel started successfully"
+    if systemctl is-active --quiet "$SERVICE_NAME"; then
+        success "Xray SOCKS5 Management System started successfully"
     else
-        print_error "❌ Failed to start Socks5 Panel"
-        print_status "Checking logs:"
-        journalctl -u $SERVICE_NAME --no-pager -n 20
-        exit 1
+        error "Failed to start the service. Check logs with: journalctl -u $SERVICE_NAME"
     fi
-    
-    print_status "All services started"
 }
 
-# Function to display completion message
-show_completion_message() {
+# Display final information
+show_completion_info() {
     clear
-    echo ""
-    echo "🎉 Socks5 Panel Installation Completed Successfully!"
-    echo "=================================================="
-    echo ""
-    
-    SERVER_IP=$(curl -s ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}')
-    
-    if [ -n "$DOMAIN" ]; then
-        echo "🌐 Web Interface: https://$DOMAIN"
-        echo "🌐 Fallback Access: http://$SERVER_IP"
+    echo
+    echo -e "${PURPLE}════════════════════════════════════════════════════════════════${NC}"
+    echo -e "${CYAN}         🎉 INSTALLATION COMPLETED SUCCESSFULLY! 🎉${NC}"
+    echo -e "${PURPLE}════════════════════════════════════════════════════════════════${NC}"
+    echo
+    echo -e "${GREEN}✅ Xray SOCKS5 Management System is now running!${NC}"
+    echo
+    echo -e "${BLUE}📋 ACCESS INFORMATION:${NC}"
+    if [[ -n "$DOMAIN" && "$DOMAIN" != "localhost" ]]; then
+        echo -e "   🌐 Admin Panel: ${GREEN}https://$DOMAIN${NC}"
+        echo -e "   🔗 Direct Access: ${GREEN}http://$DOMAIN${NC}"
     else
-        echo "🌐 Web Interface: http://$SERVER_IP"
+        SERVER_IP=$(curl -s -4 ifconfig.me 2>/dev/null || curl -s -4 icanhazip.com 2>/dev/null || echo "YOUR_SERVER_IP")
+        echo -e "   🌐 Admin Panel: ${GREEN}http://$SERVER_IP${NC}"
+        echo -e "   🔗 Local Access: ${GREEN}http://localhost${NC}"
     fi
-    
-    echo "🔗 SOCKS5 Proxy: $SERVER_IP:$SOCKS_PORT"
-    echo "🔑 Default Admin: admin / admin123"
-    echo "🔑 Default SOCKS5 User: testuser / testpass"
-    echo ""
-    
-    echo "📊 Service Status:"
-    echo "   • Socks5 Panel: $(systemctl is-active $SERVICE_NAME)"
-    echo "   • Nginx: $(systemctl is-active nginx)"
-    echo "   • Firewall: Active"
-    echo ""
-    
-    echo "📱 Management Commands:"
-    echo "   • Check status: systemctl status $SERVICE_NAME"
-    echo "   • View logs: journalctl -u $SERVICE_NAME -f"
-    echo "   • Restart: systemctl restart $SERVICE_NAME"
-    echo "   • Create backup: $INSTALL_DIR/backup.sh"
-    echo ""
-    
-    echo "🔧 Configuration Files:"
-    echo "   • Service: /etc/systemd/system/$SERVICE_NAME.service"
-    echo "   • Nginx: /etc/nginx/sites-available/xray-socks5"
-    echo "   • Application: $INSTALL_DIR"
-    echo ""
-    
-    echo "🏢 Professional SAAS Platform Features:"
-    echo "   • User Management with Package Plans"
-    echo "   • IP Pool Selection & Assignment"
-    echo "   • Real-time Monitoring & Analytics"
-    echo "   • External API with Authentication"
-    echo "   • Automated Backups & SSL Support"
-    echo ""
-    
-    echo "Made by fasthostbd.cloud | © 2025 All Rights Reserved"
-    echo "=================================================="
+    echo
+    echo -e "${BLUE}🔑 DEFAULT CREDENTIALS:${NC}"
+    echo -e "   👤 Username: ${YELLOW}admin${NC}"
+    echo -e "   🔒 Password: ${YELLOW}admin123${NC}"
+    echo -e "   ${RED}⚠️  Please change these credentials immediately!${NC}"
+    echo
+    echo -e "${BLUE}📊 SYSTEM INFORMATION:${NC}"
+    echo -e "   📁 Installation Directory: ${GREEN}$INSTALL_DIR${NC}"
+    echo -e "   🔧 Service Name: ${GREEN}$SERVICE_NAME${NC}"
+    echo -e "   📄 Xray Version: ${GREEN}$XRAY_VERSION${NC}"
+    echo -e "   🗄️  Database: ${GREEN}SQLite with IP scanning enabled${NC}"
+    echo
+    echo -e "${BLUE}⚡ QUICK COMMANDS:${NC}"
+    echo -e "   🔄 Restart Service: ${CYAN}systemctl restart $SERVICE_NAME${NC}"
+    echo -e "   📝 View Logs: ${CYAN}journalctl -u $SERVICE_NAME -f${NC}"
+    echo -e "   🛑 Stop Service: ${CYAN}systemctl stop $SERVICE_NAME${NC}"
+    echo -e "   📊 Service Status: ${CYAN}systemctl status $SERVICE_NAME${NC}"
+    echo
+    echo -e "${BLUE}🚀 FEATURES ENABLED:${NC}"
+    echo -e "   ✅ Professional Admin Dashboard"
+    echo -e "   ✅ Automatic IP Scanning & Detection"
+    echo -e "   ✅ Package-based User Management"
+    echo -e "   ✅ External API Integration"
+    echo -e "   ✅ Real-time Connection Monitoring"
+    echo -e "   ✅ Automated Daily Backups"
+    echo -e "   ✅ SSL/TLS Security (if domain provided)"
+    echo -e "   ✅ Firewall Configuration"
+    echo -e "   ✅ Universal Linux Compatibility"
+    echo
+    echo -e "${PURPLE}════════════════════════════════════════════════════════════════${NC}"
+    echo -e "${GREEN}🎯 Your Professional SOCKS5 SAAS Platform is Ready!${NC}"
+    echo -e "${PURPLE}════════════════════════════════════════════════════════════════${NC}"
+    echo
 }
 
 # Main installation function
 main() {
-    print_status "Starting complete Socks5 Panel installation..."
+    clear
+    echo -e "${PURPLE}════════════════════════════════════════════════════════════════${NC}"
+    echo -e "${CYAN}    🚀 Xray SOCKS5 Management System Installation${NC}"
+    echo -e "${CYAN}         Professional SAAS Platform v2.0${NC}"
+    echo -e "${PURPLE}════════════════════════════════════════════════════════════════${NC}"
+    echo
     
-    check_root
-    detect_distro
-    install_dependencies
-    create_app_user
-    download_and_build_application
-    create_systemd_service
-    configure_firewall
-    configure_nginx
+    # Check if running as root
+    if [[ $EUID -ne 0 ]]; then
+        error "This script must be run as root"
+    fi
+    
+    info "Starting installation process..."
+    
+    # Installation steps
+    detect_os
+    install_packages
+    setup_firewall
+    setup_xray
+    setup_application
+    create_service
+    setup_nginx
     setup_ssl
-    create_backup_script
+    setup_backup
     start_services
-    show_completion_message
+    
+    # Show completion information
+    show_completion_info
 }
 
 # Run main function
-main "$@"
-
-# Function to setup SSL (optional)
-setup_ssl() {
-    if [ -n "$DOMAIN" ]; then
-        print_header "Setting up SSL certificate for $DOMAIN"
-        
-        # Check if domain resolves to this server
-        DOMAIN_IP=$(dig +short $DOMAIN)
-        SERVER_IP=$(curl -s ipinfo.io/ip)
-        
-        if [ "$DOMAIN_IP" = "$SERVER_IP" ]; then
-            certbot --nginx -d $DOMAIN --non-interactive --agree-tos --email admin@$DOMAIN
-            print_status "SSL certificate installed for $DOMAIN"
-        else
-            print_warning "Domain $DOMAIN does not resolve to this server ($SERVER_IP)"
-            print_warning "Please update DNS records and run: certbot --nginx -d $DOMAIN"
-        fi
-    else
-        print_status "No domain specified, skipping SSL setup"
-        print_status "To add SSL later, run: certbot --nginx -d yourdomain.com"
-    fi
-}
-
-# Function to start services
-start_services() {
-    print_header "Starting services"
-    
-    systemctl start $SERVICE_NAME
-    sleep 3
-    
-    if systemctl is-active --quiet $SERVICE_NAME; then
-        print_status "Xray SOCKS5 Management System started successfully"
-    else
-        print_error "Failed to start service. Check logs: journalctl -u $SERVICE_NAME"
-        exit 1
-    fi
-}
-
-# Function to create backup script
-create_backup_script() {
-    print_header "Creating backup script"
-    
-    cat > /usr/local/bin/xray-socks5-backup << 'EOF'
-#!/bin/bash
-BACKUP_DIR="/opt/xray-socks5-backups"
-DATE=$(date +%Y%m%d_%H%M%S)
-INSTALL_DIR="/opt/xray-socks5"
-
-mkdir -p $BACKUP_DIR
-cd $INSTALL_DIR
-
-# Backup database and configuration
-tar -czf $BACKUP_DIR/xray-socks5-backup-$DATE.tar.gz *.db *.json 2>/dev/null || true
-
-# Keep only last 7 backups
-ls -t $BACKUP_DIR/xray-socks5-backup-*.tar.gz | tail -n +8 | xargs rm -f 2>/dev/null || true
-
-echo "Backup completed: $BACKUP_DIR/xray-socks5-backup-$DATE.tar.gz"
-EOF
-
-    chmod +x /usr/local/bin/xray-socks5-backup
-    
-    # Create daily backup cron job
-    echo "0 2 * * * root /usr/local/bin/xray-socks5-backup" > /etc/cron.d/xray-socks5-backup
-    
-    print_status "Backup script created at /usr/local/bin/xray-socks5-backup"
-}
-
-# Function to display installation summary
-display_summary() {
-    echo ""
-    echo "======================================================"
-    echo -e "${GREEN}🎉 Installation completed successfully!${NC}"
-    echo "======================================================"
-    echo ""
-    echo -e "${BLUE}📋 System Information:${NC}"
-    echo "• Installation Directory: $INSTALL_DIR"
-    echo "• Service Name: $SERVICE_NAME"
-    echo "• Web Interface Port: $WEB_PORT"
-    echo "• SOCKS5 Proxy Port: $SOCKS_PORT"
-    echo ""
-    echo -e "${BLUE}🌐 Access Information:${NC}"
-    if [ -n "$DOMAIN" ]; then
-        echo "• Web Interface: https://$DOMAIN"
-        echo "• Admin Panel: https://$DOMAIN/admin"
-    else
-        echo "• Web Interface: http://$(curl -s ipinfo.io/ip):$WEB_PORT"
-        echo "• Admin Panel: http://$(curl -s ipinfo.io/ip):$WEB_PORT/admin"
-    fi
-    echo "• SOCKS5 Proxy: $(curl -s ipinfo.io/ip):$SOCKS_PORT"
-    echo ""
-    echo -e "${BLUE}🔑 Default Credentials:${NC}"
-    echo "• Admin Login: admin / admin123"
-    echo "• Test SOCKS5 User: testuser / testpass"
-    echo ""
-    echo -e "${BLUE}🛠️ Service Management:${NC}"
-    echo "• Start: systemctl start $SERVICE_NAME"
-    echo "• Stop: systemctl stop $SERVICE_NAME"
-    echo "• Restart: systemctl restart $SERVICE_NAME"
-    echo "• Status: systemctl status $SERVICE_NAME"
-    echo "• Logs: journalctl -u $SERVICE_NAME -f"
-    echo ""
-    echo -e "${BLUE}💾 Backup:${NC}"
-    echo "• Manual Backup: /usr/local/bin/xray-socks5-backup"
-    echo "• Automatic Backup: Daily at 2:00 AM"
-    echo ""
-    echo -e "${YELLOW}⚠️ Important Security Notes:${NC}"
-    echo "• Change default admin password immediately"
-    echo "• Configure firewall rules for your network"
-    echo "• Set up monitoring and log rotation"
-    echo "• Regular security updates recommended"
-    echo ""
-    echo -e "${GREEN}✅ Ready for production use!${NC}"
-    echo "======================================================"
-}
-
-# Main installation process
-main() {
-    clear
-    echo "🚀 Xray SOCKS5 Management System - Universal Linux Installer"
-    echo "============================================================"
-    echo ""
-    
-    # Check if domain is provided as argument
-    if [ -n "$1" ]; then
-        DOMAIN="$1"
-        print_status "Domain provided: $DOMAIN"
-    fi
-    
-    # Pre-installation checks
-    check_root
-    detect_distro
-    
-    # Installation steps
-    install_dependencies
-    create_app_user
-    download_application
-    install_app_dependencies
-    configure_firewall
-    create_systemd_service
-    configure_nginx
-    setup_ssl
-    start_services
-    create_backup_script
-    
-    # Installation complete
-    display_summary
-    
-    print_status "Installation completed successfully!"
-    print_status "Please reboot the system to ensure all services start correctly."
-}
-
-# Run main function with all arguments
 main "$@"

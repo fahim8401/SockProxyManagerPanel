@@ -14,6 +14,7 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { storage } from './storage';
 import { xrayManager } from './xray';
+import { scanAllSystemIps, getIpGeoInfo } from './ip-scanner';
 import { 
   insertAdminSchema, 
   insertPackageSchema,
@@ -371,6 +372,43 @@ export async function registerRoutes(app: express.Application): Promise<Server> 
     }
   });
 
+  // Scan system IPs
+  app.post('/api/ip-pool/scan', authenticate, async (req, res) => {
+    try {
+      console.log('🔍 Scanning system IP addresses...');
+      const systemIps = await scanAllSystemIps();
+      
+      // Add new IPs to database
+      let addedCount = 0;
+      for (const ipInfo of systemIps) {
+        try {
+          await storage.createIp({
+            ipAddress: ipInfo.ipAddress,
+            isPublic: ipInfo.isPublic,
+            isActive: 1,
+            country: ipInfo.country,
+            city: ipInfo.city,
+            provider: ipInfo.provider
+          });
+          addedCount++;
+        } catch (error) {
+          // IP might already exist, skip
+          console.log(`IP ${ipInfo.ipAddress} already exists or failed to add`);
+        }
+      }
+      
+      res.json({ 
+        message: `Successfully scanned and found ${systemIps.length} IP addresses`,
+        scanned: systemIps.length,
+        added: addedCount,
+        ips: systemIps
+      });
+    } catch (error) {
+      console.error('Error scanning system IPs:', error);
+      res.status(500).json({ message: 'Failed to scan system IPs', error: error.message });
+    }
+  });
+
   // Xray management
   app.post('/api/xray/start', authenticate, async (req, res) => {
     try {
@@ -461,8 +499,8 @@ export async function registerRoutes(app: express.Application): Promise<Server> 
         keyName,
         apiKey,
         permissions: permissions || 'read',
-        isActive: true,
-        expiresAt: expiryDays ? new Date(Date.now() + expiryDays * 24 * 60 * 60 * 1000) : undefined
+        isActive: 1,
+        expiresAt: expiryDays ? Math.floor((Date.now() + expiryDays * 24 * 60 * 60 * 1000) / 1000) : undefined
       };
 
       const newApiKey = await storage.createApiKey(apiKeyData);

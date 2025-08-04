@@ -49,10 +49,6 @@
         "auth": "password",
         "accounts": [
           {
-            "user": "123",
-            "pass": "123"
-          },
-          {
             "user": "testuser",
             "pass": "testpass"
           }

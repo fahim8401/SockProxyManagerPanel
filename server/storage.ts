@@ -148,7 +148,7 @@ export class DatabaseStorage implements IStorage {
 
   async getActiveProxyUsers(): Promise<ProxyUser[]> {
     return await db.select().from(proxyUsers)
-      .where(eq(proxyUsers.isActive, true))
+      .where(eq(proxyUsers.isActive, 1))
       .orderBy(desc(proxyUsers.createdAt));
   }
 
@@ -243,7 +243,7 @@ export class DatabaseStorage implements IStorage {
   async getAvailableIps(): Promise<IpPool[]> {
     return await db.select().from(ipPool)
       .where(and(
-        eq(ipPool.isActive, true)
+        eq(ipPool.isActive, 1)
       ));
   }
 
@@ -295,7 +295,7 @@ export class DatabaseStorage implements IStorage {
         target: xrayConfigs.configName,
         set: {
           configData: config.configData,
-          updatedAt: Math.floor(Date.now() / 1000)
+          updatedAt: new Date()
         }
       })
       .returning();

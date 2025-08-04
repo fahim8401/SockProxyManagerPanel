@@ -33,6 +33,19 @@ export const packages = sqliteTable("packages", {
   updatedAt: integer("updated_at", { mode: 'timestamp' }).default(sql`(unixepoch())`),
 });
 
+// IP pool table for outbound routing (defined before proxyUsers to avoid circular reference)
+export const ipPool = sqliteTable("ip_pool", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  ipAddress: text("ip_address").notNull().unique(),
+  isPublic: integer("is_public", { mode: 'boolean' }).notNull().default(true),
+  isActive: integer("is_active", { mode: 'boolean' }).notNull().default(true),
+  country: text("country"),
+  city: text("city"),
+  provider: text("provider"),
+  assignedUserId: integer("assigned_user_id"),
+  createdAt: integer("created_at", { mode: 'timestamp' }).default(sql`(unixepoch())`),
+});
+
 // SOCKS5 proxy users table
 export const proxyUsers = sqliteTable("proxy_users", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -63,19 +76,6 @@ export const connections = sqliteTable("connections", {
   connectedAt: integer("connected_at", { mode: 'timestamp' }).default(sql`(unixepoch())`),
   disconnectedAt: integer("disconnected_at", { mode: 'timestamp' }),
   isActive: integer("is_active", { mode: 'boolean' }).notNull().default(true),
-});
-
-// IP pool table for outbound routing
-export const ipPool = sqliteTable("ip_pool", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  ipAddress: text("ip_address").notNull().unique(),
-  isPublic: integer("is_public", { mode: 'boolean' }).notNull().default(true),
-  isActive: integer("is_active", { mode: 'boolean' }).notNull().default(true),
-  country: text("country"),
-  city: text("city"),
-  provider: text("provider"),
-  assignedUserId: integer("assigned_user_id").references(() => proxyUsers.id, { onDelete: 'set null' }),
-  createdAt: integer("created_at", { mode: 'timestamp' }).default(sql`(unixepoch())`),
 });
 
 // Xray configuration table
@@ -126,6 +126,9 @@ export const insertProxyUserSchema = createInsertSchema(proxyUsers).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+  dataUsed: true,
+}).extend({
+  validityDays: z.number().optional()
 });
 
 export const insertApiKeySchema = createInsertSchema(apiKeys).omit({
@@ -136,11 +139,13 @@ export const insertApiKeySchema = createInsertSchema(apiKeys).omit({
 export const insertConnectionSchema = createInsertSchema(connections).omit({
   id: true,
   connectedAt: true,
+  disconnectedAt: true,
 });
 
 export const insertIpPoolSchema = createInsertSchema(ipPool).omit({
   id: true,
   createdAt: true,
+  assignedUserId: true,
 });
 
 export const insertXrayConfigSchema = createInsertSchema(xrayConfigs).omit({
