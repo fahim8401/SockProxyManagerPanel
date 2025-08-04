@@ -55,13 +55,17 @@ cd /opt/xray-saas
 sudo chown -R $USER:$USER /opt/xray-saas
 ```
 
-### 4. Upload Application Files
+### 4. Download Application from GitHub
+The installation script automatically downloads all files from your GitHub repository:
 ```bash
-# Option 1: Upload your project files via SCP
-scp -r ./your-project/* root@your-vps:/opt/xray-saas/
+# Files are automatically downloaded from:
+# https://github.com/fahim8401/SockProxyManagerPanel/archive/refs/heads/MAIN.zip
 
-# Option 2: Clone from Git repository
-git clone https://github.com/your-repo/xray-saas.git /opt/xray-saas
+# The script will:
+# - Download the complete SAAS platform
+# - Extract all files to /opt/xray-saas
+# - Install all dependencies
+# - Configure the complete system
 ```
 
 ### 5. Install Dependencies
@@ -430,14 +434,21 @@ EOL
 
 ## Post-Installation
 
-### 1. Upload Your Application
-Replace the placeholder files with your actual application:
+### 1. GitHub Download Complete
+The installation script automatically downloads your complete SAAS platform:
 ```bash
-# Upload your files
-scp -r ./server ./client ./shared package.json root@your-vps:/opt/xray-saas/
+# All files are downloaded from GitHub:
+# https://github.com/fahim8401/SockProxyManagerPanel/archive/refs/heads/MAIN.zip
 
-# Restart service
-sudo systemctl restart xray-saas
+# Your complete SAAS platform includes:
+# - Admin panel with sidebar navigation
+# - Package management system
+# - User creation with IP selection
+# - External API with authentication
+# - Real-time analytics and monitoring
+
+# Check installation
+sudo systemctl status xray-saas
 ```
 
 ### 2. Configure Domain (Optional)

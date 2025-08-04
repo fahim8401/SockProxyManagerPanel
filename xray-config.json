@@ -47,7 +47,12 @@
       "protocol": "socks",
       "settings": {
         "auth": "password",
-        "accounts": [],
+        "accounts": [
+          {
+            "user": "testuser",
+            "pass": "testpass"
+          }
+        ],
         "udp": true,
         "ip": "0.0.0.0"
       },

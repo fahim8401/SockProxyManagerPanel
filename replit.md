@@ -87,6 +87,7 @@ Preferred communication style: Simple, everyday language.
   - Root or sudo access
   - Optional: Domain name for SSL
 - **Installation**: Single command deployment with `sudo ./install-ubuntu.sh`
+- **GitHub Integration**: Automatically downloads complete SAAS platform from https://github.com/fahim8401/SockProxyManagerPanel/archive/refs/heads/MAIN.zip
 - **Status**: Ready for immediate production deployment
 
 # External Dependencies
