@@ -1363,8 +1363,8 @@ async function startServer() {
         app.listen(PORT, '0.0.0.0', () => {
             console.log('🚀 Complete SAAS Platform Started Successfully!');
             console.log('═══════════════════════════════════════════════');
-            console.log(`🌐 Web Interface: http://0.0.0.0:${PORT}`);
-            console.log(`🔐 Admin Panel: http://0.0.0.0:${PORT}/admin`);
+            console.log('🌐 Web Interface: http://0.0.0.0:' + PORT);
+            console.log('🔐 Admin Panel: http://0.0.0.0:' + PORT + '/admin');
             console.log('🔗 SOCKS5 Proxy: YOUR_SERVER_IP:1080');
             console.log('═══════════════════════════════════════════════');
             console.log('⚡ Web Server: Apache2 (Reverse Proxy)');
