@@ -2067,6 +2067,12 @@ systemctl enable "$SERVICE_NAME"
 
 # Setup Nginx configuration
 info "Configuring Nginx..."
+
+# First, ensure rate limiting zones are in main nginx config
+if ! grep -q "limit_req_zone" /etc/nginx/nginx.conf; then
+    sed -i '/http {/a\\tlimit_req_zone $binary_remote_addr zone=api:10m rate=10r/s;\n\tlimit_req_zone $binary_remote_addr zone=admin:10m rate=5r/s;' /etc/nginx/nginx.conf
+fi
+
 cat > "/etc/nginx/sites-available/xray-socks5" << EOF
 server {
     listen 80;
@@ -2077,10 +2083,6 @@ server {
     add_header X-Content-Type-Options nosniff;
     add_header X-XSS-Protection "1; mode=block";
     add_header Referrer-Policy "strict-origin-when-cross-origin";
-    
-    # Rate limiting
-    limit_req_zone \$binary_remote_addr zone=api:10m rate=10r/s;
-    limit_req_zone \$binary_remote_addr zone=admin:10m rate=5r/s;
     
     location / {
         proxy_pass http://127.0.0.1:3000;
@@ -2121,7 +2123,56 @@ ln -sf /etc/nginx/sites-available/xray-socks5 /etc/nginx/sites-enabled/
 rm -f /etc/nginx/sites-enabled/default
 
 # Test nginx configuration
-nginx -t || error "Nginx configuration is invalid"
+if ! nginx -t 2>/dev/null; then
+    warning "Nginx configuration with rate limiting failed, using simplified config..."
+    
+    # Create simplified nginx config without rate limiting
+    cat > "/etc/nginx/sites-available/xray-socks5" << EOF
+server {
+    listen 80;
+    server_name ${DOMAIN:-_};
+    
+    # Security headers
+    add_header X-Frame-Options DENY;
+    add_header X-Content-Type-Options nosniff;
+    add_header X-XSS-Protection "1; mode=block";
+    add_header Referrer-Policy "strict-origin-when-cross-origin";
+    
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_cache_bypass \$http_upgrade;
+        proxy_read_timeout 86400;
+        proxy_send_timeout 86400;
+    }
+    
+    location /api/ {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+    
+    location /admin {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+}
+EOF
+    
+    # Test again
+    nginx -t || error "Nginx configuration is still invalid"
+fi
 
 # Setup firewall
 info "Configuring firewall..."
