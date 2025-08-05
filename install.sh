@@ -1437,6 +1437,30 @@ systemctl enable "$SERVICE_NAME"
 # Setup Apache2 configuration
 info "Configuring Apache2..."
 
+# Stop any existing web servers that might be using port 80
+info "Stopping conflicting services..."
+systemctl stop nginx 2>/dev/null || true
+systemctl stop apache2 2>/dev/null || true
+killall nginx 2>/dev/null || true
+killall apache2 2>/dev/null || true
+
+# Wait for port to be free
+sleep 3
+
+# Check if port 80 is still in use
+if netstat -tuln | grep -q ':80 '; then
+    warning "Port 80 still in use, configuring Apache on port 8080"
+    APACHE_PORT=8080
+    
+    # Update ports.conf for port 8080
+    echo "Listen 8080" > /etc/apache2/ports.conf
+    
+    VHOST_PORT="8080"
+else
+    APACHE_PORT=80
+    VHOST_PORT="80"
+fi
+
 # Enable required Apache modules
 a2enmod proxy >/dev/null 2>&1
 a2enmod proxy_http >/dev/null 2>&1
@@ -1444,10 +1468,13 @@ a2enmod proxy_wstunnel >/dev/null 2>&1
 a2enmod headers >/dev/null 2>&1
 a2enmod rewrite >/dev/null 2>&1
 
+# Set ServerName globally to avoid warnings
+echo "ServerName localhost" >> /etc/apache2/apache2.conf
+
 # Create Apache virtual host
 cat > "/etc/apache2/sites-available/xray-socks5.conf" << EOF
-<VirtualHost *:80>
-    ServerName ${DOMAIN:-_}
+<VirtualHost *:${VHOST_PORT}>
+    ServerName ${DOMAIN:-localhost}
     DocumentRoot /var/www/html
     
     # Security headers
@@ -1492,7 +1519,21 @@ a2ensite xray-socks5.conf >/dev/null 2>&1
 a2dissite 000-default.conf >/dev/null 2>&1
 
 # Test Apache configuration
-apache2ctl configtest || error "Apache configuration is invalid"
+if ! apache2ctl configtest 2>/dev/null; then
+    warning "Apache configuration test failed, attempting to fix..."
+    
+    # Create minimal working configuration
+    cat > "/etc/apache2/sites-available/xray-socks5.conf" << EOF
+<VirtualHost *:${VHOST_PORT}>
+    ServerName localhost
+    ProxyPass / http://127.0.0.1:3000/
+    ProxyPassReverse / http://127.0.0.1:3000/
+    ProxyPreserveHost On
+</VirtualHost>
+EOF
+    
+    apache2ctl configtest || error "Apache configuration is invalid"
+fi
 
 # Setup firewall
 info "Configuring firewall..."
@@ -1501,6 +1542,7 @@ if command -v ufw >/dev/null 2>&1; then
     ufw allow 22/tcp
     ufw allow 80/tcp
     ufw allow 443/tcp
+    ufw allow 8080/tcp
     ufw allow 1080/tcp
     ufw allow 3000/tcp
     success "Firewall configured with security rules"
@@ -1558,11 +1600,21 @@ SERVER_IP=$(curl -s ifconfig.me 2>/dev/null || echo 'YOUR_SERVER_IP')
 
 info "🚀 Complete SAAS Platform Access:"
 if [[ -n "$DOMAIN" ]]; then
-    info "🌐 Web Interface: http://$DOMAIN"
-    info "🔐 Admin Panel: http://$DOMAIN/admin"
+    if [[ "$APACHE_PORT" == "8080" ]]; then
+        info "🌐 Web Interface: http://$DOMAIN:8080"
+        info "🔐 Admin Panel: http://$DOMAIN:8080/admin"
+    else
+        info "🌐 Web Interface: http://$DOMAIN"
+        info "🔐 Admin Panel: http://$DOMAIN/admin"
+    fi
 else
-    info "🌐 Web Interface: http://$SERVER_IP"
-    info "🔐 Admin Panel: http://$SERVER_IP/admin"
+    if [[ "$APACHE_PORT" == "8080" ]]; then
+        info "🌐 Web Interface: http://$SERVER_IP:8080"
+        info "🔐 Admin Panel: http://$SERVER_IP:8080/admin"
+    else
+        info "🌐 Web Interface: http://$SERVER_IP"
+        info "🔐 Admin Panel: http://$SERVER_IP/admin"
+    fi
 fi
 info "🔗 SOCKS5 Proxy: $SERVER_IP:1080"
 info "📚 API Documentation: http://$SERVER_IP/docs"
