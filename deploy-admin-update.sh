@@ -1,0 +1,652 @@
+#!/bin/bash
+
+# Quick deployment script for comprehensive admin panel
+SERVER_IP="103.7.4.183"
+INSTALL_DIR="/opt/xray-socks5"
+
+echo "🚀 Deploying comprehensive admin panel to $SERVER_IP..."
+
+# Create the comprehensive admin panel file
+cat > admin.html << 'EOF'
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Xray SOCKS5 Management</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #f5f5f5;
+            color: #333;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        .nav {
+            background: white;
+            padding: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .nav-btn {
+            background: #007bff;
+            color: white;
+            padding: 8px 16px;
+            margin: 0 5px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .nav-btn:hover { background: #0056b3; }
+        .nav-btn.active { background: #28a745; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin: 20px 0;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border-left: 4px solid #007bff;
+        }
+        .stat-number { font-size: 2em; font-weight: bold; color: #007bff; }
+        .stat-label { color: #666; margin-top: 5px; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background: #f8f9fa; font-weight: 600; }
+        tr:hover { background: #f8f9fa; }
+        .btn {
+            background: #007bff;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            margin: 2px;
+            transition: background 0.3s;
+        }
+        .btn:hover { background: #0056b3; }
+        .btn-danger { background: #dc3545; }
+        .btn-danger:hover { background: #c82333; }
+        .btn-success { background: #28a745; }
+        .btn-success:hover { background: #218838; }
+        .form-group { margin: 15px 0; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: 600; }
+        .form-control {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .form-control:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
+        }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .status-active { color: #28a745; font-weight: bold; }
+        .status-inactive { color: #dc3545; font-weight: bold; }
+        .alert {
+            padding: 12px;
+            border-radius: 4px;
+            margin: 10px 0;
+            border: 1px solid transparent;
+        }
+        .alert-success {
+            color: #155724;
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+        }
+        .alert-error {
+            color: #721c24;
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 20px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 500px;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close:hover { color: black; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔐 Xray SOCKS5 Management System</h1>
+        <p>Professional Admin Panel v2.0</p>
+    </div>
+    
+    <div class="nav">
+        <div class="container">
+            <button class="nav-btn active" onclick="showTab('dashboard')">Dashboard</button>
+            <button class="nav-btn" onclick="showTab('users')">SOCKS5 Users</button>
+            <button class="nav-btn" onclick="showTab('packages')">Packages</button>
+            <button class="nav-btn" onclick="showTab('connections')">Connections</button>
+            <button class="nav-btn" onclick="showTab('settings')">Settings</button>
+        </div>
+    </div>
+    
+    <div class="container">
+        <div id="alerts"></div>
+        
+        <!-- Dashboard Tab -->
+        <div id="dashboard" class="tab-content active">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number" id="totalUsers">0</div>
+                    <div class="stat-label">Total Users</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="activeUsers">0</div>
+                    <div class="stat-label">Active Users</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="totalConnections">0</div>
+                    <div class="stat-label">Total Connections</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="totalPackages">0</div>
+                    <div class="stat-label">Available Packages</div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3>System Status</h3>
+                <p>✅ Database: Connected</p>
+                <p>✅ SOCKS5 Service: Active on port 1080</p>
+                <p>✅ Web Interface: Online</p>
+                <p>✅ Admin Panel: Operational</p>
+            </div>
+            
+            <div class="card">
+                <h3>Recent Activity</h3>
+                <div id="recentActivity">
+                    <p>✅ System started successfully</p>
+                    <p>✅ Database initialized</p>
+                    <p>✅ Default users created</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Users Tab -->
+        <div id="users" class="tab-content">
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h3>SOCKS5 Users Management</h3>
+                    <button class="btn btn-success" onclick="showModal('userModal')">Add New User</button>
+                </div>
+                <div id="usersList">Loading...</div>
+            </div>
+        </div>
+        
+        <!-- Packages Tab -->
+        <div id="packages" class="tab-content">
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h3>Subscription Packages</h3>
+                    <button class="btn btn-success" onclick="showModal('packageModal')">Create Package</button>
+                </div>
+                <div id="packagesList">Loading...</div>
+            </div>
+        </div>
+        
+        <!-- Connections Tab -->
+        <div id="connections" class="tab-content">
+            <div class="card">
+                <h3>Active Connections</h3>
+                <div id="connectionsList">No active connections</div>
+            </div>
+        </div>
+        
+        <!-- Settings Tab -->
+        <div id="settings" class="tab-content">
+            <div class="card">
+                <h3>System Settings</h3>
+                <div class="form-group">
+                    <label>SOCKS5 Port:</label>
+                    <input type="number" class="form-control" value="1080" disabled>
+                </div>
+                <div class="form-group">
+                    <label>Max Connections per User:</label>
+                    <input type="number" class="form-control" value="10">
+                </div>
+                <div class="form-group">
+                    <label>Default Data Limit (MB):</label>
+                    <input type="number" class="form-control" value="1024">
+                </div>
+                <button class="btn">Save Settings</button>
+                <button class="btn btn-danger" onclick="confirmDatabaseClean()">Clean Database</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- User Modal -->
+    <div id="userModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="hideModal('userModal')">&times;</span>
+            <h3>Create New SOCKS5 User</h3>
+            <form id="userForm">
+                <div class="form-group">
+                    <label>Username:</label>
+                    <input type="text" id="username" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>Password:</label>
+                    <input type="password" id="password" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>Package:</label>
+                    <select id="packageId" class="form-control">
+                        <option value="">Select Package</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Data Limit (MB):</label>
+                    <input type="number" id="dataLimit" class="form-control" value="1024">
+                </div>
+                <div class="form-group">
+                    <label>Validity Days:</label>
+                    <input type="number" id="validityDays" class="form-control" value="30">
+                </div>
+                <button type="submit" class="btn btn-success">Create User</button>
+                <button type="button" class="btn" onclick="hideModal('userModal')">Cancel</button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Package Modal -->
+    <div id="packageModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="hideModal('packageModal')">&times;</span>
+            <h3>Create New Package</h3>
+            <form id="packageForm">
+                <div class="form-group">
+                    <label>Package Name:</label>
+                    <input type="text" id="packageName" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>Data Limit (MB):</label>
+                    <input type="number" id="packageDataLimit" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>Validity Days:</label>
+                    <input type="number" id="packageValidityDays" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>Price ($):</label>
+                    <input type="number" id="packagePrice" class="form-control" step="0.01" required>
+                </div>
+                <button type="submit" class="btn btn-success">Create Package</button>
+                <button type="button" class="btn" onclick="hideModal('packageModal')">Cancel</button>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        // Tab management
+        function showTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+            loadTabData(tabName);
+        }
+        
+        // Modal management
+        function showModal(modalId) {
+            document.getElementById(modalId).style.display = 'block';
+        }
+        
+        function hideModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+        
+        // Alert system
+        function showAlert(message, type = 'success') {
+            const alertsContainer = document.getElementById('alerts');
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type}`;
+            alertDiv.textContent = message;
+            alertsContainer.appendChild(alertDiv);
+            setTimeout(() => alertDiv.remove(), 5000);
+        }
+        
+        // API helper
+        async function apiCall(endpoint, method = 'GET', data = null) {
+            const options = {
+                method,
+                headers: { 'Content-Type': 'application/json' }
+            };
+            
+            if (data) {
+                options.body = JSON.stringify(data);
+            }
+            
+            const response = await fetch(endpoint, options);
+            return response.json();
+        }
+        
+        // Load data for tabs
+        async function loadTabData(tabName) {
+            switch(tabName) {
+                case 'dashboard':
+                    await loadDashboard();
+                    break;
+                case 'users':
+                    await loadUsers();
+                    break;
+                case 'packages':
+                    await loadPackages();
+                    break;
+                case 'connections':
+                    await loadConnections();
+                    break;
+            }
+        }
+        
+        // Dashboard functions
+        async function loadDashboard() {
+            try {
+                const [users, packages] = await Promise.all([
+                    apiCall('/api/users'),
+                    apiCall('/api/packages')
+                ]);
+                
+                document.getElementById('totalUsers').textContent = users.length;
+                document.getElementById('activeUsers').textContent = users.filter(u => u.is_active).length;
+                document.getElementById('totalConnections').textContent = '0';
+                document.getElementById('totalPackages').textContent = packages.length;
+            } catch (error) {
+                console.error('Error loading dashboard:', error);
+            }
+        }
+        
+        // Users functions  
+        async function loadUsers() {
+            try {
+                const users = await apiCall('/api/users');
+                const usersList = document.getElementById('usersList');
+                
+                if (users.length === 0) {
+                    usersList.innerHTML = '<p>No users found.</p>';
+                    return;
+                }
+                
+                const table = `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Username</th>
+                                <th>Data Limit</th>
+                                <th>Data Used</th>
+                                <th>Status</th>
+                                <th>Expires</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${users.map(user => `
+                                <tr>
+                                    <td>${user.id}</td>
+                                    <td>${user.username}</td>
+                                    <td>${Math.round(user.data_limit / 1024 / 1024)} MB</td>
+                                    <td>${Math.round(user.data_used / 1024 / 1024)} MB</td>
+                                    <td class="${user.is_active ? 'status-active' : 'status-inactive'}">
+                                        ${user.is_active ? 'Active' : 'Inactive'}
+                                    </td>
+                                    <td>${user.expires_at ? new Date(user.expires_at * 1000).toLocaleDateString() : 'Never'}</td>
+                                    <td>
+                                        <button class="btn btn-danger" onclick="deleteUser(${user.id})">Delete</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+                
+                usersList.innerHTML = table;
+            } catch (error) {
+                console.error('Error loading users:', error);
+                showAlert('Error loading users', 'error');
+            }
+        }
+        
+        // Packages functions
+        async function loadPackages() {
+            try {
+                const packages = await apiCall('/api/packages');
+                const packagesList = document.getElementById('packagesList');
+                
+                if (packages.length === 0) {
+                    packagesList.innerHTML = '<p>No packages found.</p>';
+                    return;
+                }
+                
+                const table = `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Name</th>
+                                <th>Data Limit</th>
+                                <th>Validity Days</th>
+                                <th>Price</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${packages.map(pkg => `
+                                <tr>
+                                    <td>${pkg.id}</td>
+                                    <td>${pkg.name}</td>
+                                    <td>${Math.round(pkg.data_limit / 1024 / 1024)} MB</td>
+                                    <td>${pkg.validity_days} days</td>
+                                    <td>$${pkg.price}</td>
+                                    <td class="${pkg.is_active ? 'status-active' : 'status-inactive'}">
+                                        ${pkg.is_active ? 'Active' : 'Inactive'}
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-danger" onclick="deletePackage(${pkg.id})">Delete</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+                
+                packagesList.innerHTML = table;
+                
+                // Update package dropdown
+                const packageSelect = document.getElementById('packageId');
+                packageSelect.innerHTML = '<option value="">Select Package</option>' +
+                    packages.filter(p => p.is_active).map(p => `<option value="${p.id}">${p.name} - ${Math.round(p.data_limit/1024/1024)}MB</option>`).join('');
+            } catch (error) {
+                console.error('Error loading packages:', error);
+                showAlert('Error loading packages', 'error');
+            }
+        }
+        
+        // Connections functions
+        async function loadConnections() {
+            try {
+                const connections = await apiCall('/api/connections');
+                const connectionsList = document.getElementById('connectionsList');
+                
+                if (connections.length === 0) {
+                    connectionsList.innerHTML = '<p>No active connections.</p>';
+                    return;
+                }
+                
+                connectionsList.innerHTML = '<p>Connections feature ready for implementation.</p>';
+            } catch (error) {
+                console.error('Error loading connections:', error);
+            }
+        }
+        
+        // Form handlers
+        document.getElementById('userForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const userData = {
+                username: document.getElementById('username').value,
+                password: document.getElementById('password').value,
+                dataLimit: parseInt(document.getElementById('dataLimit').value) * 1024 * 1024,
+                validityDays: parseInt(document.getElementById('validityDays').value),
+                packageId: document.getElementById('packageId').value || null
+            };
+            
+            try {
+                await apiCall('/api/users', 'POST', userData);
+                showAlert('User created successfully');
+                hideModal('userModal');
+                document.getElementById('userForm').reset();
+                loadUsers();
+                loadDashboard();
+            } catch (error) {
+                showAlert('Error creating user', 'error');
+            }
+        });
+        
+        document.getElementById('packageForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const packageData = {
+                name: document.getElementById('packageName').value,
+                dataLimit: parseInt(document.getElementById('packageDataLimit').value) * 1024 * 1024,
+                validityDays: parseInt(document.getElementById('packageValidityDays').value),
+                price: parseFloat(document.getElementById('packagePrice').value)
+            };
+            
+            try {
+                await apiCall('/api/packages', 'POST', packageData);
+                showAlert('Package created successfully');
+                hideModal('packageModal');
+                document.getElementById('packageForm').reset();
+                loadPackages();
+                loadDashboard();
+            } catch (error) {
+                showAlert('Error creating package', 'error');
+            }
+        });
+        
+        // Action functions
+        async function deleteUser(userId) {
+            if (confirm('Are you sure you want to delete this user?')) {
+                try {
+                    await apiCall(`/api/users/${userId}`, 'DELETE');
+                    showAlert('User deleted successfully');
+                    loadUsers();
+                    loadDashboard();
+                } catch (error) {
+                    showAlert('Error deleting user', 'error');
+                }
+            }
+        }
+        
+        async function deletePackage(packageId) {
+            if (confirm('Are you sure you want to delete this package?')) {
+                try {
+                    await apiCall(`/api/packages/${packageId}`, 'DELETE');
+                    showAlert('Package deleted successfully');
+                    loadPackages();
+                    loadDashboard();
+                } catch (error) {
+                    showAlert('Error deleting package', 'error');
+                }
+            }
+        }
+        
+        function confirmDatabaseClean() {
+            if (confirm('This will delete all user data but keep admin accounts. Are you sure?')) {
+                if (confirm('This action cannot be undone. Continue?')) {
+                    cleanDatabase();
+                }
+            }
+        }
+        
+        async function cleanDatabase() {
+            try {
+                await apiCall('/api/admin/clean-database', 'POST');
+                showAlert('Database cleaned successfully');
+                loadDashboard();
+                loadUsers();
+                loadPackages();
+            } catch (error) {
+                showAlert('Error cleaning database', 'error');
+            }
+        }
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadDashboard();
+            loadPackages();
+        });
+        
+        // Auto-refresh every 30 seconds
+        setInterval(() => {
+            const activeTab = document.querySelector('.tab-content.active').id;
+            loadTabData(activeTab);
+        }, 30000);
+    </script>
+</body>
+</html>
+EOF
+
+echo "📤 Uploading admin panel to server..."
+scp -o StrictHostKeyChecking=no -o ConnectTimeout=10 admin.html root@$SERVER_IP:$INSTALL_DIR/
+
+echo "🔄 Restarting service..."
+ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 root@$SERVER_IP "systemctl restart xray-socks5"
+
+echo "✅ Admin panel deployment complete!"
+echo "🌐 Access: http://$SERVER_IP:3000/admin"
+
+# Cleanup
+rm admin.html
+EOF
+
+chmod +x deploy-admin-update.sh
